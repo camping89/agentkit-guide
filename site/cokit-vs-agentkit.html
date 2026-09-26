@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>So sánh CoKit và AgentKit (Engineer Kit): báo cáo có dẫn chứng</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%237c9cff'/><text x='16' y='22' font-size='14' text-anchor='middle' font-family='sans-serif' font-weight='700' fill='%230e1117'>vs</text></svg>">
+<style>
+:root { --bg:#0e1117; --panel:#161b22; --line:#2a3242; --text:#e6edf3; --muted:#8b96a8; --accent:#7c9cff; --ck:#f5b454; --ak:#3ddc97; --code:#0b0f15; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Inter","Segoe UI",system-ui,sans-serif; }
+main { max-width: 1500px; margin: 0 auto; padding: 32px 28px 80px; }
+h1 { font-size: 2rem; margin: 0 0 .3em; letter-spacing: -.02em; }
+h2 { font-size: 1.35rem; margin: 2em 0 .6em; padding-bottom: .3em; border-bottom: 1px solid var(--line); }
+h3 { font-size: 1.08rem; margin: 1.4em 0 .5em; }
+a { color: var(--accent); }
+code { font: .84em "JetBrains Mono","Fira Code",ui-monospace,monospace; background: var(--code); border: 1px solid var(--line); padding: 1px 5px; border-radius: 5px; color: #c9d7ff; word-break: break-word; }
+code.ck { color: var(--ck); border-color: #5a4524; }
+code.ak { color: var(--ak); border-color: #1f5a44; }
+pre { background: var(--code); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; }
+pre code { border: 0; padding: 0; background: none; color: #d5def0; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; color: var(--muted); font-size: .9em; margin: .4em 0 1.2em; }
+.legend b.ck { color: var(--ck); } .legend b.ak { color: var(--ak); }
+.wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: .9em; }
+th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { background: var(--panel); position: sticky; top: 0; }
+table.cmp { min-width: 1200px; }
+table.cmp td:nth-child(3) { border-left: 3px solid var(--ck); }
+table.cmp td:nth-child(5) { border-left: 3px solid var(--ak); }
+table.cmp td:nth-child(4), table.cmp td:nth-child(6) { font-size: .88em; color: #b9c3d3; }
+table.cmp td:nth-child(2) { font-weight: 600; white-space: nowrap; }
+tr:nth-child(even) td { background: #12171f; }
+li { margin: .25em 0; }
+footer { margin-top: 3em; color: var(--muted); font-size: .85em; }
+</style></head><body><main>
+<h1>So sánh CoKit và AgentKit (Engineer Kit): báo cáo có dẫn chứng</h1>
+<div class="legend"><span><b class="ck">CK:</b> file trong repo CoKit (<code>camping89/cokit</code>)</span><span><b class="ak">AK: / $CACHE</b> file của bản AgentKit đã cài</span><span>Mọi dòng đều có dẫn chứng file:dòng hoặc output lệnh.</span></div>
+<ul>
+<li>Ngày: 2026-09-26 (Asia/Saigon)</li>
+<li>Nguồn CoKit: <code>gh repo clone camping89/cokit /tmp/cokit-src</code>, HEAD <code>ae167eb chore(release): v1.5.1</code>. Site https://camping89.github.io/cokit/ chỉ trỏ về đúng repo này, không có upstream nào khác được liên kết công khai.</li>
+<li>Nguồn AgentKit: bản cài local <code>ak 2.18.1</code>, Engineer Kit <code>0.2.0</code>, runtime <code>claude-code</code>. Chỉ xét Engineer Kit, bỏ qua marketing.</li>
+<li>Quy ước: <code class="ck">CK:</code> là đường dẫn tương đối trong <code>/tmp/cokit-src</code>. <code class="ak">AK:</code> là đường dẫn tuyệt đối trên máy. <code class="ak">$CACHE</code> = <code>~/.agentkit/cache/kits/engineer/claude-code/2.18.1</code>.</li>
+</ul>
+<h2 id="1-tom-tat">1. Tóm tắt</h2>
+<ul>
+<li><strong>Nhắm tới runtime khác nhau.</strong> CoKit là gói nội dung cho <strong>GitHub Copilot</strong>: VS Code Copilot Chat và Copilot CLI, cài vào <code>.github/</code> hoặc <code>~/.copilot/</code>. AgentKit Engineer là kit trả phí (<code>tier: "paid"</code>) cho <strong>Claude Code</strong>, cài vào <code>~/.claude/</code>. CLI <code>ak</code> còn có emitter cho <code>codex</code>, <code>grok</code> và <code>portable</code>.</li>
+<li><strong>Chung một gốc ClaudeKit.</strong> CoKit tự mô tả là port từ "ClaudeKit upstream": <code class="ck">CK:README.md:94-96</code>, <code class="ck">CK:docs/upstream-porting-rules.md</code>. AgentKit có lệnh <code>ak migrate</code> để "Migrate an existing ClaudeKit install" và tên file vẫn giữ tiền tố <code>ck-</code>, ví dụ <code>ck-config-utils.cjs</code>. Agent planner của hai bên mở đầu bằng cùng một câu "You are a <strong>Tech Lead</strong> locking architecture before code is written".</li>
+<li><strong>CoKit chỉ có nội dung tĩnh.</strong> Không có hook, không có tầng trạng thái, và việc fan-out agent song song không được Copilot hỗ trợ (<code class="ck">CK:docs/upstream-porting-rules.md:30-33</code>). AgentKit có 8 loại sự kiện hook với khoảng 16 script chính: bơm context, chặn truy cập nhạy cảm, lưu checkpoint phiên. Ngoài ra có kho plan cục bộ (<code>ak plan</code>), cập nhật binary có chữ ký, backup/recover và audit drift.</li>
+<li><strong>Số lượng</strong> (đếm bằng lệnh):</li>
+<li>CoKit: 31 prompt, 13 agent, 31 skill (32 thư mục skill; <code>ck-common</code> không có <code>SKILL.md</code>), 5 instruction, 5 collection.</li>
+<li>AgentKit Engineer: 102 skill và 16 agent (theo <code>install-manifest.json</code> và <code>kit.yaml</code>), 8 rule, 60 mục hook trong <code>kit.yaml</code> (kể cả file thư viện).</li>
+<li><strong>CoKit có nhiều chỗ không khớp nội bộ</strong> (mục 4):</li>
+<li>Có prompt gọi script không tồn tại.</li>
+<li>Skill dựa vào "Plan Context injected by hooks" trong khi CoKit không có hook.</li>
+<li>Thông báo cập nhật gợi ý cờ <code>-g</code> mà lệnh <code>init</code> không có.</li>
+<li><code>npx cokit</code> trỏ nhầm sang một gói npm khác.</li>
+<li><code>doctor</code> đòi file mà <code>init</code> không tạo.</li>
+<li>Số liệu trên site tự mâu thuẫn.</li>
+<li><strong>Giấy phép.</strong></li>
+<li>CoKit dùng CC BY-NC 4.0, cấm dùng thương mại và dùng nội bộ công ty.</li>
+<li>AgentKit là kit trả phí, cần đăng nhập và license. Từng skill mang license riêng (49 MIT, 4 Apache-2.0, …; 87 skill không khai báo). Không xác minh được license tổng của AgentKit.</li>
+</ul>
+<h2 id="2-bang-so-sanh">2. Bảng so sánh</h2>
+<div class="wrap"><table class="cmp">
+<thead>
+<tr>
+<th>#</th>
+<th>Tiêu chí</th>
+<th>CoKit</th>
+<th>Dẫn chứng CoKit</th>
+<th>AgentKit Engineer</th>
+<th>Dẫn chứng AgentKit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Runtime đích</td>
+<td>GitHub Copilot: VS Code Copilot Chat và Copilot CLI ("CLI-first"). Cần Node ≥18.</td>
+<td><code class="ck">CK:package.json</code> (<code>"engines": {"node": "&gt;=18.0.0"}</code>); <code class="ck">CK:docs/upstream-porting-rules.md:86</code> "CoKit ships <strong>CLI-first</strong> (<code>npx cokit-cli init</code> → GitHub Copilot)"; <code class="ck">CK:src/commands/init.js:91-92</code> "Open VS Code and start using Copilot… /ck-fix in Copilot Chat"</td>
+<td>Claude Code (adapter <code>claude-code</code>). CLI có thể emit sang target khác.</td>
+<td><code class="ak">$CACHE/.agentkit-cache/manifest.json</code>: <code>'runtime': 'claude-code'</code>; <code>ak kit install --help</code>: <code>--target string  Emitter target ID … (e.g. claude-code,codex,grok) (default "claude-code")</code>; <code>ls ~/.agentkit/adapters/claude-code</code> → <code>engineer marketing</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Các tầng kiến trúc</td>
+<td>5 loại tài nguyên: Prompts (slash command), Agents, Skills, Instructions (áp theo glob <code>applyTo</code>), Collections. Kèm CLI <code>cokit</code> (Node/commander). Không có hook, không có rules được cài.</td>
+<td><code class="ck">CK:AGENTS.md:7-11</code> (liệt kê 5 loại); <code class="ck">CK:docs/copilot-processing-flow.md:11-17</code> (bảng Trigger); <code class="ck">CK:instructions/ck-frontend.instructions.md:3</code> <code>applyTo: '**/*.tsx,…'</code>; <code>git ls-files \| grep -i hook</code> → rỗng</td>
+<td>Skills (<code>~/.claude/skills/ak-*</code>), Agents (<code>~/.claude/agents</code>), Hooks (<code>~/.claude/hooks/*.cjs</code> + <code>hooks.json</code>, đăng ký trong <code>settings.json</code>), Rules (<code>~/.claude/rules/*.md</code>), output-styles, statusline, scripts. Kèm CLI <code>ak</code> (binary).</td>
+<td><code class="ak">$CACHE/engineer/kit.yaml:6,39,161,178,181,192,397</code> (các mục <code>agents/hooks/rules/schemas/scripts/skills/statusline</code>); <code class="ak">AK:~/.claude/settings.json:414-416</code> (statusLine → <code>ak-engineer-statusline.cjs</code>); <code>ls ~/.claude/output-styles</code> → 6 file <code>coding-level-0..5</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Cài đặt</td>
+<td><code>npx cokit-cli init</code>, hỏi tương tác: Project (<code>.github/</code> + <code>.vscode/</code>) / Global (<code>~/.copilot/{agents,prompts,instructions,skills}</code>) / Both. Cờ <code>-y</code>, <code>--overwrite</code>. <code>cokit add &lt;skill&gt; [--local]</code> để cài từng skill. Chỉ là copy thư mục.</td>
+<td><code class="ck">CK:README.md:8-10</code>; <code class="ck">CK:src/commands/init.js:27-29</code> (options), <code>:39-48</code> (3 lựa chọn), <code>:131-172</code> (copy agents/prompts/instructions/skills; <strong>không copy collections</strong> khi cài global); <code class="ck">CK:src/utils/paths.js</code> (<code>~/.copilot/...</code>); <code class="ck">CK:src/commands/add.js:17-22</code></td>
+<td><code>ak kit install engineer [-g] [--skills] [--exclude-skills] [--select-skills] [--channel] [--target]</code>. Tải từ registry có xác thực (artifact trên R2, có <code>sha256</code> + <code>signature</code>), ghi manifest và hash để phát hiện drift, backup trước khi cài.</td>
+<td><code>ak kit install --help</code> (các cờ <code>--global</code>, <code>--remote … authenticated remote registry</code>, <code>--no-backup … skip pre-install recovery snapshots</code>); <code class="ak">$CACHE/.agentkit-cache/manifest.json</code> (<code>artifact</code> gồm <code>sha256</code>, <code>signature</code>; <code>resolvedFrom: core 0.1.0 + engineer 0.2.0</code>); <code class="ak">AK:~/.agentkit/adapters/claude-code/engineer/.agentkit/install-manifest.json:2-4,5-33</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Cập nhật</td>
+<td><code>cokit update</code> chỉ in hướng dẫn "npx always fetches latest" và bảo chạy lại <code>init --overwrite</code>. Có update-checker gọi npm registry, cache 24h ở <code>~/.cokit/update-check.json</code>.</td>
+<td><code class="ck">CK:src/commands/update.js</code> (toàn file, dòng <code>info('CoKit is distributed via npx - it always uses the latest version.')</code>); <code class="ck">CK:src/utils/update-checker.js</code> (<code>CACHE_DIR = ~/.cokit</code>, <code>CHECK_INTERVAL_MS = 24h</code>, <code>NPM_REGISTRY_URL</code>)</td>
+<td><code>ak update</code> (wizard: self-update binary có chữ ký → kit global → kit project; bỏ qua file người dùng đã sửa; snapshot trước khi thay đổi), <code>ak self-update</code> (kênh dev/beta/stable), <code>ak audit</code>, <code>ak backups</code>, <code>ak recover</code>.</td>
+<td><code>ak update --help</code> ("Clean files are overwritten; user-modified files are skipped… A pre-update project snapshot is taken"); <code>ak self-update --help</code> ("Check or apply signed AgentKit binary updates"); <code>ak --help</code> (mục Inspect &amp; diagnose: <code>audit</code>, <code>backups</code>, <code>recover</code>)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Số skill</td>
+<td>31 <code>SKILL.md</code> / 32 thư mục (<code>ck-common</code> là thư mục dùng chung, không có <code>SKILL.md</code>). README ghi 31; <code>docs/copilot-processing-flow.md</code> ghi 30.</td>
+<td>Lệnh <code>ls skills/*/SKILL.md \| wc -l</code> → <code>31</code>; <code>ls -d skills/*/ \| wc -l</code> → <code>32</code>; <code class="ck">CK:README.md:81</code>; <code class="ck">CK:docs/copilot-processing-flow.md:25</code></td>
+<td><strong>102</strong> skill trong Engineer Kit (trên đĩa có 144 <code>ak-*</code>; 42 skill còn lại thuộc kit marketing).</td>
+<td><code>install-manifest.json:141-142</code> <code>"selected_count": 102, "total_count": 102</code>; <code>kit.yaml</code> đếm mục <code>skills</code> = 102; script so sánh: <code>manifest 102 disk 144</code>, <code>on disk, not in engineer manifest: 42</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>Số agent</td>
+<td>13 (<code>ck-*.agent.md</code>). Site ghi 12 ở hero, 13 ở chỗ khác.</td>
+<td><code>ls agents/*.agent.md \| wc -l</code> → <code>13</code>; <code class="ck">CK:index.html:1220</code> (<code>stat-num</code> 12) vs <code>:1321</code> (13 agents)</td>
+<td><strong>16</strong>: advisor, brainstormer, code-reviewer, code-simplifier, debugger, docs-manager, Explore, fullstack-developer, git-manager, journal-writer, kongming, planner, project-manager, researcher, tester, ui-ux-designer. (<code>~/.claude/agents</code> có 35 file, gồm cả agent marketing.)</td>
+<td><code class="ak">$CACHE/engineer/kit.yaml:6-38</code>; <code>native-skill-paths.json</code> → <code>engineer … agents 16</code>; <code>ls ~/.claude/agents \| wc -l</code> → <code>35</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td>Số prompt/lệnh</td>
+<td>31 prompt <code>ck-*.prompt.md</code>; site hero ghi 27.</td>
+<td><code>ls prompts/*.prompt.md \| wc -l</code> → <code>31</code>; <code class="ck">CK:index.html:1216</code> (27) vs <code>:1307</code> (31)</td>
+<td>Không có tầng prompt riêng: skill <code>user-invocable: true</code> đóng vai slash command <code>/ak:&lt;name&gt;</code>.</td>
+<td><code class="ak">AK:~/.claude/skills/ak-cook/SKILL.md:2</code> <code>name: ak:cook</code>; các file <code>ak-*/SKILL.md</code> đều có <code>user-invocable: true</code> ở dòng 4 (xem <code>ak-agentkit</code>, <code>ak-cook</code>, <code>ak-plan</code>, …)</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Xử lý một yêu cầu</td>
+<td>Người dùng gõ <code>/ck-xxx</code> → prompt (<code>${input}</code>) → prompt tự định tuyến bằng cây quyết định từ khóa sang prompt con, rồi nhờ agent bằng ngôn ngữ tự nhiên. Instruction tự áp theo glob. Skill tự nạp theo ngữ cảnh. Không có vòng đời hook.</td>
+<td><code class="ck">CK:docs/copilot-processing-flow.md:11-17</code>; <code class="ck">CK:prompts/ck-fix.prompt.md:7-36</code> (cây quyết định A–G); <code class="ck">CK:prompts/ck-plan.prompt.md:18-30</code>; <code class="ck">CK:docs/upstream-porting-rules.md</code> §3 "<code>Task(subagent_type="X")</code> → Natural language delegation"</td>
+<td>Vòng đời hook của Claude Code: <strong>SessionStart</strong> (<code>session-init</code>) → <strong>UserPromptSubmit</strong> (<code>secret-output-guardrail</code>, <code>simplify-gate</code>, <code>dev-rules-reminder</code>, <code>usage-quota-cache-refresh</code>) → <strong>PreToolUse</strong> (<code>descriptive-name</code>, <code>privacy-block</code>, <code>scout-block</code>, <code>context-firewall</code>) → <strong>PostToolUse</strong> (<code>dev-rules-reminder</code>, <code>plan-format-kanban</code>, <code>session-state</code>, <code>agent-behavior-linter</code>) → <strong>SubagentStart</strong> (<code>subagent-init</code>, <code>team-context-inject</code>) / <strong>SubagentStop</strong> → <strong>Stop</strong> (<code>cook-after-plan-reminder</code>, <code>session-state</code>) → <strong>PreCompact</strong> (<code>precompact-capture</code>). Việc định tuyến do skill <code>ak:agentkit</code> và rule <code>skill-domain-routing.md</code> đảm nhận.</td>
+<td><code class="ak">AK:~/.agentkit/adapters/claude-code/engineer/.agentkit/native-hook-expectations.json</code> (bảng event→script in ở mục 5, lệnh 13); <code class="ak">AK:~/.claude/skills/ak-agentkit/SKILL.md:14-39</code> ("Return one concrete route to an installed owner…"); <code class="ak">AK:~/.claude/rules/skill-domain-routing.md:7,16</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td>Skill quy trình: plan</td>
+<td><code>/ck-plan</code> định tuyến sang <code>/ck-plan-fast</code>, <code>/ck-plan-hard</code>, <code>/ck-plan-validate</code>, <code>/ck-plan-red-team</code>. Cờ upstream <code>--hard/--fast</code> bị tách thành prompt riêng.</td>
+<td><code class="ck">CK:prompts/ck-plan.prompt.md:18-30</code>; <code class="ck">CK:docs/upstream-porting-rules.md:65-66</code> "Flag → separate command"</td>
+<td><code>/ak:plan [task] [--fast\|--hard\|--deep\|--parallel\|--two\|--debate\|--ultra] [--tdd\|--no-tasks] [--html] [--github] [--wiki] [--advice] [--yagni] … OR [archive\|red-team\|validate]</code>, cộng CLI <code>ak plan</code> (parse/validate/kanban/store).</td>
+<td><code class="ak">AK:~/.claude/skills/ak-plan/SKILL.md:8</code>; <code>ak plan --help</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td>Skill quy trình: cook</td>
+<td><code>/ck-cook</code> phát hiện ý định từ <strong>từ khóa</strong> ("fast", "trust me", "no test"…); skill <code>ck-cook</code> có <code>argument-hint</code> kèm cờ. Có cổng review, auto-approve khi score ≥9.5.</td>
+<td><code class="ck">CK:prompts/ck-cook.prompt.md:13-22,33-40,56-59</code>; <code class="ck">CK:skills/ck-cook/SKILL.md:4</code> <code>[--interactive\|--fast\|--parallel\|--auto\|--no-test] [--tdd]</code></td>
+<td><code>/ak:cook [task\|plan-path] [--interactive\|--fast\|--parallel\|--auto\|--no-test] [--tdd] [--advice] [--yagni] [--skip-journal]</code>; <code>--yagni</code> là opt-in; có bước journal (opt-out).</td>
+<td><code class="ak">AK:~/.claude/skills/ak-cook/SKILL.md:8,27-45,64</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td>Skill quy trình: fix</td>
+<td><code>/ck-fix</code> định tuyến sang 7 prompt con: <code>ck-fix-types/-ui/-ci/-test/-logs/-hard/-fast</code>.</td>
+<td><code class="ck">CK:prompts/ck-fix.prompt.md:17-36</code>; <code>ls prompts</code></td>
+<td><code>/ak:fix [issue] --auto\|--review\|--quick\|--parallel [--ultra] [--advice] [--skip-journal]</code> (một skill dùng cờ).</td>
+<td><code class="ak">AK:~/.claude/skills/ak-fix/SKILL.md:8</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td>Skill quy trình: review</td>
+<td><code>/ck-review</code>: 2 researcher song song + nhiều <code>ck-code-reviewer</code> song song + planner. Mô tả này trái với giới hạn "Parallel agent fan-out NOT supported" do chính dự án ghi.</td>
+<td><code class="ck">CK:prompts/ck-review.prompt.md:24,30,36</code>; <code class="ck">CK:docs/upstream-porting-rules.md:30</code></td>
+<td><code>/ak:code-review [#PR \| COMMIT \| --pending \| codebase [parallel]] [--ultra] [--advice] [--yagni]</code>; thêm <code>ak:review-pr</code>, agent <code>code-reviewer</code>.</td>
+<td><code class="ak">AK:~/.claude/skills/ak-code-review/SKILL.md:8</code>; <code>kit.yaml:33-34</code></td>
+</tr>
+<tr>
+<td>13</td>
+<td>Skill quy trình: git/ship</td>
+<td><code>/ck-git cm\|cp\|pr\|merge</code>; quét secret bằng <code>grep</code>; prompt <code>ck-ship</code>.</td>
+<td><code class="ck">CK:prompts/ck-git.prompt.md:4,14-19,32-37</code>; <code>ls prompts</code> → <code>ck-ship.prompt.md</code></td>
+<td><code>/ak:git cm\|cp\|pr\|merge\|merge-pr\|stack</code>; <code>/ak:ship [official\|beta…] [--merge] [--skip-tests] … [--dry-run]</code>.</td>
+<td><code class="ak">AK:~/.claude/skills/ak-git/SKILL.md:8</code>; <code class="ak">AK:~/.claude/skills/ak-ship/SKILL.md:8</code></td>
+</tr>
+<tr>
+<td>14</td>
+<td>Kiểu tham số</td>
+<td>Prompt nhận văn bản tự do qua <code>${input}</code>, đổi từ <code>$ARGUMENTS</code>. Biến thể là <strong>prompt riêng</strong> nối bằng gạch ngang (<code>/fix:types</code> → <code>/ck-fix-types</code>). Chế độ đoán từ từ khóa.</td>
+<td><code class="ck">CK:docs/upstream-porting-rules.md:51,63-66</code>; <code class="ck">CK:prompts/ck-cook.prompt.md:9,15-22</code></td>
+<td>Cờ kiểu POSIX <code>--flag</code> trong <code>argument-hint</code>. Tên có namespace <code>ak:</code>. Có cờ chung giữa các skill: <code>--advice</code>, <code>--yagni</code>, <code>--ultra</code>, <code>--skip-journal</code>.</td>
+<td><code>ak-cook/SKILL.md:8</code>, <code>ak-plan/SKILL.md:8</code>, <code>ak-fix/SKILL.md:8</code>, <code>ak-code-review/SKILL.md:8</code></td>
+</tr>
+<tr>
+<td>15</td>
+<td>Phiên/trạng thái</td>
+<td><strong>Không có</strong> cơ chế trạng thái. Copilot không có persistent memory, plan mode hay task API; trường <code>memory:</code> bị gỡ khi port. Chỉ có cache update-check ở <code>~/.cokit</code>.</td>
+<td><code class="ck">CK:docs/upstream-porting-rules.md:32-33,89</code>; <code class="ck">CK:src/utils/update-checker.js</code> (<code>~/.cokit/update-check.json</code>)</td>
+<td>Hook <code>session-state.cjs</code> làm mới snapshot statusline ở PostToolUse/SubagentStop và gọi <code>persistProjectCheckpoint</code> khi Stop. Trạng thái nằm ở <code>~/.agentkit/session-states/v2/&lt;runtime&gt;/&lt;projectKey&gt;/{checkpoints,revisions}</code>. Có <code>precompact-capture</code>, <code>ak sessions</code>, kho plan <code>~/.agentkit/plans/plans.db</code>. Agent khai báo <code>memory: project</code>.</td>
+<td><code class="ak">AK:~/.claude/hooks/session-state.cjs:17,30-36</code>; <code class="ak">AK:~/.claude/hooks/lib/project-handoff-store.cjs:53-58</code>; <code>ls ~/.agentkit/plans</code> → <code>plans.db</code>; <code class="ak">AK:~/.claude/agents/planner.md:5</code> <code>memory: project</code></td>
+</tr>
+<tr>
+<td>16</td>
+<td>Quy ước docs/plans</td>
+<td>Plan ở <code>./plans/&lt;YYMMDD-HHmm&gt;-&lt;slug&gt;/</code> với <code>plan.md</code> + <code>phase-XX-*.md</code> + <code>reports/</code>. Docs chuẩn: <code>codebase-summary.md</code>, <code>code-standards.md</code>, <code>system-architecture.md</code>, <code>project-overview-pdr.md</code>.</td>
+<td><code class="ck">CK:skills/ck-planning/references/plan-organization.md:9</code> (<code>plans/251101-1505-authentication/</code>), <code>:17-21</code>; <code class="ck">CK:skills/ck-planning/SKILL.md:12,276-278</code>; <code class="ck">CK:prompts/ck-plan-hard.prompt.md:49</code>; <code class="ck">CK:prompts/ck-review.prompt.md:38-39</code></td>
+<td>Mặc định <code>namingFormat: '{date}-{issue}-{slug}'</code>, <code>dateFormat: 'YYMMDD-HHmm'</code>, <code>reportsDir: 'reports'</code>, <code>paths.docs: 'docs'</code>. Hook bơm các mục <code>## Plan Context</code> / <code>## Naming</code> vào phiên và subagent. Rule <code>documentation-management.md</code> <strong>không</strong> áp layout docs cố định.</td>
+<td><code class="ak">AK:~/.claude/hooks/lib/ck-config-utils.cjs:20-40</code>; <code class="ak">AK:~/.claude/hooks/lib/context-builder.cjs:563,585-587</code>; <code class="ak">AK:~/.claude/hooks/subagent-init.cjs:197-202,218-222</code>; <code class="ak">AK:~/.claude/rules/documentation-management.md</code> ("Do not assume a fixed filename list or docs tree")</td>
+</tr>
+<tr>
+<td>17</td>
+<td>License/phân phối</td>
+<td>CC BY-NC 4.0 (cấm thương mại và dùng nội bộ công ty). Phân phối miễn phí qua npm <code>cokit-cli</code> (maintainer <code>camping89</code>) và repo public. GitHub API báo license là "Other".</td>
+<td><code class="ck">CK:LICENSE:1,15-16,26-29</code>; <code class="ck">CK:package.json</code> <code>"license": "CC-BY-NC-4.0"</code>; <code>npm view cokit-cli</code> → <code>"license": "CC-BY-NC-4.0"</code>, <code>latest 1.5.1</code>; <code>gh repo view</code> → <code>"licenseInfo":{"key":"other"}</code></td>
+<td>Kit <strong>trả phí</strong>, cần login/license, tải từ registry có xác thực. License của từng skill khác nhau. Repo <code>bestagentkits/agentkit</code> (ghi trong <code>ak --help</code>) <strong>không truy cập được</strong> từ tài khoản hiện tại; license tổng: <strong>unverified</strong>.</td>
+<td><code class="ak">$CACHE/engineer/kit.yaml:4</code> <code>tier: "paid"</code>; <code>ak licenses</code> → <code>engineer (active)</code>; <code>ak --help</code> (mục Account: <code>licenses</code>, <code>login</code>, <code>whoami</code>); <code>grep -h '^license:' ak-*/SKILL.md \| uniq -c</code> → 49 MIT, 4 Apache-2.0, 3 "Complete terms in LICENSE.txt", 1 Apache+MIT; 87 không có trường này; <code>gh repo view bestagentkits/agentkit</code> → "Could not resolve to a Repository"</td>
+</tr>
+<tr>
+<td>18</td>
+<td>Tính năng riêng</td>
+<td>(a) Cài 2 phạm vi project <code>.github/</code> và global <code>~/.copilot/</code>, chia sẻ qua git. (b) Instruction theo glob file. (c) Collections YAML. (d) Template <code>.vscode/settings.json</code>. (e) Pipeline đồng bộ upstream ClaudeKit (<code>eng/sync.mjs</code>, <code>resource-origins.yml</code>). (f) Slide đào tạo PDF EN/VI. (g) <code>cokit add</code> cài từng skill.</td>
+<td><code class="ck">CK:src/commands/init.js:44-46</code>; <code class="ck">CK:instructions/*.instructions.md</code> (<code>applyTo</code>); <code class="ck">CK:collections/ck-core.collection.yml</code>; <code class="ck">CK:templates/repo/.vscode/settings.json</code>; <code class="ck">CK:eng/resource-origins.yml:1-12</code>; <code class="ck">CK:docs/Skills  Orchestration Layer - Training Slides - {en,vi}.pdf</code>; <code class="ck">CK:src/commands/add.js:17-22</code></td>
+<td>(a) Hook bảo vệ: <code>privacy-block</code>, <code>scout-block</code> (chặn truy cập <code>node_modules</code>/<code>dist</code>…), <code>context-firewall</code> (giới hạn lượng context mỗi lần gọi tool), <code>secret-output-guardrail</code>, <code>simplify-gate</code> (chặn ship khi diff lớn chưa simplify). (b) Agent <code>kongming</code>/<code>advisor</code> để hỏi ý kiến model mạnh. (c) 6 output-style "coding level". (d) Statusline. (e) Thông báo Telegram/Discord/Slack. (f) Kho plan + kanban. (g) <code>ak orchestrate</code>, <code>eval</code>, <code>insights</code>, <code>audit</code>, <code>recover</code>. (h) Emitter đa target.</td>
+<td><code class="ak">AK:~/.claude/hooks/scout-block.cjs:3-12</code>; <code class="ak">AK:~/.claude/hooks/context-firewall.cjs:3-13</code>; <code class="ak">AK:~/.claude/hooks/simplify-gate.cjs:3-9</code>; <code class="ak">AK:~/.claude/hooks/secret-output-guardrail.cjs:3-4</code>; <code>kit.yaml:17-18,27-28</code>; <code>ls ~/.claude/output-styles</code>; danh sách <code>hooks/notifications/providers/{telegram,discord,slack}.cjs</code> trong <code>native-skill-paths.json</code>; <code>ak --help</code></td>
+</tr>
+<tr>
+<td>19</td>
+<td>Rules</td>
+<td>Thư mục <code>rules/</code> chỉ là hướng dẫn viết file cho người đóng góp (tiếng Việt). Không có trong <code>files</code> của <code>package.json</code>, nên không được cài. Tầng tương đương rule là 5 file <code>instructions</code> theo glob.</td>
+<td><code class="ck">CK:rules/README.md:1-3</code> ("Rules để tạo và verify các file types cho GitHub Copilot"); <code class="ck">CK:package.json</code> (<code>files</code> không có <code>rules/</code>)</td>
+<td>8 rule toàn cục trong <code>~/.claude/rules/</code>: development-rules, documentation-management, orchestration-protocol, primary-workflow, process-management, review-audit-self-decision, skill-domain-routing, skill-workflow-routing.</td>
+<td><code>ls ~/.claude/rules \| wc -l</code> → <code>8</code>; <code>kit.yaml</code> mục <code>rules</code> = 8</td>
+</tr>
+<tr>
+<td>20</td>
+<td>Gốc chung ClaudeKit</td>
+<td>Tự nhận là port từ ClaudeKit: gỡ phần chỉ dành cho Claude (artifact-gate hook, chrome-profile…); đổi <code>subagent</code> → <code>agent</code>, <code>.claude/</code> → <code>$HOME/.copilot/</code>.</td>
+<td><code class="ck">CK:README.md:94-96</code>; <code class="ck">CK:docs/upstream-porting-rules.md:51-56</code>; mô tả repo "inspired by Speckit, Superpower and Claude Kit" (<code>gh repo view</code>)</td>
+<td>Có lệnh migrate từ ClaudeKit, cơ chế "ClaudeKit takeover", tên file giữ tiền tố <code>ck-</code>. Agent planner có cùng câu mở đầu với <code>ck-planner</code> của CoKit.</td>
+<td><code>ak --help</code> ("migrate  Migrate an existing ClaudeKit install to AgentKit"); <code>ak kit install --help</code> (<code>--no-backup … also skip ClaudeKit takeover</code>); <code>install-manifest.json:11</code> (<code>ck-config.schema.json</code>); <code class="ak">AK:~/.claude/agents/planner.md:9</code> vs <code class="ck">CK:agents/ck-planner.agent.md:6</code> (cùng câu "You are a <strong>Tech Lead</strong> locking architecture before code is written")</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="3-nhan-inh">3. Nhận định</h2>
+<ul>
+<li>CoKit hợp với nhóm dùng Copilot cần bộ prompt/agent kiểu ClaudeKit miễn phí, cho mục đích phi thương mại. Nó phụ thuộc hoàn toàn vào việc Copilot tự tuân theo văn bản, không có tầng thực thi như hook hay trạng thái.</li>
+<li>AgentKit Engineer là nền tảng vận hành đầy đủ hơn cho Claude Code: hook cưỡng chế, trạng thái phiên, kho plan, cập nhật có chữ ký. Đổi lại, nó trả phí và độ phức tạp cao hơn nhiều: 102 skill, 60 mục hook.</li>
+</ul>
+<h2 id="4-cac-khang-inh-sai-hoac-chua-chac-chan">4. Các khẳng định sai hoặc chưa chắc chắn</h2>
+<h3 id="sai-co-bang-chung">Sai (có bằng chứng)</h3>
+<ol>
+<li><strong>Số liệu trên site CoKit tự mâu thuẫn.</strong> Hero ghi 27 prompt / 12 agent / 23 skill (<code class="ck">CK:index.html:1216,1220,1224</code>), phần dưới ghi 31/13/31 (<code>:1307,1321,1335</code>). Thực đếm được 31/13/31.</li>
+<li><strong><code>docs/copilot-processing-flow.md</code> lỗi thời.</strong></li>
+<li>Ghi "Skills (30 total)" (<code>:25</code>), thực tế 31.</li>
+<li>Ví dụ frontmatter dùng <code>mode: agent</code> (<code>:42</code>), trong khi prompt thật dùng <code>agent: 'agent'</code> (<code class="ck">CK:prompts/ck-fix.prompt.md:2</code>).</li>
+<li>Nhắc lệnh <code>/ck-review-codebase</code> (<code>:60</code>), lệnh này không tồn tại: <code>ls prompts | grep -c review-codebase</code> → <code>0</code>.</li>
+<li><strong>Thông báo cập nhật của CoKit gợi ý <code>npx cokit-cli@latest init -g</code></strong> (<code class="ck">CK:src/utils/update-checker.js</code>, hàm <code>showUpdateNotification</code>). Lệnh <code>init</code> không có cờ <code>-g</code>, chỉ có <code>-y</code> và <code>--overwrite</code> (<code class="ck">CK:src/commands/init.js:27-29</code>).</li>
+<li><strong><code>cokit update</code> và <code>cokit add</code> bảo chạy <code>npx cokit …</code></strong> (<code class="ck">CK:src/commands/update.js</code>, <code class="ck">CK:src/commands/add.js</code>, dòng <code>hint('Run: npx cokit add &lt;skill-name&gt;')</code>). Trên npm, gói <code>cokit</code> là một gói khác: <code>npm view cokit</code> → <code>version 0.5.4</code>, maintainer <code>imcoka</code>, mô tả "打包程序！". Gói đúng là <code>cokit-cli</code>, maintainer <code>camping89</code>.</li>
+<li><strong>Prompt CoKit gọi script không được phân phối.</strong> <code>node $HOME/.copilot/scripts/set-active-plan.cjs</code> (<code class="ck">CK:prompts/ck-plan-hard.prompt.md:43</code>, <code>ck-plan-fast.prompt.md:43</code>) và <code>python $HOME/.copilot/scripts/ck-help.py</code> (<code class="ck">CK:prompts/ck-help.prompt.md:38</code>). <code>git ls-files | grep -E 'ck-help|\.cjs$'</code> chỉ ra file prompt, không có script nào. <code>init</code> cũng không tạo <code>~/.copilot/scripts</code>. Ngược lại, AgentKit có ship <code>set-active-plan.cjs</code> (<code>install-manifest.json:19</code>).</li>
+<li><strong>CoKit dựa vào "<code>## Plan Context</code> injected by hooks"</strong> (<code class="ck">CK:skills/ck-planning/SKILL.md:269</code>, và 5 prompt <code>ck-plan*</code>), nhưng repo không có hook nào (<code>git ls-files | grep -i hook</code> → rỗng). Bên AgentKit, context này do <code>lib/context-builder.cjs:563</code> tạo ra.</li>
+<li><strong><code>cokit doctor</code> báo lỗi nếu thiếu <code>.github/copilot-instructions.md</code></strong> (<code class="ck">CK:src/commands/doctor.js:23-29</code>), nhưng template <code>init</code> không chứa file này (<code>git ls-files | grep copilot-instructions</code> chỉ có <code>rules/README.copilot-instructions.md</code>). <code>doctor</code> cũng đòi <code>github.copilot.chat.useAgentSkills</code> (<code>:94-98</code>), mà template <code>.vscode/settings.json</code> không có key này.</li>
+<li><strong>Collections tham chiếu tên agent cũ</strong> chưa có tiền tố <code>ck-</code>: <code>agents/planner.agent.md</code> (<code class="ck">CK:collections/ck-core.collection.yml:8</code>, <code>ck-orchestration.collection.yml:6</code>), trong khi file thật là <code>agents/ck-planner.agent.md</code>. Cài global cũng không copy collections (<code>init.js:131-172</code>).</li>
+<li><strong><code>package.json</code> scripts <code>convert:*</code>, <code>rewrite</code>, <code>clean</code> trỏ tới <code>eng/convert-agents.mjs</code>, <code>convert-commands.mjs</code>, <code>convert-skills.mjs</code>, <code>rewrite-single-agent.mjs</code>, <code>clean-references.mjs</code>.</strong> Cả 5 file đều MISSING. <code>AGENTS.md</code> vẫn hướng dẫn <code>npm run convert:all</code>.</li>
+<li><strong><code>/ck-review</code> yêu cầu chạy agent song song</strong> (<code class="ck">CK:prompts/ck-review.prompt.md:24,30</code>), trái với chính bảng khả năng "Parallel agent fan-out | NOT supported" (<code class="ck">CK:docs/upstream-porting-rules.md:30</code>).</li>
+<li><strong><code>ak agents list</code> (và <code>--json</code>) trả về danh sách rỗng</strong> (<code>"agents": []</code>), dù <code>kit.yaml</code> khai báo 16 agent và file có trên đĩa. Vì vậy phải đếm agent qua <code>kit.yaml</code> và <code>native-skill-paths.json</code>, không đếm được qua lệnh này. <code>ak kit list-kits</code> thì trả về "Error: Command failed."</li>
+</ol>
+<h3 id="chua-chac-chan-unverified">Chưa chắc chắn / unverified</h3>
+<ul>
+<li>License tổng của sản phẩm AgentKit: unverified. Repo <code>bestagentkits/agentkit</code> không truy cập được; chỉ có <code>tier: "paid"</code> và license cấp skill.</li>
+<li>Engineer Kit có 102 skill nhưng một số có vẻ nghiêng marketing/sáng tạo (<code>ak-copywriting</code>, <code>ak-design</code>, <code>ak-ai-artist</code>). Chúng vẫn được tính vì nằm trong manifest Engineer. Việc phân loại "marketing" ở đây dựa trên manifest, không dựa trên nội dung.</li>
+<li>Cơ chế Claude Code tự nạp <code>~/.claude/rules/*.md</code>: không chứng minh được từ file của kit. Chỉ quan sát thấy các rule này được nạp vào ngữ cảnh phiên hiện tại.</li>
+<li>Copilot có thực sự tự nạp skill trong <code>~/.copilot/skills</code> "Auto by context" hay không (<code class="ck">CK:docs/copilot-processing-flow.md:16</code>): unverified, không kiểm thử trên Copilot.</li>
+<li>Gói npm <code>cokit-cli@1.5.1</code> có khớp 100% với repo HEAD không: unverified. Đã khớp version và license, nhưng chưa tải tarball để so.</li>
+<li><code>~/.claude/settings.json</code> còn có hook không thuộc Engineer Kit: <code>gh-account-hook.cjs</code>, <code>post-edit-simplify-reminder.cjs</code>, sự kiện <code>SessionEnd</code>. Các hook này không được tính vào AgentKit (không có trong <code>native-hook-expectations.json</code>).</li>
+<li>Version: kit Engineer là <code>0.2.0</code> (<code>kit.yaml:2</code>), trong khi thư mục cache/registry là <code>2.18.1</code> (trùng version CLI). Hai con số được đánh độc lập; ý nghĩa chính xác: unverified.</li>
+</ul>
+<h2 id="5-lenh-a-dung-chinh-xac">5. Lệnh đã dùng (chính xác)</h2>
+<pre><code class="language-bash"># CoKit: tìm và clone repo
+gh repo view camping89/cokit --json name,description,url,licenseInfo,homepageUrl,defaultBranchRef,isFork,parent
+gh search repos cokit --owner camping89
+gh repo clone camping89/cokit /tmp/cokit-src -- --depth 50
+cd /tmp/cokit-src &amp;&amp; git log --oneline | head -5        # ae167eb chore(release): v1.5.1
+# (WebFetch https://camping89.github.io/cokit/: footer chỉ link github.com/camping89/cokit, CC BY-NC 4.0)
+
+# CoKit: đếm tài nguyên
+cd /tmp/cokit-src &amp;&amp; echo &quot;prompts: $(ls prompts/*.prompt.md | wc -l)&quot;     # 31
+echo &quot;agents: $(ls agents/*.agent.md | wc -l)&quot;                             # 13
+echo &quot;skill dirs: $(ls -d skills/*/ | wc -l)&quot;                               # 32
+echo &quot;SKILL.md: $(ls skills/*/SKILL.md | wc -l)&quot;                            # 31 (thiếu: skills/ck-common/)
+echo &quot;instructions: $(ls instructions/*.md | wc -l)&quot;                        # 5
+echo &quot;collections: $(ls collections/*.yml | wc -l)&quot;                         # 5
+
+# CoKit: kiểm chứng các điểm không khớp
+git ls-files | grep -i -E 'set-active-plan|hook'                           # (rỗng)
+git ls-files | grep -E 'ck-help|\.cjs$'                                     # chỉ có prompts/ck-help.prompt.md
+git ls-files | grep copilot-instructions                                    # rules/README.copilot-instructions.md
+ls prompts | grep -c review-codebase                                        # 0
+for f in convert-agents convert-commands convert-skills rewrite-single-agent clean-references; do [ -f eng/$f.mjs ] &amp;&amp; echo &quot;$f present&quot; || echo &quot;$f MISSING&quot;; done   # tất cả MISSING
+grep -n -E 'Command\(|option\(|description\(' src/commands/*.js
+sed -n 1214,1226p index.html                                                # hero 27/12/23
+npm view cokit-cli version license dist-tags --json                         # 1.5.1, CC-BY-NC-4.0
+npm view cokit-cli maintainers                                              # camping89
+npm view cokit name version; npm view cokit repository.url maintainers description   # 0.5.4, imcoka, 打包程序！
+
+# AgentKit: CLI và manifest
+ak --version                                                                 # ak 2.18.1
+ak --help
+ak kit install --help ; ak update --help ; ak self-update --help ; ak plan --help ; ak sessions --help ; ak licenses --help
+ak licenses                                                                  # engineer (active), marketing (active)
+ak agents list --json                                                        # {&quot;data&quot;:{&quot;agents&quot;:[]}}
+ak kit list-kits                                                             # Error: Command failed.
+cat -n ~/.agentkit/adapters/claude-code/engineer/.agentkit/install-manifest.json   # kit_version 0.2.0, selected_count 102
+cat -n ~/.agentkit/cache/kits/engineer/claude-code/2.18.1/engineer/kit.yaml        # tier: &quot;paid&quot;
+gh repo view bestagentkits/agentkit --json visibility,licenseInfo,description      # Could not resolve to a Repository
+
+# AgentKit: đếm skill (manifest so với đĩa)
+cd ~/.claude/skills; ls -d ak-*/ | wc -l                                     # 144
+python3 - &lt;&lt;'EOF'
+import json,os
+d=json.load(open(os.path.expanduser('~/.agentkit/adapters/claude-code/engineer/.agentkit/install-manifest.json')))
+m=set(d['skill_selection']['skills'])
+disk=set(x for x in os.listdir('.') if x.startswith('ak-') and os.path.isfile(os.path.join(x,'SKILL.md')))
+print('manifest',len(m),'disk',len(disk)); print(sorted(m-disk)); print(len(disk-m))
+EOF
+# -&gt; manifest 102 disk 144 ; missing [] ; 42 skill ngoài Engineer (marketing)
+
+# AgentKit: đếm các mục export trong kit.yaml
+python3 - &lt;&lt;'EOF'
+import re
+t=open('engineer/kit.yaml').read(); sec=None; c={}
+for l in t.splitlines():
+  m=re.match(r'^  ([a-z_]+):',l)
+  if m: sec=m.group(1); continue
+  if re.match(r'^    - name:',l) and sec: c[sec]=c.get(sec,0)+1
+print(c)
+EOF
+# (chạy trong ~/.agentkit/cache/kits/engineer/claude-code/2.18.1)
+# -&gt; {'agents': 16, 'hooks': 60, 'rules': 8, 'schemas': 1, 'scripts': 5, 'skills': 102, 'statusline': 1}
+
+# AgentKit: agent theo kit (từ native-skill-paths.json)
+# engineer total 1721 agents 16 ; marketing agents 29
+ls ~/.claude/agents | wc -l                                                  # 35
+ls ~/.claude/rules | wc -l                                                   # 8
+
+# AgentKit: bảng hook event -&gt; script
+python3 - &lt;&lt;'EOF'
+import json,os
+d=json.load(open(os.path.expanduser('~/.agentkit/adapters/claude-code/engineer/.agentkit/native-hook-expectations.json')))
+for ev,groups in d['manifest']['hooks'].items():
+  for g in groups:
+    for h in g['hooks']:
+      print(f&quot;{ev:18} matcher={g.get('matcher','-'):32} {os.path.basename(h['args'][-1])}&quot;)
+EOF
+
+# AgentKit: license theo skill
+grep -rh -m1 '^license:' ak-*/SKILL.md | sort | uniq -c                      # 49 MIT, 4 Apache-2.0, 3 LICENSE.txt, 1 Apache+MIT
+for f in ak-*/SKILL.md; do grep -q '^license:' $f || echo $f; done | wc -l   # 87
+grep -n -m3 -E '^(name|argument-hint|license):' ak-{agentkit,cook,plan,fix,code-review,git,ship}/SKILL.md
+</code></pre>
+<h2 id="cau-hoi-con-mo">Câu hỏi còn mở</h2>
+<ul>
+<li>AgentKit có kênh phân phối hoặc license công khai nào khác repo <code>bestagentkits/agentkit</code> không? Cần người có quyền truy cập xác nhận.</li>
+<li>Có nên đưa "core kit 0.1.0" (mà Engineer mở rộng theo <code>resolvedFrom</code>) vào phạm vi so sánh không? Báo cáo này chỉ tính những gì <code>kit.yaml</code> của Engineer export.</li>
+</ul>
+<footer>Sinh từ <code>plans/reports/researcher-260926-1442-cokit-vs-agentkit.md</code> bằng <code>scripts/compare-html.py</code>. Xem thêm <a href="https://camping89.github.io/agentkit-guide/">AgentKit Guide</a>.</footer>
+</main></body></html>
