@@ -1,0 +1,1932 @@
+{
+ "ak-fix": {
+  "tagline": "Sửa bug, lỗi, test fail và CI hỏng với định tuyến thông minh: chứng minh nguyên nhân trước, rồi mới sửa và kiểm chứng.",
+  "summary": "ak:fix nhận một triệu chứng cụ thể (thông báo lỗi, test fail, CI đỏ, log lỗi, bug UI) và đưa nó đến bản sửa đã được kiểm chứng. Skill bắt buộc chứng minh root cause trước khi sửa (hard gate), chọn route quick/standard/deep theo độ phức tạp, rồi chạy lại đúng lệnh fail ban đầu cùng các check của caller bị ảnh hưởng. Đầu ra là bản sửa, regression test khi có ý nghĩa, báo cáo cause/đường dẫn thay đổi/bằng chứng verify, và journal tự động (có thể tắt). Trong workflow, fix thường đứng sau ak:debug hoặc ak:scout và đứng trước ak:test.",
+  "howItWorks": [
+   "Ghi nhận hoặc tái sử dụng outcome, constraints, non-goals và acceptance criteria; xác định đường fail, caller trực tiếp và test liên quan; ghi lại lệnh fail hoặc hành vi quan sát được (pre-fix state).",
+   "Chọn mode: mặc định --auto; nếu không có flag và issue không hiển nhiên, hỏi người dùng qua ask_user (Autonomous / Human-in-the-loop / Quick fix) theo references/mode-selection.md.",
+   "Scout codebase (ak:scout hoặc 2-3 subagent Explore song song khi được phép) để map file bị ảnh hưởng, ranh giới module, test, thay đổi git gần đây.",
+   "Diagnose bằng ak:debug (có thể dùng subagent debugger); nếu 2+ giả thuyết thất bại thì kích hoạt ak:problem-solving. Phải qua HARD-GATE-EXACT-ROOT-CAUSE: symptom nguyên văn, repro, expected vs actual, root cause có file:line, why now, blast radius.",
+   "Phân loại độ phức tạp (references/complexity-assessment.md): Simple (1 file, lỗi type/lint) → workflow-quick; Moderate (2-5 file) → workflow-standard 6 phase; Complex (5+ file, cần quyết định kiến trúc) → workflow-deep 9 phase có research + brainstorm + plan.",
+   "Deep route: chạy song song scout/diagnose/research (subagent researcher), sau đó ak:brainstorm chọn hướng, planner viết plan, rồi mới implement.",
+   "Với --ultra: sau khi chẩn đoán xong, fan riêng bước chọn giải pháp ra 5 candidate fix-plan read-only; một verifier mạnh nhất chọn 1 plan thắng (hoặc reject-all và dừng).",
+   "Implement sửa đúng root cause, thay đổi tối thiểu, theo pattern sẵn có.",
+   "Verify + Prevent: chạy lại chính xác lệnh pre-fix, thêm regression test (fail khi chưa sửa, pass khi đã sửa), side-effect sweep theo HARD-GATE-NO-SIDE-EFFECTS (caller, module chung contract, public API không đổi), chạy typecheck/lint/build/test. Nếu fail, quay lại diagnose, tối đa 3 lần rồi dừng để xem lại kiến trúc với người dùng.",
+   "Code review theo rủi ro: subagent code-reviewer khi được phép, không thì tự review diff (references/review-cycle.md; --review giữ checkpoint người duyệt).",
+   "Finalize: đồng bộ plan nếu có (ak:project-management), cập nhật docs bị ảnh hưởng (docs-manager), báo cáo cause/changes/verification/limitations, chạy /ak:journal trừ khi bị opt-out; chỉ commit/publish khi đã được cho phép."
+  ],
+  "useWhen": [
+   "Có lỗi cụ thể cần sửa: type error, lint error, test fail, exception trong log.",
+   "CI/GitHub Actions đỏ và cần đưa pipeline về xanh (workflow-ci.md).",
+   "Bug UI/visual cần sửa và kiểm chứng bằng browser (workflow-ui.md).",
+   "Nhiều bug độc lập, ownership file tách biệt, muốn xử lý song song với --parallel.",
+   "Bug khó, có nhiều cách sửa cạnh tranh, muốn chọn fix-plan tốt nhất bằng --ultra."
+  ],
+  "avoidWhen": [
+   "Chỉ muốn điều tra, chứng minh nguyên nhân mà chưa sửa: dùng ak:debug.",
+   "Triển khai tính năng mới hoặc phạm vi đã rõ không phải bug: dùng ak:cook.",
+   "Muốn cải thiện một metric đo được qua nhiều vòng thử (coverage, bundle size): dùng ak:loop.",
+   "Chỉ cần chạy test/xem coverage mà không sửa: dùng ak:test.",
+   "Toàn bộ quy trình từ issue đến PR: dùng ak:vibe."
+  ],
+  "params": [
+   {
+    "name": "[issue]",
+    "kind": "arg",
+    "desc": "Mô tả lỗi, thông báo lỗi, test fail hoặc link CI cần sửa. Nếu thiếu, skill tự khoanh vùng từ ngữ cảnh."
+   },
+   {
+    "name": "--auto",
+    "kind": "flag",
+    "desc": "Mặc định. Tự tiếp tục trong phạm vi được phép qua sửa và verify; chỉ hỏi khi thiếu quyết định quan trọng, đảo ngược contract hoặc hành động phá hủy chưa được phép."
+   },
+   {
+    "name": "--review",
+    "kind": "flag",
+    "desc": "Human-in-the-loop: dừng xin duyệt ở mỗi bước lớn. Khuyến nghị cho code production, lỗi bảo mật, lỗi toàn hệ thống."
+   },
+   {
+    "name": "--quick",
+    "kind": "flag",
+    "desc": "Sửa gọn, bám nguyên nhân theo references/workflow-quick.md (scout → diagnose → fix → verify+prevent → review). Nếu phát hiện nhiều cách sửa hoặc cần quyết định kiến trúc thì chuyển sang standard/deep. Xung đột cứng với --ultra."
+   },
+   {
+    "name": "--parallel",
+    "kind": "flag",
+    "desc": "Xử lý nhiều issue độc lập có ownership file tách biệt bằng delegation song song khi runtime hỗ trợ. Xung đột cứng với --ultra."
+   },
+   {
+    "name": "--ultra",
+    "kind": "flag",
+    "desc": "Sau khi chẩn đoán, fan bước chọn giải pháp ra đúng 5 candidate fix-plan read-only (không tái chẩn đoán, không sửa file); một verifier chọn plan thắng theo rubric cause-alignment, blast-radius, minimality, verifiability. Reject-all thì dừng. Xung đột với --quick và --parallel: hard-stop và hỏi."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "Chạy dưới giám sát tư vấn của kongming: spawn sau mỗi bước, khi bị kẹt, khi verify fail (bắt buộc hỏi trước khi tái chẩn đoán hay sửa, kể cả ở quick) và trước quyết định rủi ro cao. Kongming chỉ tư vấn, không viết code."
+   },
+   {
+    "name": "--skip-journal",
+    "kind": "flag",
+    "desc": "Bỏ bước /ak:journal tự động. Thứ tự ưu tiên: flag > config project > config user > mặc định true. Cũng bị bỏ khi prefs journal.auto=false. In ra 'journal skipped by --skip-journal'."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:fix \"TS2345 in src/auth/session.ts after upgrading zod\" --quick",
+    "note": "Lỗi type rõ ràng, một file: sửa nhanh, checker là bằng chứng regression."
+   },
+   {
+    "cmd": "/ak:fix login thỉnh thoảng trả về 401 dù token còn hạn",
+    "note": "Bug nhiều file, nguyên nhân chưa rõ: chạy route standard ở chế độ auto."
+   },
+   {
+    "cmd": "/ak:fix https://github.com/org/repo/actions/runs/123 --review",
+    "note": "CI đỏ trên nhánh production, muốn duyệt từng bước."
+   },
+   {
+    "cmd": "/ak:fix memory leak ở worker queue --ultra --advice",
+    "note": "Bug phức tạp nhiều cách sửa: chọn fix-plan best-of-5 và có kongming giám sát."
+   },
+   {
+    "cmd": "/ak:fix 3 test fail độc lập ở packages/api, packages/web, packages/cli --parallel --skip-journal",
+    "note": "Nhiều issue tách biệt, sửa song song, không ghi journal."
+   }
+  ],
+  "tips": [
+   "Dán nguyên văn thông báo lỗi và lệnh tái hiện: gate root cause yêu cầu symptom nguyên văn và repro, thiếu thì skill sẽ hỏi lại hoặc scout thêm.",
+   "Sau 3 lần sửa thất bại skill sẽ dừng và đề nghị xem lại kiến trúc; đừng ép tiếp mà nên cung cấp thêm log/môi trường.",
+   "--ultra và --deep route tốn nhiều token (5 candidate + verifier, research song song); chỉ dùng cho bug đáng giá.",
+   "Skill không tự commit/push; dùng ak:git hoặc ak:ship sau khi sửa xong.",
+   "Regression test phải fail khi chưa có fix; với lỗi type/lint, lệnh checker tự nó là bằng chứng, không cần viết test giả."
+  ],
+  "related": [
+   "ak-debug",
+   "ak-test",
+   "ak-scout",
+   "ak-code-review",
+   "ak-brainstorm",
+   "ak-problem-solving",
+   "ak-journal",
+   "ak-ship",
+   "ak-cook"
+  ],
+  "agents": [
+   "Explore",
+   "debugger",
+   "researcher",
+   "planner",
+   "code-reviewer",
+   "docs-manager",
+   "git-manager",
+   "kongming"
+  ],
+  "artifacts": [
+   "Mã nguồn đã sửa + regression test",
+   "Plan trong ./plans (route deep) hoặc cập nhật plan đang có",
+   "Journal entry qua /ak:journal (trừ khi opt-out)",
+   "Báo cáo cause, changed paths, verification, limitations"
+  ]
+ },
+ "ak-debug": {
+  "tagline": "Điều tra có hệ thống để chứng minh root cause trước bất kỳ bản sửa nào.",
+  "summary": "ak:debug là framework điều tra lỗi cả mức code (test fail, bug, build fail) lẫn mức hệ thống (server error, CI/CD, hiệu năng, database, log). Nguyên tắc cốt lõi: KHÔNG SỬA KHI CHƯA ĐIỀU TRA ROOT CAUSE, và không tuyên bố xong khi chưa có bằng chứng verify mới. Đầu vào là mô tả lỗi/triệu chứng; đầu ra là chẩn đoán có bằng chứng file:line, loại trừ giả thuyết đối thủ, blast radius và kế hoạch verify, có thể kèm báo cáo chẩn đoán. Thường đứng sau ak:scout và trước ak:fix hoặc ak:brainstorm.",
+  "howItWorks": [
+   "Phân loại vấn đề theo Quick Reference: bug code → systematic-debugging.md; lỗi sâu trong stack → root-cause-tracing.md; sự cố hệ thống → investigation-methodology.md; CI/CD → log-and-ci-analysis.md; chậm → performance-diagnostics.md; frontend → frontend-verification.md.",
+   "Systematic debugging 4 phase: Root Cause Investigation → Pattern Analysis → Hypothesis Testing → Implementation; hoàn tất từng phase mới sang phase sau.",
+   "Root cause tracing: lần ngược call stack để tìm trigger gốc, có scripts/find-polluter.sh để bisect test pollution.",
+   "Sự cố hệ thống: 5 bước Initial Assessment → Data Collection → Analysis → Root Cause ID → Solution Development; thu log qua gh CLI, psql, truy vấn log có cấu trúc.",
+   "Với --ultra: controller gom bằng chứng một lần (symptom, repro, log, stack trace, code path) thành evidence packet bất biến, dispatch đúng 5 candidate chẩn đoán read-only song song, một verifier mạnh nhất chấm theo rubric (chuỗi bằng chứng, loại trừ giả thuyết, độ cụ thể, khả năng test) và chọn 1 chẩn đoán thắng hoặc reject-all.",
+   "Sau khi có root cause: defense-in-depth chỉ thêm check ở biên thực sự phân biệt được nguyên nhân hoặc bảo vệ contract đã sửa.",
+   "Frontend: phát hiện file tsx/jsx/vue/svelte/html/css → kiểm tra công cụ browser (ak:agent-browser, ak:chrome-profile, Chrome MCP) → chụp màn hình + kiểm tra console error.",
+   "Điều tra 3+ bước hoặc song song: theo dõi qua task-management surface hoặc cập nhật plan (plan là nguồn sự thật bền vững).",
+   "Verification iron law: chạy lệnh, đọc output, rồi mới tuyên bố kết quả; cần báo cáo thì theo reporting-standards.md (Executive Summary → Technical Analysis → Recommendations → Evidence)."
+  ],
+  "useWhen": [
+   "Test fail hoặc hành vi bất thường mà chưa rõ nguyên nhân.",
+   "Pipeline CI/CD fail, cần đọc log GitHub Actions để tìm lỗi gốc.",
+   "Hệ thống chậm, query chậm, latency cao, cạn tài nguyên.",
+   "Sự cố server/production cần điều tra đa thành phần và viết báo cáo chẩn đoán.",
+   "Test pollution (test chỉ fail khi chạy cùng bộ khác) cần bisect."
+  ],
+  "avoidWhen": [
+   "Nguyên nhân đã rõ và chỉ cần sửa: dùng ak:fix (fix tự gọi debug khi cần).",
+   "Đã có chẩn đoán và cần so sánh các hướng giải quyết: dùng ak:brainstorm.",
+   "Chỉ cần tìm file liên quan: dùng ak:scout.",
+   "Bị kẹt ở mức tư duy/khung vấn đề chứ không phải thiếu bằng chứng: dùng ak:problem-solving."
+  ],
+  "params": [
+   {
+    "name": "[error or issue description]",
+    "kind": "arg",
+    "desc": "Mô tả lỗi, thông báo lỗi, stack trace hoặc triệu chứng cần điều tra."
+   },
+   {
+    "name": "--ultra",
+    "kind": "flag",
+    "desc": "Chẩn đoán best-of-5: một evidence packet bất biến, đúng 5 candidate chẩn đoán độc lập read-only (không sửa file, không đổi trạng thái hệ thống), một verifier chọn chẩn đoán thắng nguyên vẹn hoặc reject-all; controller vẫn phải verify root cause thắng bằng bằng chứng mới trước khi sửa. Reject-all thì hard-stop và báo lý do."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:debug test UserService.spec.ts fail ngẫu nhiên khi chạy full suite",
+    "note": "Nghi test pollution: dùng root-cause tracing và find-polluter.sh."
+   },
+   {
+    "cmd": "/ak:debug workflow deploy.yml fail ở bước build từ commit abc1234",
+    "note": "Điều tra log CI qua gh CLI."
+   },
+   {
+    "cmd": "/ak:debug API /orders p95 tăng từ 200ms lên 2s sau release",
+    "note": "Chẩn đoán hiệu năng, phân tích query và tài nguyên."
+   },
+   {
+    "cmd": "/ak:debug race condition khi 2 webhook đến cùng lúc --ultra",
+    "note": "Lỗi khó, nhiều giả thuyết: cần 5 chẩn đoán độc lập và verifier."
+   }
+  ],
+  "tips": [
+   "Cảnh giác các red flag: 'quick fix trước, điều tra sau', 'thử đổi X xem sao', 'chắc là X', 'có vẻ đã sửa', 'test pass là xong' đều có nghĩa phải quay lại quy trình.",
+   "Cung cấp repro tối thiểu và log thật sẽ giảm đáng kể số vòng điều tra và token.",
+   "--ultra chỉ fan phần phân tích; mọi bước sửa vẫn chạy một lần sau khi verify root cause.",
+   "Với lỗi frontend, có công cụ browser sẵn (agent-browser/Chrome MCP) thì skill mới chụp màn hình và kiểm tra console được.",
+   "Debug không tự sửa hàng loạt; chuyển sang /ak:fix khi đã có root cause."
+  ],
+  "related": [
+   "ak-fix",
+   "ak-scout",
+   "ak-brainstorm",
+   "ak-problem-solving",
+   "ak-agent-browser",
+   "ak-chrome-profile",
+   "ak-docs-seeker",
+   "ak-repomix"
+  ],
+  "agents": [
+   "debugger",
+   "Explore",
+   "kongming"
+  ],
+  "artifacts": [
+   "Chẩn đoán root cause có bằng chứng file:line",
+   "Báo cáo chẩn đoán (khi cần) theo reporting-standards",
+   "Ảnh chụp màn hình/console log khi verify frontend",
+   "Cập nhật plan đang hoạt động cho điều tra nhiều bước"
+  ]
+ },
+ "ak-test": {
+  "tagline": "Chạy, tạo, tối ưu và audit test suite (unit, integration, e2e, UI) theo 11 nguyên tắc kiểm thử, kèm báo cáo QA có cấu trúc.",
+  "summary": "ak:test bao phủ kiểm thử mức code (Jest/Vitest/Mocha, pytest, go test, cargo test, flutter test), kiểm thử UI qua browser automation, phân tích coverage, xác minh build và báo cáo QA. Ngoài chế độ chạy test mặc định, skill có subcommand ui, create, optimize, audit để kiểm thử website, dựng suite mới, cắt chi phí CI hoặc phát hiện test lừa dối; ba subcommand sau nhận thêm --advice, --ultra, --interview. Mọi thao tác tuân theo file practical-principles (11 quy tắc: test những gì hệ thống sở hữu, scope theo rủi ro, test ở tầng thấp nhất đáng tin, cô lập môi trường, chạy tuần tự mặc định, không 'chơi gian' để build xanh...). Nguyên tắc cốt lõi: KHÔNG BAO GIỜ bỏ qua test fail, không mock/cheat để pass. Thường đứng sau ak:cook hoặc ak:fix và trước ak:git.",
+  "howItWorks": [
+   "Không có argument: hỏi qua ask_user (header 'Test Operation', câu 'What would you like to do?') để chọn default, ui, create, optimize hoặc audit. Có context thì tiến hành ngay.",
+   "Nạp practical-principles-for-setting-up-and-running-tests.md trước khi thiết kế hoặc đổi test: đây là nguồn quyết định phạm vi, tầng, môi trường và cách chạy; mọi thay đổi suite, đề xuất optimize/audit và báo cáo QA phải nhất quán với 11 quy tắc.",
+   "Default: xác định phạm vi từ thay đổi gần đây → chạy check hẹp nhất, thêm typecheck/build khi nó bao phủ contract bị ảnh hưởng → chạy suite phù hợp → phân tích fail → coverage nếu cần → UI test cho frontend → báo cáo (test-execution-workflow.md).",
+   "ui [url]: kiểm thử website qua ak:agent-browser (không cần cookie thật), ak:chrome-profile (trạng thái đăng nhập Chrome thật, mở bằng chrome-profile open --json) hoặc ak:web-testing/Playwright/Vitest/k6 của project; gồm screenshot, responsive, a11y, form, console error (ui-testing-workflow.md).",
+   "create: kích hoạt ak:scout trên codebase + docs, map tính năng/workflow thành coverage matrix, thiết kế trước rồi mới viết suite, xác minh và báo cáo (create-suite-workflow.md).",
+   "optimize: nhiều subagent ak:scout song song phân tích CI/CD, git history, codebase, docs; tái cấu trúc để nhanh hơn với độ an toàn tương đương (parallel lane, chọn test theo thay đổi, bỏ qua khi chỉ đổi docs), có safety gate bắt buộc và phải chứng minh sau khi áp dụng (optimize-suite-workflow.md).",
+   "audit: nhiều scout song song phân tích suite + CI, phát hiện test chỉ viết để pass, test bị comment/skip, test dở dang, trùng lặp, lỗi thời, lỗ hổng bảo mật; báo cáo finding xếp hạng kèm đề xuất sửa — audit tự nó không cho phép sửa (audit-suite-workflow.md).",
+   "--interview: trước khi áp dụng, liệt kê mọi thay đổi đề xuất kèm lý do một dòng và hỏi người dùng từng nhóm; chỉ áp dụng phần được duyệt.",
+   "--advice: spawn kongming sau pha scout/phân tích (xin go/no-go và rủi ro lớn nhất), trước khi áp thay đổi suite/CI và khi bị kẹt; kongming chỉ tư vấn, không viết code.",
+   "--ultra: một evidence packet bất biến, đúng 5 candidate read-only chạy song song và 1 verifier model mạnh nhất; create/optimize chọn nguyên vẹn 1 thiết kế thắng (hoặc loại hết), audit lấy hợp các finding đã xác thực và khử trùng.",
+   "Phân tích ảnh chụp dùng ak:ai-multimodal, bug cần điều tra chuyển ak:debug, fail phức tạp dùng ak:fable-thinking; báo cáo QA theo report-format.md, run nhỏ trả kết quả trực tiếp."
+  ],
+  "useWhen": [
+   "Vừa implement hoặc sửa bug, cần xác nhận không hỏng gì trước khi commit.",
+   "Muốn kiểm thử giao diện website: responsive, accessibility, console error, form, kể cả route cần đăng nhập.",
+   "Dự án chưa có hoặc thiếu test suite, cần dựng suite phủ các luồng chính (create).",
+   "CI quá chậm/tốn tiền, muốn giảm thời gian mà không mất coverage (optimize).",
+   "Nghi ngờ test suite không đáng tin: test bị skip, test giả để pass, test lỗi thời (audit).",
+   "Cần cổng chất lượng cuối cùng trước commit/push: build, coverage theo ngưỡng của repo."
+  ],
+  "avoidWhen": [
+   "Test fail và cần tìm, sửa nguyên nhân: dùng ak:fix hoặc ak:debug.",
+   "Cần sinh danh sách edge case/kịch bản QA trước khi viết code: dùng ak:scenario.",
+   "Cần load test, visual regression, cross-browser chuyên sâu: kết hợp hoặc dùng ak:web-testing.",
+   "Review chất lượng code chứ không phải chạy test: dùng ak:code-review."
+  ],
+  "params": [
+   {
+    "name": "[context]",
+    "kind": "arg",
+    "desc": "Phạm vi test (file, module, tính năng vừa đổi). Có context thì chạy test ngay; không có argument nào thì skill hỏi chọn thao tác."
+   },
+   {
+    "name": "ui [url]",
+    "kind": "subcommand",
+    "desc": "Chạy UI test trên website tại url: screenshot, responsive, a11y, form automation, console error. Route cần đăng nhập dùng ak:chrome-profile (đăng nhập Chrome thật) hoặc setup auth sẵn có của project."
+   },
+   {
+    "name": "create [scope]",
+    "kind": "subcommand",
+    "desc": "Scout codebase + docs, lập coverage matrix, thiết kế rồi viết test suite phủ phạm vi. Không có --interview thì áp dụng trực tiếp và báo đầy đủ danh sách thay đổi."
+   },
+   {
+    "name": "optimize [scope]",
+    "kind": "subcommand",
+    "desc": "Scout song song CI/CD, git history, codebase, docs rồi cắt chi phí/thời gian test với độ an toàn tương đương (parallel lane, change-based selection, bỏ qua docs-only). Không có --interview thì áp dụng trực tiếp và báo danh sách thay đổi."
+   },
+   {
+    "name": "audit [scope]",
+    "kind": "subcommand",
+    "desc": "Kiểm tra suite + CI, báo cáo finding xếp hạng có bằng chứng (test lừa dối, skip/comment, dở dang, trùng, lỗi thời, lỗ hổng bảo mật) kèm đề xuất sửa. Chỉ sửa khi việc sửa được yêu cầu riêng."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "Dùng với create/optimize/audit: kongming giám sát tư vấn ở checkpoint sau phân tích, trước khi áp thay đổi suite/CI, và khi bị kẹt. Không bao giờ vượt qua quy tắc test fail hay gate an toàn CI."
+   },
+   {
+    "name": "--ultra",
+    "kind": "flag",
+    "desc": "Dùng với create/optimize/audit: bước phân tích/thiết kế chạy best-of-5 (5 candidate read-only song song + 1 verifier). create/optimize lấy 1 thiết kế thắng; audit lấy hợp finding đã xác thực. Kết hợp được với --advice và --interview."
+   },
+   {
+    "name": "--interview",
+    "kind": "flag",
+    "desc": "Dùng với create/optimize/audit: liệt kê từng thay đổi đề xuất (test thêm/xóa/viết lại, sửa workflow CI) kèm lý do một dòng, hỏi người dùng mỗi nhóm một quyết định, chỉ áp dụng phần được duyệt."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:test",
+    "note": "Không argument: hiện menu 5 thao tác để chọn."
+   },
+   {
+    "cmd": "/ak:test src/payments",
+    "note": "Chạy test cho module vừa sửa và báo cáo kết quả."
+   },
+   {
+    "cmd": "/ak:test ui https://staging.example.com",
+    "note": "Kiểm thử giao diện staging: screenshot, responsive, a11y, console error."
+   },
+   {
+    "cmd": "/ak:test create packages/api --interview",
+    "note": "Dựng suite mới cho API, duyệt từng nhóm test trước khi viết."
+   },
+   {
+    "cmd": "/ak:test optimize --advice",
+    "note": "CI chậm: tối ưu suite có kongming giám sát."
+   },
+   {
+    "cmd": "/ak:test audit --ultra",
+    "note": "Audit độ tin cậy suite bằng 5 candidate độc lập, gộp finding đã xác thực."
+   }
+  ],
+  "tips": [
+   "Gọi không argument khi chưa chắc cần gì: skill sẽ đưa menu 5 thao tác.",
+   "create và optimize mặc định áp dụng thay đổi trực tiếp; thêm --interview nếu muốn duyệt từng thay đổi, nhất là khi sửa workflow CI.",
+   "audit chỉ báo cáo; muốn skill sửa luôn thì phải yêu cầu rõ việc sửa.",
+   "optimize/audit spawn nhiều scout song song nên tốn token hơn chạy test thường; --ultra thêm 5 candidate cho bước phân tích.",
+   "Test cần đăng nhập thật: dùng ak:chrome-profile thay vì dán cookie vào chat.",
+   "Coverage tăng nhờ nới lỏng assertion là regression, không phải tiến bộ; skill mặc định chạy tuần tự, chỉ song song khi có lý do."
+  ],
+  "related": [
+   "ak-cook",
+   "ak-fix",
+   "ak-debug",
+   "ak-web-testing",
+   "ak-agent-browser",
+   "ak-chrome-profile",
+   "ak-scout",
+   "ak-scenario",
+   "ak-fable-thinking",
+   "ak-git"
+  ],
+  "agents": [
+   "kongming"
+  ],
+  "artifacts": [
+   "Báo cáo QA (kết quả test, coverage, test fail, hiệu năng, build status, khuyến nghị)",
+   "File test mới/sửa (create, optimize)",
+   "Thay đổi workflow CI (optimize)",
+   "Ảnh chụp màn hình UI test",
+   "Báo cáo finding xếp hạng (audit)"
+  ]
+ },
+ "ak-code-review": {
+  "tagline": "Review code dựa trên bằng chứng cho pending changes, PR, commit hoặc toàn bộ codebase.",
+  "summary": "ak:code-review đánh giá phạm vi được yêu cầu so với spec, đường regression, bảo mật và quy ước repo, trả về finding có file/line, tác động và bằng chứng. Skill tự nhận dạng input: số PR, commit hash, --pending, codebase hoặc codebase parallel. Chế độ review-only không cho phép sửa, đăng bình luận hay merge. Trong workflow, skill đứng sau ak:test và trước ak:ship.",
+  "howItWorks": [
+   "Resolve input theo thứ tự trái sang phải (input-mode-resolution.md): #123/URL PR → gh pr view + gh pr diff; hash 7-40 ký tự hex → git show; --pending → git diff HEAD (hỏi người dùng intent ngắn); không argument nhưng có thay đổi gần đây → Default; không có gì → hỏi qua ask_user 'Review Target'.",
+   "Mơ hồ giữa PR và commit thì ưu tiên PR và ghi chú giả định; PR/commit không tồn tại hoặc không có pending change thì báo lỗi rõ.",
+   "Chuyển changed files cho edge-case scout; Stage 1 spec compliance (nếu có plan/spec, spec-compliance-review.md); Stage 2 code quality review.",
+   "Chọn thao tác: review-only (finding có file/line + impact + evidence), nhận feedback (code-review-reception.md: verify finding trước khi chấp nhận), sửa khi được phép (sửa finding đã xác nhận rồi review lại revision mới).",
+   "codebase: 2 subagent researcher song song, /ak:scout, nhiều code-reviewer song song, planner viết plan cải thiện (plan.md + phase-XX-*.md), báo cáo cuối và hỏi có commit/push không.",
+   "codebase parallel: liệt kê edge case (null, boundary, error handling, race, validation, trust boundary, resource leak, path chưa test), gom tối đa 6 nhóm, mỗi nhóm giao 1 code-reviewer để verify.",
+   "--ultra: Stage 1 chạy một lần, Stage 2 fan ra 5 reviewer read-only; verifier xác thực từng finding và trả về union đã khử trùng (không chọn 1 review thắng).",
+   "--advice: spawn kongming sau Stage 1 và Stage 2, khi bị kẹt, và trước verdict rủi ro cao (Request changes trên public contract, finding bảo mật, refactor lớn).",
+   "Dùng checklist-workflow.md cho thay đổi rủi ro trước khi landing; tái dùng check khi revision/input/môi trường không đổi; báo cáo finding đã xác minh và giới hạn phạm vi."
+  ],
+  "useWhen": [
+   "Trước khi commit, muốn review thay đổi đang staged/unstaged (--pending).",
+   "Cần review một PR GitHub theo số hoặc URL.",
+   "Muốn kiểm tra một commit cụ thể có gây regression không.",
+   "Cần audit toàn bộ codebase tìm bug, rủi ro bảo mật, nợ kỹ thuật.",
+   "Nhận feedback review từ người khác và cần xác minh finding trước khi sửa."
+  ],
+  "avoidWhen": [
+   "Muốn review PR rồi đăng bình luận lên GitHub, sửa và merge: dùng ak:review-pr.",
+   "Chỉ muốn quét bảo mật, secret, dependency: dùng ak:security.",
+   "Review tuân thủ guideline giao diện cho UI: dùng ak:ui-ux-pro-max.",
+   "Đưa nhánh đã xong lên PR: dùng ak:ship (ship tự chạy review 2 lượt)."
+  ],
+  "params": [
+   {
+    "name": "#PR",
+    "kind": "arg",
+    "desc": "Số PR (#123) hoặc URL PR GitHub: lấy metadata và diff qua gh pr view / gh pr diff."
+   },
+   {
+    "name": "COMMIT",
+    "kind": "arg",
+    "desc": "Commit hash 7-40 ký tự hex: review diff của commit qua git show. Commit phải tồn tại cục bộ."
+   },
+   {
+    "name": "--pending",
+    "kind": "flag",
+    "desc": "Review thay đổi staged + unstaged so với HEAD (git diff HEAD); skill hỏi mô tả intent ngắn vì chưa có commit message."
+   },
+   {
+    "name": "codebase",
+    "kind": "subcommand",
+    "desc": "Quét toàn codebase: researcher song song, nhiều code-reviewer song song, planner tạo plan cải thiện, báo cáo và đề nghị commit/push."
+   },
+   {
+    "name": "codebase parallel",
+    "kind": "subcommand",
+    "desc": "Audit đa reviewer: liệt kê edge case trước, chia tối đa 6 nhóm, mỗi nhóm một code-reviewer verify. Xung đột cứng với --ultra."
+   },
+   {
+    "name": "--ultra",
+    "kind": "flag",
+    "desc": "Stage 2 chạy best-of-5: 5 reviewer read-only độc lập, verifier trả về union finding đã xác thực và khử trùng. Kết hợp với #PR/COMMIT/--pending/codebase (không parallel) và --yagni. Dùng cùng codebase parallel là hard-stop."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "Giám sát tư vấn kongming sau Stage 1, sau Stage 2, khi kẹt và trước verdict rủi ro cao. Không vượt qua quy tắc bằng chứng hay xung đột ultra/parallel."
+   },
+   {
+    "name": "--yagni",
+    "kind": "flag",
+    "desc": "Mặc định reviewer giữ nguyên toàn bộ phạm vi yêu cầu; --yagni bật thêm khuyến nghị cắt phạm vi không cần cho outcome."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:code-review --pending",
+    "note": "Review thay đổi cục bộ trước khi commit."
+   },
+   {
+    "cmd": "/ak:code-review #482 --advice",
+    "note": "Review PR quan trọng có kongming giám sát trước verdict."
+   },
+   {
+    "cmd": "/ak:code-review 3f9a2c1",
+    "note": "Kiểm tra một commit nghi gây regression."
+   },
+   {
+    "cmd": "/ak:code-review codebase parallel",
+    "note": "Audit toàn bộ codebase với nhiều reviewer theo nhóm edge case."
+   },
+   {
+    "cmd": "/ak:code-review #482 --ultra --yagni",
+    "note": "Review sâu best-of-5, đồng thời đề xuất cắt phạm vi thừa."
+   }
+  ],
+  "tips": [
+   "Review-only không sửa, không đăng, không merge; muốn đăng lên GitHub thì dùng ak:review-pr.",
+   "Điểm số không thay thế check hay finding; hãy đọc finding có file:line và bằng chứng.",
+   "codebase và codebase parallel spawn nhiều subagent nên tốn token; review typo không cần pipeline.",
+   "Mặc định reviewer không đề xuất cắt phạm vi bạn đã yêu cầu; cần thì thêm --yagni.",
+   "Finding mâu thuẫn với source/test hiện tại sẽ bị bác kèm bằng chứng thay vì chấp nhận máy móc."
+  ],
+  "related": [
+   "ak-review-pr",
+   "ak-test",
+   "ak-ship",
+   "ak-security",
+   "ak-scout",
+   "ak-fix",
+   "ak-plan"
+  ],
+  "agents": [
+   "code-reviewer",
+   "researcher",
+   "planner",
+   "scout",
+   "kongming"
+  ],
+  "artifacts": [
+   "Danh sách finding có file/line, impact, evidence",
+   "Plan cải thiện plan.md + phase-XX-*.md (chế độ codebase)",
+   "Báo cáo edge case theo nhóm (codebase parallel)"
+  ]
+ },
+ "ak-ship": {
+  "tagline": "Một lệnh đưa nhánh đã hoàn thành qua test, review, version, changelog, commit, push và tạo PR.",
+  "summary": "ak:ship là pipeline 14 bước đưa feature branch lên PR: pre-flight, link issue, merge nhánh đích, chạy test, review 2 lượt, bump version, changelog, journal, docs, commit, push, tạo PR và tùy chọn review-merge cùng đăng bài build-in-public. Skill tự nhận dạng mode official (vào main/master) hoặc beta (vào dev/beta/develop), test runner, file version và định dạng changelog. Đầu ra là URL PR cùng bảng trạng thái từng bước. Thường đứng sau ak:code-review và trước ak:journal.",
+  "howItWorks": [
+   "Chuẩn hóa token mode: official|stable|main → official, beta|dev|next → beta; nhiều token hoặc flag lạ thì dừng và hỏi. Không có token thì suy từ tên nhánh (feature/hotfix/bugfix → official; dev/beta/experiment → beta; không rõ thì hỏi).",
+   "Step 1 Pre-flight: kiểm tra nhánh (đang ở nhánh đích thì abort), trạng thái, phân tích diff. Với --advice: checkpoint kongming trước mọi thay đổi.",
+   "Step 2 Link Issues: tìm/tạo GitHub issue liên quan bằng một lô lệnh gh.",
+   "Step 3 Merge target: fetch + merge origin/<target>; conflict không tự giải được thì dừng.",
+   "Step 4 Run tests qua subagent tester (bỏ bằng --skip-tests); Step 5 review 2 lượt (critical + informational) qua subagent code-reviewer (bỏ bằng --skip-review). Với --advice: checkpoint kongming trước khi ghi version/commit/push/PR.",
+   "Step 6 bump version (patch tự quyết, major/minor phải hỏi), Step 7 changelog tự sinh; không có file version/changelog thì bỏ qua im lặng.",
+   "Step 8 journal (journal-writer, chạy nền) và Step 9 docs update qua /ak:docs update (docs-manager, nền, chỉ official); Step 9b ak plan update --status completed nếu có plan.",
+   "Step 10 commit conventional, Step 11 git push -u (không bao giờ force-push), Step 12 gh pr create với body 7 section bằng chứng theo ngôn ngữ viết đã resolve, Step 12b ak plan update --linked-pr.",
+   "Step 13 (nếu --merge): kích hoạt ak:review-pr <PR> --fix --reply --merge [--advice] để review, sửa, trả lời, merge và chờ CI xanh.",
+   "Step 14 (nếu --social): soạn journal build-in-public, lưu bằng ak journal create, đăng lên các kênh groups.build_in_public trong .agentkit/journal.yaml; mặc định dry-run nếu thiếu --yes-post, CI phải xanh.",
+   "--both: chạy stage beta trước, rồi stage stable có gate (đã có beta PR; với --merge thì beta CI phải xanh trước) theo dual-stage-workflow.md."
+  ],
+  "useWhen": [
+   "Nhánh tính năng đã xong, muốn một lệnh chạy test, review, commit, push và mở PR.",
+   "Ship vào nhánh dev/beta với pipeline nhẹ hơn (bỏ cập nhật docs).",
+   "Muốn tạo PR rồi tự động review, sửa, merge và chờ CI xanh (--merge).",
+   "Cần ship beta trước rồi promote lên stable có kiểm soát (--both).",
+   "Muốn đăng bài build-in-public sau khi PR xanh (--social)."
+  ],
+  "avoidWhen": [
+   "Chỉ cần commit/push đơn thuần: dùng ak:git.",
+   "Code chưa xong hoặc test còn đỏ do bug chưa sửa: dùng ak:fix trước.",
+   "Chỉ review/merge PR đã tồn tại: dùng ak:review-pr.",
+   "Deploy ứng dụng lên hosting: dùng ak:deploy.",
+   "Muốn toàn bộ quy trình từ issue qua plan, code đến PR: dùng ak:vibe."
+  ],
+  "params": [
+   {
+    "name": "official | stable | main",
+    "kind": "subcommand",
+    "desc": "Chuẩn hóa thành official: ship vào nhánh mặc định đã phát hiện (main/master), pipeline đầy đủ gồm docs + journal."
+   },
+   {
+    "name": "beta | dev | next",
+    "kind": "subcommand",
+    "desc": "Chuẩn hóa thành beta: ship vào nhánh phát triển đã phát hiện (dev/beta/develop), pipeline nhẹ, tự bỏ bước docs update. Không có token thì tự nhận dạng: base là main/master → official, ngược lại → beta."
+   },
+   {
+    "name": "--both",
+    "kind": "flag",
+    "desc": "Ship hai đích tuần tự: stage beta rồi stage stable có gate. Ghi đè token mode (cảnh báo một lần). Kết hợp với --advice, --merge, các skip flag. Với --dry-run chỉ mô phỏng stage beta. Stage stable không force-push, không vượt branch protection."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "Bắt buộc spawn kongming giám sát đường ship-to-PR: sau pre-flight (trước khi thay đổi), sau test + review (trước version/commit/push/PR), khi kẹt hoặc trước quyết định rủi ro cao. Kèm --merge thì được chuyển tiếp cho ak:review-pr."
+   },
+   {
+    "name": "--merge",
+    "kind": "flag",
+    "desc": "Sau khi tạo PR, kích hoạt ak:review-pr <PR> --fix --reply --merge (thêm --advice nếu có). Tuyên bố merged/green chỉ khi Verdict=Approve, Merge=merged, CI=green."
+   },
+   {
+    "name": "--skip-tests",
+    "kind": "flag",
+    "desc": "Bỏ bước test (Step 4); chỉ nên dùng khi đã có bằng chứng test pass trên cùng revision."
+   },
+   {
+    "name": "--skip-review",
+    "kind": "flag",
+    "desc": "Bỏ review pre-landing (Step 5); review ở ak:review-pr khi có --merge vẫn chạy."
+   },
+   {
+    "name": "--skip-journal",
+    "kind": "flag",
+    "desc": "Bỏ bước journal (Step 8); cũng tôn trọng config journal.auto=false. Lưu ý: --skip-journal bỏ luôn toàn bộ bước --social."
+   },
+   {
+    "name": "--skip-docs",
+    "kind": "flag",
+    "desc": "Bỏ bước cập nhật docs (Step 9)."
+   },
+   {
+    "name": "--social",
+    "kind": "flag",
+    "desc": "Opt-in: sau khi tạo PR (và sau Step 13 nếu merge), soạn bản nháp journal build-in-public (Why this / What changed / The tricky bit / What's next), lưu bằng ak journal create rồi đăng lên kênh social. Từ chối đăng nếu CI đỏ; chỉ trích bình luận từ COLLABORATOR/MEMBER/OWNER."
+   },
+   {
+    "name": "--yes-post",
+    "kind": "flag",
+    "desc": "Bắt buộc đi kèm --social để thực sự đăng; thiếu nó thì bước social chỉ render bài mỗi kênh (dry-run), không gọi API."
+   },
+   {
+    "name": "--yes-post-private",
+    "kind": "flag",
+    "desc": "Bắt buộc thêm cùng --social --yes-post khi repo private: xác nhận lần hai để đăng về công việc không công khai."
+   },
+   {
+    "name": "--dry-run",
+    "kind": "flag",
+    "desc": "Hiển thị những gì sẽ xảy ra mà không thực thi; dừng trước kongming, ak:review-pr và social publishing."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:ship",
+    "note": "Tự nhận dạng mode từ tên nhánh, chạy full pipeline và trả về URL PR."
+   },
+   {
+    "cmd": "/ak:ship beta --skip-tests",
+    "note": "Ship vào dev khi test đã pass trên cùng revision."
+   },
+   {
+    "cmd": "/ak:ship official --advice --merge",
+    "note": "Ship vào main có kongming giám sát, sau đó review-merge và chờ CI xanh."
+   },
+   {
+    "cmd": "/ak:ship --both --merge",
+    "note": "Beta PR, merge beta đến xanh, rồi stage stable có gate."
+   },
+   {
+    "cmd": "/ak:ship --social --yes-post",
+    "note": "Ship và đăng bài build-in-public khi CI xanh (repo public)."
+   },
+   {
+    "cmd": "/ak:ship --dry-run",
+    "note": "Xem trước pipeline trước lần ship đầu tiên."
+   }
+  ],
+  "tips": [
+   "Test là gate của ship: không bao giờ publish khi bằng chứng còn đỏ; chỉ dùng --skip-tests khi có bằng chứng cùng revision.",
+   "Skill chỉ hỏi ở hai chỗ: finding critical cần quyết định phạm vi và bump major/minor; patch, changelog, commit message đều tự quyết.",
+   "File dirty không liên quan được giữ nguyên, chỉ commit file thuộc task này.",
+   "Journal và docs chạy nền; dùng --skip-journal/--skip-docs để tiết kiệm token khi không cần.",
+   "--social mặc định dry-run; cần cả --yes-post (và --yes-post-private với repo private) mới đăng thật."
+  ],
+  "related": [
+   "ak-code-review",
+   "ak-test",
+   "ak-review-pr",
+   "ak-git",
+   "ak-journal",
+   "ak-docs",
+   "ak-vibe",
+   "ak-deploy"
+  ],
+  "agents": [
+   "tester",
+   "code-reviewer",
+   "journal-writer",
+   "docs-manager",
+   "kongming"
+  ],
+  "artifacts": [
+   "Commit conventional + nhánh đã push",
+   "Pull request GitHub có body 7 section bằng chứng",
+   "Version bump và CHANGELOG (nếu repo có)",
+   "GitHub issue được link/tạo",
+   "Journal entry, docs cập nhật (official)",
+   "Plan cập nhật status completed và linked PR",
+   "Bài đăng social (khi --social --yes-post)"
+  ]
+ },
+ "ak-loop": {
+  "tagline": "Vòng lặp tối ưu tự động: chạy N lượt thử thay đổi, đo bằng metric cơ học, tự giữ hoặc loại bỏ qua git.",
+  "summary": "ak:loop cải thiện một metric đo được (coverage, bundle size, số lỗi ESLint, Lighthouse...) bằng cách lặp lại chu trình Modify → Verify → Keep/Discard, mỗi lượt một thay đổi nguyên tử được commit trước khi đo. Đầu vào là block cấu hình với Goal, Scope, Verify (lệnh in ra một con số) và các trường tùy chọn; đầu ra là lịch sử git các thay đổi được giữ, file loop-results.tsv và báo cáo cuối. Skill chỉ gọi được thủ công (disable-model-invocation) và yêu cầu git repo với working tree sạch.",
+  "howItWorks": [
+   "Parse cấu hình từ tin nhắn; thiếu trường bắt buộc (Goal, Scope, Verify, Guard tùy chọn) thì hỏi gộp một lần qua ask_user.",
+   "Safety screen lệnh Verify trước khi dry-run: từ chối rm -rf /, fork bomb, curl | sh; cảnh báo ghi ra host lạ, credential nhúng, sudo/chmod 777.",
+   "Phase 0 (lượt đầu): kiểm tra tiền điều kiện, working tree sạch, ghi baseline; Guard phải pass ở baseline, nếu không thì sửa trước chứ không nới guard.",
+   "Phase 1 Review: đọc lịch sử git và kết quả trước để học; Phase 2 Ideate: chọn một thay đổi nguyên tử (mô tả được trong một câu không có chữ 'và').",
+   "Phase 3 Modify chỉ trong Scope (không đụng file thuộc phạm vi Guard); Phase 4 Commit TRƯỚC khi verify (git là bộ nhớ).",
+   "Phase 5 Verify: chạy lệnh Verify trong Timeout (mặc định 30s), xử lý crash/timeout bằng discard an toàn; Phase 5.5 Guard nếu có (fail thì revert, thử lại 2 lần rồi discard với status guard-failed).",
+   "Phase 6 Decide theo decision matrix có tính Noise và Min-Delta, Direction; Keep giữ commit, Discard dùng git revert (git reset --hard chỉ là fallback).",
+   "Phase 7 Log: thêm một dòng TSV vào loop-results.tsv (iter, timestamp, metric, delta, kept, description).",
+   "Phase 8 Repeat/Stop: 5 lần discard liên tiếp → đổi chiến lược; 10 lần → dừng và báo người dùng; hết Iterations thì viết báo cáo cuối."
+  ],
+  "useWhen": [
+   "Muốn tăng test coverage của một thư mục lên ngưỡng cụ thể.",
+   "Muốn giảm bundle size xuống dưới một con số.",
+   "Muốn đưa số lỗi ESLint/type error về 0 qua nhiều lượt nhỏ.",
+   "Có metric hiệu năng đo được bằng lệnh shell và muốn thử nghiệm tự động với khả năng rollback."
+  ],
+  "avoidWhen": [
+   "Mục tiêu chủ quan như 'làm code sạch hơn': dùng ak:cook.",
+   "Bug có root cause đã biết: dùng ak:fix hoặc ak:debug.",
+   "Việc một lần, không cần lặp: dùng ak:cook.",
+   "Không có metric cơ học để đo tiến bộ: dùng ak:cook --interactive.",
+   "Cần tổng quan các dạng lặp hướng mục tiêu: xem ak:autoresearch."
+  ],
+  "params": [
+   {
+    "name": "[Goal/Metric description]",
+    "kind": "arg",
+    "desc": "Mô tả mục tiêu/metric bằng lời, hoặc dán cả block cấu hình inline bên dưới lệnh."
+   },
+   {
+    "name": "Goal",
+    "kind": "arg",
+    "desc": "Bắt buộc. Mô tả con người đọc được về điều cần cải thiện, ví dụ 'Increase test coverage in src/utils'."
+   },
+   {
+    "name": "Scope",
+    "kind": "arg",
+    "desc": "Bắt buộc. Glob các file được phép sửa, ví dụ 'src/utils/**/*.ts'. Skill không sửa gì ngoài Scope."
+   },
+   {
+    "name": "Verify",
+    "kind": "arg",
+    "desc": "Bắt buộc. Lệnh shell in ra đúng một con số ra stdout; chạy mỗi lượt nên phải qua safety screen."
+   },
+   {
+    "name": "Guard",
+    "kind": "arg",
+    "desc": "Tùy chọn, mặc định none. Lệnh kiểm tra regression (exit 0 = pass). File trong phạm vi Guard là read-only."
+   },
+   {
+    "name": "Iterations",
+    "kind": "arg",
+    "desc": "Tùy chọn, mặc định 10. Số lượt tối đa."
+   },
+   {
+    "name": "Noise",
+    "kind": "arg",
+    "desc": "Tùy chọn, mặc định medium. Độ dung sai phương sai metric: low / medium / high."
+   },
+   {
+    "name": "Min-Delta",
+    "kind": "arg",
+    "desc": "Tùy chọn, mặc định 0. Mức cải thiện tối thiểu để tính là tiến bộ."
+   },
+   {
+    "name": "Direction",
+    "kind": "arg",
+    "desc": "Tùy chọn, mặc định higher. Giá trị higher hay lower là tốt hơn."
+   },
+   {
+    "name": "Timeout",
+    "kind": "arg",
+    "desc": "Tùy chọn, mặc định 30s. Deadline cho mỗi lần verify; quá hạn thì ghi nhận timeout và discard an toàn."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:loop\nGoal: Increase test coverage in src/utils from ~60% to 80%\nScope: src/utils/**/*.ts, tests/utils/**/*.test.ts\nVerify: npx jest tests/utils --coverage --coverageReporters=json-summary 2>/dev/null | node -e \"const d=require('./coverage-summary.json');console.log(d.total.lines.pct)\"\nGuard: npx tsc --noEmit && npx jest --passWithNoTests\nIterations: 15",
+    "note": "Tăng coverage có guard typecheck + test."
+   },
+   {
+    "cmd": "/ak:loop\nGoal: Reduce main bundle size below 200KB\nScope: src/**/*.ts, src/**/*.tsx\nVerify: npx vite build 2>/dev/null | grep \"dist/index\" | awk '{print $2}' | sed 's/kB//'\nGuard: npx tsc --noEmit\nDirection: lower\nMin-Delta: 0.5",
+    "note": "Giảm bundle size, bỏ qua dao động dưới 0.5 kB."
+   },
+   {
+    "cmd": "/ak:loop\nGoal: Drive ESLint error count to zero in src/api\nScope: src/api/**/*.ts\nVerify: npx eslint src/api --format=json 2>/dev/null | node -e \"const r=require('/dev/stdin');console.log(r.reduce((a,f)=>a+f.errorCount,0))\" || echo 999\nDirection: lower\nIterations: 20",
+    "note": "Đưa lỗi ESLint về 0 qua 20 lượt."
+   },
+   {
+    "cmd": "/ak:loop tăng Lighthouse performance score trang /pricing",
+    "note": "Chỉ nêu mục tiêu; skill sẽ hỏi gộp Scope, Verify, Guard còn thiếu."
+   }
+  ],
+  "tips": [
+   "Working tree phải sạch trước khi chạy; skill commit mỗi lượt và revert khi discard.",
+   "Luôn đặt Guard: coverage tăng nhờ làm yếu test là regression, và guard giúp chặn điều đó.",
+   "Lệnh Verify chạy mỗi lượt nên chi phí nhân theo Iterations; đo thời gian lượt và đừng coi chi phí không rõ là bằng 0.",
+   "Metric nhiễu (thời gian chạy, Lighthouse) nên đặt Noise high hoặc Min-Delta > 0 để tránh giữ thay đổi ảo.",
+   "Không bao giờ để secret thật trong lệnh Verify; dùng biến môi trường, output sẽ được che."
+  ],
+  "related": [
+   "ak-autoresearch",
+   "ak-cook",
+   "ak-fix",
+   "ak-test",
+   "ak-git"
+  ],
+  "agents": [],
+  "artifacts": [
+   "loop-results.tsv trong thư mục làm việc",
+   "Chuỗi commit git cho mỗi lượt (giữ hoặc revert)",
+   "Báo cáo cuối về metric baseline và kết quả"
+  ]
+ },
+ "ak-bootstrap": {
+  "tagline": "Khởi tạo dự án mới từ ý tưởng đến code chạy được: research, tech stack, thiết kế, plan và implement.",
+  "summary": "ak:bootstrap dẫn một yêu cầu dự án mới qua chuỗi brainstorm contract → git init → research → tech stack → design → planning → implementation → test → review → docs → onboarding → báo cáo cuối. Skill không tự viết code mà ủy quyền cho ak:plan và ak:cook với flag tương ứng từng mode (full, auto, fast, parallel). Đầu vào là mô tả yêu cầu; đầu ra là repo có code chạy được, docs tech stack, wireframe, plan trong ./plans và hướng dẫn bắt đầu.",
+  "howItWorks": [
+   "Opening brainstorm gate (mọi mode): ghi nhận outcome sản phẩm, constraints, non-goals, acceptance criteria; tái dùng brief/plan đã chấp nhận; chỉ hỏi quyết định thực sự quan trọng.",
+   "Step 0 Git init: kiểm tra đích, file, manifest, trạng thái git; tái sử dụng dự án có sẵn, không re-scaffold hay reset; chỉ init git cho dự án mới.",
+   "Chọn workflow theo mode: --full (mặc định) → workflow-full.md; --auto → workflow-auto.md; --fast → workflow-fast.md; --parallel → workflow-parallel.md.",
+   "Full: làm rõ yêu cầu từng câu hỏi một → nhiều researcher song song (báo cáo ≤150 dòng) → tech stack (planner + researcher, đưa 2-3 lựa chọn, ghi vào ./docs) → wireframe/design tùy chọn (ui-ux-designer, wireframe HTML ở ./docs/wireframe/, logo qua ak:ai-multimodal, screenshot bằng ak:agent-browser).",
+   "Fast: một lô research song song (6 researcher: ý tưởng, stack, design), design không có gate, rồi plan --fast. Auto/Parallel: không có gate người dùng cho research/stack.",
+   "Planning: /ak:plan --hard (full), --auto, --fast hoặc --parallel; với --ultra thì thay bằng /ak:plan --ultra. Plan gồm plan.md (<80 dòng) + phase-XX-*.md.",
+   "Implementation: /ak:cook <plan-path> (full/fast), /ak:cook --auto (auto), /ak:cook --parallel (parallel); --yagni được truyền xuống plan và cook.",
+   "Shared phases: tester chạy test thật (không mock gian lận), debugger sửa khi fail, code-reviewer review, docs-manager cập nhật docs khi có tác động, project-manager cập nhật plan.",
+   "Onboarding: hướng dẫn người dùng từng câu hỏi, giải thích cách đặt credential an toàn mà không yêu cầu dán secret vào chat.",
+   "Báo cáo cuối và journal (trừ khi opt-out); chỉ commit/push khi được yêu cầu."
+  ],
+  "useWhen": [
+   "Bắt đầu một dự án hoàn toàn mới từ mô tả ý tưởng.",
+   "Cần dựng full-stack app (ví dụ SaaS có auth, e-commerce có Stripe) kèm plan và thiết kế.",
+   "Muốn nhanh có prototype, chấp nhận bỏ gate thiết kế (--fast).",
+   "Dự án lớn, muốn nhiều agent implement song song theo file ownership (--parallel)."
+  ],
+  "avoidWhen": [
+   "Thêm tính năng vào dự án đã tồn tại: dùng ak:plan + ak:cook.",
+   "Chỉ cần plan, chưa implement: dùng ak:plan.",
+   "Chỉ cần làm rõ ý tưởng và so sánh hướng đi: dùng ak:brainstorm.",
+   "Chỉ cần scaffold .NET: dùng dotnet-claude-kit:dotnet-init."
+  ],
+  "params": [
+   {
+    "name": "[requirements]",
+    "kind": "arg",
+    "desc": "Mô tả dự án cần dựng (sản phẩm, tính năng chính, ràng buộc)."
+   },
+   {
+    "name": "--full",
+    "kind": "flag",
+    "desc": "Mặc định. Workflow đầy đủ, hỏi quyết định quan trọng còn thiếu; plan bằng /ak:plan --hard, cook ở chế độ tiếp tục mặc định."
+   },
+   {
+    "name": "--auto",
+    "kind": "flag",
+    "desc": "Opt-in tự động rõ ràng: không có gate cho research/tech stack, tự chọn phương án tốt nhất; plan --auto, cook --auto."
+   },
+   {
+    "name": "--fast",
+    "kind": "flag",
+    "desc": "Nhanh: gộp research song song, không có gate thiết kế; plan --fast, cook mặc định. Vẫn không bỏ opening brainstorm gate."
+   },
+   {
+    "name": "--parallel",
+    "kind": "flag",
+    "desc": "Đa agent: plan --parallel (file ownership + dependency graph), cook --parallel. Xung đột cứng với --ultra."
+   },
+   {
+    "name": "--ultra",
+    "kind": "flag",
+    "desc": "Pha planning chạy /ak:plan --ultra (best-of-5 verifier) thay cho flag plan theo mode; cook vẫn dùng flag theo mode. Dùng cùng --parallel là hard-stop và yêu cầu bỏ một flag."
+   },
+   {
+    "name": "--yagni",
+    "kind": "flag",
+    "desc": "Bật YAGNI: thách thức và cắt phạm vi không cần cho outcome (mặc định scaffold đủ phạm vi yêu cầu). Truyền xuống ak:plan và ak:cook."
+   },
+   {
+    "name": "--skip-journal",
+    "kind": "flag",
+    "desc": "Bỏ bước /ak:journal tự động khi hoàn tất; cũng bị bỏ nếu prefs journal.auto=false."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:bootstrap \"Build a SaaS dashboard with auth\"",
+    "note": "Workflow full mặc định, có research, chọn stack và thiết kế."
+   },
+   {
+    "cmd": "/ak:bootstrap \"Build a SaaS dashboard with auth\" --fast",
+    "note": "Prototype nhanh, bỏ gate thiết kế."
+   },
+   {
+    "cmd": "/ak:bootstrap \"E-commerce platform with Stripe\" --parallel",
+    "note": "Dự án lớn, implement song song nhiều agent."
+   },
+   {
+    "cmd": "/ak:bootstrap \"CLI quản lý dotfiles bằng Go\" --auto --yagni --skip-journal",
+    "note": "Tự động hoàn toàn, cắt phạm vi thừa, không ghi journal."
+   },
+   {
+    "cmd": "/ak:bootstrap \"Nền tảng booking lớp học\" --ultra",
+    "note": "Muốn plan được chọn best-of-5 trước khi code."
+   }
+  ],
+  "tips": [
+   "Chi phí token cao: research song song nhiều researcher, thiết kế, plan và cook; dùng --fast khi chỉ cần prototype.",
+   "Nêu sẵn tech stack mong muốn trong yêu cầu để bỏ qua bước chọn stack.",
+   "--ultra không đi cùng --parallel vì plan ultra không mang cấu trúc file ownership mà cook --parallel cần.",
+   "Chạy trong thư mục đã có code thì skill tái sử dụng dự án, không reset; kiểm tra đúng thư mục đích trước.",
+   "Bootstrap không tự push; cần commit/push thì yêu cầu rõ hoặc dùng ak:git/ak:ship."
+  ],
+  "related": [
+   "ak-brainstorm",
+   "ak-plan",
+   "ak-cook",
+   "ak-research",
+   "ak-test",
+   "ak-code-review",
+   "ak-docs",
+   "ak-ai-multimodal",
+   "ak-journal"
+  ],
+  "agents": [
+   "researcher",
+   "planner",
+   "ui-ux-designer",
+   "tester",
+   "debugger",
+   "code-reviewer",
+   "docs-manager",
+   "project-manager"
+  ],
+  "artifacts": [
+   "Repo git mới (khi cần)",
+   "Tài liệu tech stack trong ./docs",
+   "Design guidelines và wireframe HTML ở ./docs/wireframe/, screenshot ở ./docs/wireframes/",
+   "Plan trong ./plans (plan.md + phase-XX-*.md)",
+   "Mã nguồn và test",
+   "Journal entry"
+  ]
+ },
+ "ak-agentize": {
+  "tagline": "Biến code hoặc API có sẵn thành CLI thân thiện agent, MCP server, hoặc cả hai.",
+  "summary": "ak:agentize bọc một codebase hoặc module có sẵn thành bề mặt cho AI agent: CLI (tái dùng runtime, output có cấu trúc, exit code rõ) và/hoặc MCP server (transport, auth, protocol chọn theo consumer thực tế). Skill scout export, schema, side effect, credential; lập Agentization Map; quyết định bề mặt; scaffold, wrap, harden và đóng gói. Không dùng để xây MCP server từ đầu (dùng ak:mcp-builder). Đầu ra là adapter CLI/MCP chạy được, ví dụ sử dụng và kết quả kiểm chứng consumer.",
+  "howItWorks": [
+   "Phase 0 Track: ghi mode, file sở hữu, acceptance check, ý định deploy, non-goals; tạo plan cho bề mặt đa module hoặc publish.",
+   "Phase 1 Scout: xem export, schema, caller, test, side effect, credential, runtime, package manager trong phạm vi module.",
+   "Phase 2 Analyze: lập Agentization Map (intent, operation, input/output schema, side effect, access control, consumer check) theo agent-centric-design.md (naming, pagination, error, idempotency).",
+   "Phase 3 Decide: ghi CLI/MCP/both, consumer, local/remote, auth, đích publish; resolve protocol/SDK từ manifest, lockfile. --auto tự quyết; --ask phỏng vấn người dùng (challenge-framework.md).",
+   "Phase 4 Scaffold: tái dùng layout project, tách business logic khỏi adapter; preset npm + remote MCP dùng monorepo-layout.md; Cloudflare Workers/Docker/PaaS theo deployment-guide.md khi cần.",
+   "Phase 5 Wrap: CLI có help, output xác định, exit code, chạy non-interactive, credential stateless theo auth-resolution-chain.md; MCP chọn transport (mcp-transports.md), log stdio không ra stdout, OAuth cho remote (oauth-streamable-http.md); code mode chỉ cho thao tác hàng loạt.",
+   "Phase 6 Harden: kiểm chứng hành vi gốc qua từng adapter (discovery, schema validation, success/failure, mutation boundary, redaction, headless, auth rejection); chạy test/type/lint.",
+   "Phase 7 Package: bàn giao artifact, ví dụ, kết quả consumer, quyết định, giới hạn; chỉ publish khi được yêu cầu và có receipt.",
+   "--ultra: fan Phase 2-3 ra 5 candidate read-only, verifier chọn một decision record thắng; Phase 4-7 chạy một lần.",
+   "--advice: kongming tư vấn sau Scout/Analyze, trước khi chốt decision record, trước package handoff và khi kẹt."
+  ],
+  "useWhen": [
+   "Có thư viện/service nội bộ muốn agent (Claude, Cursor, ChatGPT) gọi được qua MCP.",
+   "Muốn một CLI có output JSON và exit code rõ để agent chạy headless.",
+   "Có REST API/OpenAPI lớn cần expose cho agent với workflow được tuyển chọn.",
+   "Cần MCP server remote có OAuth để phân phối cho nhiều client."
+  ],
+  "avoidWhen": [
+   "Xây MCP server mới cho dịch vụ bên ngoài từ đầu: dùng ak:mcp-builder.",
+   "Expose tính năng website cho agent chạy trong browser: dùng ak:webmcp.",
+   "Viết skill (SKILL.md) chứ không phải CLI/MCP: dùng ak:skill-creator.",
+   "Chỉ scaffold package npm không có câu chuyện agent sử dụng."
+  ],
+  "params": [
+   {
+    "name": "[feature-or-module]",
+    "kind": "arg",
+    "desc": "Module hoặc tính năng cần agentize; bỏ trống thì phạm vi là codebase."
+   },
+   {
+    "name": "--both",
+    "kind": "flag",
+    "desc": "Mặc định. Tạo cả adapter CLI và MCP dùng chung business logic; harden phải kiểm cả hai đường consumer và core chung."
+   },
+   {
+    "name": "--mcp",
+    "kind": "flag",
+    "desc": "Chỉ tạo MCP server. Cũng được suy ra từ cụm 'MCP only', 'server only'."
+   },
+   {
+    "name": "--cli",
+    "kind": "flag",
+    "desc": "Chỉ tạo CLI. Suy ra từ 'CLI only', 'npm package'."
+   },
+   {
+    "name": "--auto",
+    "kind": "flag",
+    "desc": "Mặc định. Tự phân tích, quyết định và implement không hỏi."
+   },
+   {
+    "name": "--ask",
+    "kind": "flag",
+    "desc": "Sau phân tích, đặt câu hỏi làm rõ/thách thức người dùng trước khi implement. Với --ultra, phỏng vấn chạy một lần trước khi fan."
+   },
+   {
+    "name": "--ultra",
+    "kind": "flag",
+    "desc": "Fan Agentization Map + decision record (Phase 2-3) ra 5 candidate read-only; verifier chấm theo độ trung thực hành vi, chất lượng agent-centric design, độ sắc lựa chọn capability, tính thực tế deploy; chọn 1 hoặc reject-all."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "Giám sát tư vấn kongming ở 4 checkpoint (sau Scout/Analyze, trước chốt decision, trước package, khi kẹt). Không vượt hard gate, test, security policy."
+   },
+   {
+    "name": "--yagni",
+    "kind": "flag",
+    "desc": "Thách thức và cắt phạm vi không cần cho outcome; truyền xuống subagent."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:agentize src/billing",
+    "note": "Mặc định --both --auto: tạo CLI và MCP cho module billing."
+   },
+   {
+    "cmd": "/ak:agentize packages/search --mcp --ask",
+    "note": "Chỉ MCP server, hỏi làm rõ transport/auth trước khi làm."
+   },
+   {
+    "cmd": "/ak:agentize --cli --yagni",
+    "note": "CLI tối giản cho toàn codebase, cắt phạm vi thừa."
+   },
+   {
+    "cmd": "/ak:agentize api/openapi.yaml --both --ultra --advice",
+    "note": "API lớn, publish remote: chọn decision record best-of-5 có giám sát."
+   }
+  ],
+  "tips": [
+   "Không có operation nào expose được thì skill sẽ chỉ ra refactor cần thiết thay vì bọc bừa.",
+   "Không giả định ngày protocol MCP hay auth extension từ template; skill resolve từ SDK đã cài.",
+   "Log MCP stdio không được ra stdout, nếu không sẽ phá giao thức.",
+   "Đóng gói không đồng nghĩa với publish; muốn phát hành npm/Cloudflare phải yêu cầu rõ.",
+   "Monorepo chỉ dành cho preset npm + remote MCP; một lệnh local không cần monorepo."
+  ],
+  "related": [
+   "ak-mcp-builder",
+   "ak-webmcp",
+   "ak-skill-creator",
+   "ak-devops",
+   "ak-deploy",
+   "ak-plan"
+  ],
+  "agents": [
+   "kongming"
+  ],
+  "artifacts": [
+   "Adapter CLI và/hoặc MCP server",
+   "Agentization Map và decision record",
+   "Cấu hình deploy (Cloudflare Workers/Docker) khi chọn",
+   "Release CI và companion skill khi được yêu cầu",
+   "Ví dụ sử dụng và kết quả kiểm chứng consumer"
+  ]
+ },
+ "ak-backend-development": {
+  "tagline": "Xây backend/API bằng Node.js, Python, Go theo đúng stack và quy ước sẵn có của dự án.",
+  "summary": "ak:backend-development là skill domain cho REST/GraphQL/gRPC API, xác thực (OAuth, JWT), bảo mật OWASP, hiệu năng, kiến trúc microservice và vận hành Docker/K8s với các framework như NestJS, FastAPI, Django. Skill kiểm tra manifest, ranh giới route/service, quyền sở hữu dữ liệu và test trước khi chọn recipe, rồi mở đúng reference cho loại thay đổi. Đầu ra là hành vi backend được implement và kiểm chứng cả đường thành công lẫn thất bại. Công việc chủ yếu về database, auth hay deploy nên chuyển cho skill chuyên trách.",
+  "howItWorks": [
+   "Đọc manifest, ranh giới route/service, quyền sở hữu dữ liệu và test để xác định stack thực tế; sửa một endpoint REST không cho phép thay auth hay database.",
+   "Phân loại thay đổi: API design, tích hợp auth, performance, architecture, testing hoặc deployment; mở reference tương ứng.",
+   "Reference: backend-technologies (ngôn ngữ, framework, DB, message queue, ORM), backend-api-design (REST/GraphQL/gRPC), backend-security (OWASP Top 10 2025), backend-authentication (OAuth 2.1, JWT, RBAC, MFA, session), backend-performance, backend-architecture (microservice, event-driven, CQRS, saga), backend-testing, backend-code-quality, backend-devops, backend-debugging, backend-mindset.",
+   "Lựa chọn backend mới phải nêu constraints và trade-off; kiểm lại hướng dẫn nhạy phiên bản với dependency đã cài và docs chính thức.",
+   "Validate input, giữ authorization/state phía server, trả lỗi ổn định; verify đường thành công/thất bại và contract của caller bị ảnh hưởng.",
+   "Áp implementation-checklist.md chỉ cho các tính năng bị ảnh hưởng."
+  ],
+  "useWhen": [
+   "Xây endpoint REST/GraphQL/gRPC mới trong service NestJS, FastAPI, Django, Express hoặc Go.",
+   "Rà soát và vá lỗ hổng OWASP trong API.",
+   "Tối ưu hiệu năng backend: caching, query, load balancing.",
+   "Thiết kế kiến trúc microservice/event-driven, CQRS, saga.",
+   "Viết chiến lược test cho backend và CI."
+  ],
+  "avoidWhen": [
+   "Công việc chính là schema, query, migration, index: dùng ak:databases.",
+   "Tích hợp auth bằng Better Auth: dùng ak:better-auth.",
+   "Deploy/hosting: dùng ak:deploy; hạ tầng cloud/K8s/CI: dùng ak:devops.",
+   "Thanh toán: dùng ak:payment-integration.",
+   "Backend ASP.NET Core: dùng các skill dotnet-claude-kit (minimal-api, ef-core...)."
+  ],
+  "params": [
+   {
+    "name": "[framework]",
+    "kind": "arg",
+    "desc": "Framework/ngôn ngữ mục tiêu (ví dụ nestjs, fastapi, django, go). Skill vẫn ưu tiên stack thực tế đọc được từ manifest."
+   },
+   {
+    "name": "[task]",
+    "kind": "arg",
+    "desc": "Công việc backend cần làm (API, auth, performance, architecture, testing, deployment)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:backend-development nestjs thêm endpoint phân trang cursor cho /orders",
+    "note": "Thiết kế API và pagination trong service NestJS có sẵn."
+   },
+   {
+    "cmd": "/ak:backend-development fastapi audit OWASP cho module upload",
+    "note": "Rà soát bảo mật theo backend-security.md."
+   },
+   {
+    "cmd": "/ak:backend-development go thêm Redis cache cho product lookup",
+    "note": "Tối ưu hiệu năng theo backend-performance.md."
+   },
+   {
+    "cmd": "/ak:backend-development tách order service thành event-driven với outbox",
+    "note": "Quyết định kiến trúc, cần nêu trade-off."
+   }
+  ],
+  "tips": [
+   "Con số cải thiện hiệu năng trong recipe không phải bằng chứng cho ứng dụng của bạn; hãy đo baseline.",
+   "Skill không đổi framework/DB chỉ vì ví dụ; muốn chuyển stack phải yêu cầu rõ.",
+   "Reference là tài liệu lớn; nêu rõ loại thay đổi để skill chỉ nạp phần cần, tiết kiệm token.",
+   "Luôn yêu cầu test cả đường lỗi (input sai, không có quyền), không chỉ happy path."
+  ],
+  "related": [
+   "ak-databases",
+   "ak-better-auth",
+   "ak-devops",
+   "ak-deploy",
+   "ak-payment-integration",
+   "ak-security",
+   "ak-cook",
+   "ak-test"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Mã nguồn backend (route, service, middleware) và test liên quan"
+  ]
+ },
+ "ak-better-auth": {
+  "tagline": "Thêm xác thực bằng Better Auth (TypeScript): email/password, OAuth, 2FA, passkey, session, RBAC, rate limiting.",
+  "summary": "ak:better-auth hướng dẫn tích hợp Better Auth, framework auth/authorization cho TypeScript chạy được với Next.js, Nuxt, SvelteKit, Remix, Astro, Hono, Express. Skill kiểm tra phiên bản Better Auth đã cài, wiring server/client và schema trước; chỉ install/scaffold cho tích hợp mới, còn tích hợp có sẵn thì chọn email/OAuth, session/plugin hoặc migration DB. Đầu ra là cấu hình auth, schema/migration và kiểm chứng đường lỗi (callback fail, session hết hạn/thu hồi). Có ma trận tính năng cho biết plugin nào cần thiết.",
+  "howItWorks": [
+   "Kiểm tra phiên bản Better Auth đã cài, wiring server/client và schema hiện có.",
+   "Tích hợp mới: đọc method-selection.md để chọn phương thức (email/password, OAuth, passkey, magic link hoặc kết hợp), rồi installation-recipes.md; có thể dùng scripts/better_auth_init.py để khởi tạo cấu hình tương tác.",
+   "Tích hợp có sẵn: không chạy lại init để thêm plugin; chọn reference: email-password-auth.md, oauth-providers.md, database-integration.md, advanced-features.md.",
+   "Tra ma trận tính năng: built-in (email/password, OAuth, email verification, password reset, rate limiting, session) hay plugin (twoFactor, passkey, magicLink, username, organization).",
+   "Đối chiếu phiên bản với security advisory upstream; giữ các bất biến: client_secret cho refresh-token ở oidc-provider/mcp, token magicLink dùng một lần, requireEmailVerificationOnInvitation, gắn device code với session xác minh.",
+   "Verify callback failure, session expiry/revocation và đường lỗi của plugin đã chọn; giữ secret phía server."
+  ],
+  "useWhen": [
+   "Thêm đăng nhập email/password hoặc Google/GitHub OAuth vào app TypeScript.",
+   "Bật 2FA/TOTP, passkey/WebAuthn hoặc magic link cho app đang dùng Better Auth.",
+   "Xây app multi-tenant có organization và lời mời thành viên.",
+   "Cấu hình session management, rate limiting chống brute-force."
+  ],
+  "avoidWhen": [
+   "Dự án đã dùng Auth.js, Clerk, Supabase Auth và không muốn đổi: dùng ak:backend-development cho auth tổng quát.",
+   "Auth cho ASP.NET Core: dùng dotnet-claude-kit:authentication.",
+   "Audit bảo mật toàn diện: dùng ak:security.",
+   "Chỉ thiết kế schema DB không liên quan auth: dùng ak:databases."
+  ],
+  "params": [
+   {
+    "name": "[auth-method or feature]",
+    "kind": "arg",
+    "desc": "Phương thức hoặc tính năng auth cần thêm (ví dụ oauth github, 2fa, passkey, organization, rate limiting)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:better-auth email/password + email verification cho Next.js app",
+    "note": "Tích hợp mới, dùng tính năng built-in."
+   },
+   {
+    "cmd": "/ak:better-auth thêm Google và GitHub OAuth",
+    "note": "Thêm social login vào tích hợp sẵn có."
+   },
+   {
+    "cmd": "/ak:better-auth bật twoFactor plugin",
+    "note": "Thêm 2FA mà không chạy lại init."
+   },
+   {
+    "cmd": "/ak:better-auth organization với lời mời qua email",
+    "note": "Multi-tenant, giữ requireEmailVerificationOnInvitation."
+   }
+  ],
+  "tips": [
+   "Không chạy lại khởi tạo để thêm plugin; nó có thể ghi đè cấu hình hiện có.",
+   "Kiểm tra security advisory của đúng phiên bản trước khi khẳng định một lỗ hổng đã được vá.",
+   "Nhớ chạy migration schema sau khi thêm plugin cần bảng mới (xem database-integration.md).",
+   "Tên option khác nhau giữa các phiên bản; skill đối chiếu với phiên bản đã cài thay vì chép ví dụ."
+  ],
+  "related": [
+   "ak-backend-development",
+   "ak-databases",
+   "ak-security",
+   "ak-web-frameworks",
+   "ak-tanstack"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Cấu hình auth server/client",
+   "Schema/migration cho bảng auth",
+   "Route handler và UI flow đăng nhập (khi cần)"
+  ]
+ },
+ "ak-databases": {
+  "tagline": "Thiết kế schema, viết query, index, migration và tối ưu cho MongoDB và PostgreSQL.",
+  "summary": "ak:databases là hướng dẫn thống nhất cho MongoDB (document) và PostgreSQL (relational): thiết kế schema OLTP/OLAP, query SQL và aggregation pipeline, index, migration, replication, backup, quản trị và psql CLI. Skill xác định engine/phiên bản hiện có, chỉ nạp reference liên quan và phân loại tác động trước khi thực thi (đọc, thay đổi hiệu năng, migration/ghi, backup/quản trị) kèm bằng chứng bắt buộc cho từng loại. Có sẵn script Python cho migration, backup và kiểm tra hiệu năng.",
+  "howItWorks": [
+   "Xác định engine và phiên bản hiện có; giữ nguyên engine trừ khi được yêu cầu đổi.",
+   "Phân loại thao tác và bằng chứng cần có: read query (đúng shape, giới hạn target, read-only); performance change (EXPLAIN/query plan và workload trước/sau; lưu ý ANALYZE thực thi query); migration/write (preimage/backup, rollback, rerun an toàn); backup/restore/admin (đúng target, xác minh restore, cần ủy quyền rõ cho thao tác phá hủy).",
+   "Nạp đúng reference: db-design.md (thiết kế bảng OLTP/OLAP, fact/dimension, phân tích CSV/JSON/SQL), mongodb-crud/aggregation/indexing/atlas, postgresql-queries/psql-cli/performance/administration.",
+   "Dùng script khi phù hợp: db_migrate.py (sinh và áp migration), db_backup.py (backup/restore), db_performance_check.py (phân tích query chậm, đề xuất index).",
+   "Áp best practice theo engine (embed vs reference ở MongoDB; 3NF, foreign key, VACUUM/ANALYZE, pgBouncer ở PostgreSQL)."
+  ],
+  "useWhen": [
+   "Thiết kế schema mới cho ứng dụng hoặc bảng fact/dimension cho analytics.",
+   "Viết query phức tạp: JOIN, CTE, window function, aggregation pipeline.",
+   "Query chậm cần EXPLAIN và đề xuất index.",
+   "Viết migration an toàn có rollback.",
+   "Thiết lập backup/restore, replication, quản lý user/permission."
+  ],
+  "avoidWhen": [
+   "Chỉ cần đọc dữ liệu để debug mà có MCP read-only: dùng dbread.",
+   "Làm việc với EF Core trong .NET: dùng dotnet-claude-kit:ef-core.",
+   "D1/KV của Cloudflare: dùng ak:devops.",
+   "Logic API tổng quát không xoay quanh DB: dùng ak:backend-development."
+  ],
+  "params": [
+   {
+    "name": "[query or schema task]",
+    "kind": "arg",
+    "desc": "Công việc DB cần làm: query, schema, index, migration, backup, tối ưu."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:databases thiết kế schema PostgreSQL cho hệ thống booking đa chi nhánh",
+    "note": "Thiết kế OLTP theo db-design.md."
+   },
+   {
+    "cmd": "/ak:databases aggregation MongoDB doanh thu theo tháng và theo danh mục",
+    "note": "Viết aggregation pipeline."
+   },
+   {
+    "cmd": "/ak:databases query /orders chậm, đây là EXPLAIN ANALYZE ...",
+    "note": "Tối ưu hiệu năng, cần bằng chứng trước/sau."
+   },
+   {
+    "cmd": "/ak:databases migration thêm cột tenant_id NOT NULL cho bảng users",
+    "note": "Migration có backup và rollback."
+   }
+  ],
+  "tips": [
+   "EXPLAIN ANALYZE thực sự chạy query; cẩn thận với câu lệnh ghi trên production.",
+   "Thao tác backup/restore/xóa cần ủy quyền rõ ràng và target chính xác.",
+   "Cung cấp phiên bản engine và cấu trúc bảng hiện có để skill không đoán.",
+   "Cải thiện hiệu năng phải có số đo workload trước/sau, không chỉ dựa vào query plan."
+  ],
+  "related": [
+   "ak-backend-development",
+   "ak-debug",
+   "ak-devops",
+   "ak-better-auth",
+   "dbread"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Schema/DDL, file migration",
+   "Query và định nghĩa index",
+   "File backup (khi chạy db_backup.py)",
+   "Báo cáo query chậm/đề xuất index"
+  ]
+ },
+ "ak-deploy": {
+  "tagline": "Deploy dự án lên 15 nền tảng, tự nhận dạng đích từ cấu hình và docs, kiểm chứng health và ghi lại đường rollback.",
+  "summary": "ak:deploy resolve môi trường và đích người dùng chọn, đối chiếu cấu hình provider, manifest và tài liệu deployment hiện có, rồi chạy lệnh deploy theo reference của đúng nền tảng (Vercel, Netlify, Cloudflare, Railway, Fly.io, Render, Heroku, TOSE.sh, GitHub Pages, Coolify, Dokploy, GCP Cloud Run, AWS, DigitalOcean, Vultr). Upload thành công mà chưa có bằng chứng health thì chưa được coi là deploy xong: skill kiểm chứng URL, health endpoint hoặc luồng chính, revision, môi trường và ghi lệnh rollback. Tài liệu deployment chỉ được cập nhật khi contract vận hành thay đổi, đi qua workflow tài liệu của dự án (/ak:docs update). Skill không lo provisioning hạ tầng, migration DB, DNS, SSL hay tạo pipeline CI/CD; việc hạ tầng nâng cao và troubleshooting sâu chuyển sang ak:devops.",
+  "howItWorks": [
+   "Resolve môi trường và đích người dùng chọn trước, rồi kiểm tra cấu hình provider đang hoạt động, manifest dự án và tài liệu deployment sở hữu; ghi lại mâu thuẫn giữa docs và config, không để thứ tự khớp đầu tiên chọn nhầm tài khoản hoặc môi trường production.",
+   "Chỉ hỏi khi còn một quyết định đích deploy quan trọng chưa rõ (nhiều đích khả thi); nhắc tên provider trong câu hỏi không được coi là ý định deploy.",
+   "Tín hiệu nhận dạng: vercel.json/.vercel/, netlify.toml/_redirects, wrangler.toml/wrangler.json, fly.toml, railway.json/railway.toml, render.yaml, Procfile + app.json, tose.yaml/tose.json, docker-compose.yml có tham chiếu coolify, dokploy.yml, .github/workflows/*pages*, app.yaml (GAE), amplify.yml/buildspec.yml, .do/app.yaml.",
+   "Chưa có đích: phân loại project (static, SPA, SSR/full-stack, Node API, Python API, Docker, monorepo) để ra nền tảng ứng viên; so sánh theo tương thích runtime, ràng buộc region/dữ liệu, gánh nặng vận hành và ngân sách; đưa tối đa 4 lựa chọn qua ask_user, giá/giới hạn chỉ nêu khi có nguồn chính thức hiện tại.",
+   "Giữ nguyên đích đang dùng trừ khi yêu cầu đổi.",
+   "Thực thi: kiểm tra CLI (cài nếu thiếu) → kiểm tra auth (login nếu cần) → chạy lệnh deploy từ references/platforms/<platform>.md (chỉ nạp file của nền tảng được chọn).",
+   "Kiểm chứng URL trả về, health endpoint hoặc luồng người dùng chính, revision đã deploy và môi trường; sửa các lỗi trong phạm vi.",
+   "Ghi lệnh rollback hoặc ID bản deploy trước; cập nhật tài liệu deployment sở hữu (tìm qua điều hướng repo, mẫu trong platform-config-templates.md) chỉ khi contract vận hành đổi, qua /ak:docs update nếu có; chỉ ghi tên cấu hình và nguồn lấy giá trị, không ghi secret.",
+   "Troubleshooting: đọc lỗi, tự sửa lỗi thường gặp; không giải quyết được thì kích hoạt /ak:devops; hướng dẫn khôi phục dùng lại được thì ghi vào tài liệu deployment khi đáng giữ."
+  ],
+  "useWhen": [
+   "Muốn deploy, publish, go live hoặc host ứng dụng hiện tại.",
+   "Chưa biết nên host ở đâu, cần so sánh nền tảng theo loại project, runtime và ngân sách.",
+   "Deploy lên nền tảng đã cấu hình sẵn (vercel.json, fly.toml, wrangler.toml...) và cần kiểm chứng health, revision, rollback.",
+   "Cần cập nhật tài liệu deployment của dự án sau khi đổi lệnh deploy, biến môi trường hoặc đường rollback."
+  ],
+  "avoidWhen": [
+   "Provisioning hạ tầng, Kubernetes, CI/CD, GitOps hoặc troubleshooting hạ tầng sâu: dùng ak:devops.",
+   "Migration database: dùng ak:databases.",
+   "'Ship' theo nghĩa đưa branch lên PR: dùng ak:ship.",
+   "DNS, chứng chỉ SSL, tạo pipeline CI/CD: ngoài phạm vi skill.",
+   "Chỉ hỏi thông tin về một nhà cung cấp mà không có ý định deploy."
+  ],
+  "params": [
+   {
+    "name": "[platform]",
+    "kind": "arg",
+    "desc": "Nền tảng đích, một trong 15 nền tảng có reference: vercel, netlify, cloudflare, railway, flyio, render, heroku, tose, github-pages, coolify, dokploy, gcp, aws, digitalocean, vultr. Bỏ trống thì tự nhận dạng từ cấu hình và docs."
+   },
+   {
+    "name": "[environment]",
+    "kind": "arg",
+    "desc": "Môi trường đích (ví dụ preview, staging, production). Skill resolve môi trường người dùng chọn trước khi xét cấu hình để tránh deploy nhầm production."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:deploy",
+    "note": "Tự nhận dạng đích từ file cấu hình và tài liệu deployment rồi deploy."
+   },
+   {
+    "cmd": "/ak:deploy vercel preview",
+    "note": "Deploy bản preview lên Vercel và kiểm chứng URL."
+   },
+   {
+    "cmd": "/ak:deploy flyio production",
+    "note": "Deploy Docker app lên Fly.io production, kèm health check và lệnh rollback."
+   },
+   {
+    "cmd": "/ak:deploy github-pages",
+    "note": "Publish static site lên GitHub Pages."
+   },
+   {
+    "cmd": "/ak:deploy cloudflare staging",
+    "note": "Deploy lên Cloudflare môi trường staging theo wrangler.toml."
+   }
+  ],
+  "tips": [
+   "Nhắc tên nhà cung cấp trong câu hỏi không phải ý định deploy; nói rõ khi thực sự muốn deploy.",
+   "Repo có nhiều cấu hình mâu thuẫn (ví dụ vercel.json và netlify.toml) thì chỉ định rõ nền tảng và môi trường để tránh deploy nhầm tài khoản production.",
+   "Skill kiểm tra .env và .gitignore trước khi deploy, không in API key/token; tài liệu deployment chỉ ghi nơi lấy giá trị secret.",
+   "Luôn giữ lại lệnh rollback hoặc ID bản deploy trước mà skill ghi sau mỗi lần deploy production.",
+   "Muốn so sánh chi phí thì yêu cầu kèm nguồn chính thức; skill không duy trì bảng giá có sẵn."
+  ],
+  "related": [
+   "ak-devops",
+   "ak-ship",
+   "ak-docs",
+   "ak-web-frameworks",
+   "ak-backend-development",
+   "ak-databases"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Bản deploy trên nền tảng + URL đã kiểm chứng",
+   "Ghi chú rollback hoặc ID bản deploy trước",
+   "Tài liệu deployment sở hữu của dự án (chỉ cập nhật khi contract vận hành đổi)",
+   "File cấu hình nền tảng khi cần"
+  ]
+ },
+ "ak-devops": {
+  "tagline": "Hạ tầng cloud và container: Cloudflare Workers/R2/D1, Docker, GCP, Kubernetes, CI/CD, GitOps và audit bảo mật.",
+  "summary": "ak:devops triển khai và quản lý hạ tầng trên Cloudflare (Workers, Pages, R2, D1, KV, Browser Rendering), Docker/Docker Compose, Google Cloud (Cloud Run, GKE, Cloud SQL qua gcloud) và Kubernetes (kubectl, Helm), cùng CI/CD, triển khai đa region, GitOps (Argo CD, Flux), audit bảo mật, RBAC và network policy. Skill giữ nguyên provider sẵn có của repo, chọn rõ hiệu ứng (build/test cục bộ, preview hay rollout production) và chỉ nạp reference của đích. Trước khi rollout production phải xác định chính xác account/project/region, health check và rollback. Khi công việc tạo hoặc đổi một đường vận hành (deploy, nguồn log, cách lấy credential, webhook/OAuth/DNS, backup/rollback), skill cập nhật tài liệu dự án liên quan qua /ak:docs update, hoặc báo diff đề xuất kèm blocker nếu không được phép ghi.",
+  "howItWorks": [
+   "Đọc cấu hình deployment/container của repo và đích người dùng trước; giữ provider đó, không đổi nhà cung cấp cloud cho khớp ví dụ.",
+   "Chọn hiệu ứng rõ ràng: build/test cục bộ, preview hay rollout production; làm Docker cục bộ thì không gọi cloud CLI.",
+   "Chỉ nạp reference của đích: cloudflare-platform, cloudflare-workers-basics/advanced/apis, cloudflare-r2-storage, cloudflare-d1-kv, browser-rendering (Puppeteer); docker-basics, docker-compose; gcloud-platform, gcloud-services; Kubernetes/Helm dựa vào docs upstream.",
+   "So sánh nền tảng mới hoặc cần ví dụ lệnh thì dùng references/platform-recipes.md, kiểm lại chi tiết nhạy phiên bản CLI trước khi chạy.",
+   "Trước production: xác định account/project/region, health check và rollback; tái dùng ủy quyền có sẵn cho các hiệu ứng đó.",
+   "Dùng script khi phù hợp: scripts/cloudflare_deploy.py (tự động deploy Worker), scripts/docker_optimize.py (phân tích Dockerfile).",
+   "Giữ secret ngoài output, giữ quyền sở hữu state; chỉ theo dõi và dừng các process do chính công việc này khởi chạy.",
+   "Khi thiết lập hoặc đổi đường vận hành, cập nhật hướng dẫn dự án bị ảnh hưởng trong phạm vi được phép qua /ak:docs update; không được phép ghi thì báo diff đề xuất và blocker."
+  ],
+  "useWhen": [
+   "Viết và deploy Cloudflare Worker/Pages có binding R2, D1, KV hoặc dùng Browser Rendering.",
+   "Container hóa ứng dụng bằng Dockerfile multi-stage, dựng Docker Compose cho dev cục bộ.",
+   "Deploy lên Cloud Run/GKE hoặc quản lý Cloud SQL bằng gcloud.",
+   "Quản lý cluster Kubernetes bằng kubectl/Helm, thiết lập GitOps với Argo CD hoặc Flux.",
+   "Dựng pipeline CI/CD, triển khai đa region hoặc audit bảo mật hạ tầng: container non-root, RBAC, network policy, quét image."
+  ],
+  "avoidWhen": [
+   "Chỉ cần deploy app lên PaaS phổ biến với tự nhận dạng đích: dùng ak:deploy.",
+   "Container hóa .NET không cần Dockerfile: dùng dotnet-claude-kit:container-publish.",
+   "Pipeline CI/CD riêng cho .NET: dùng dotnet-claude-kit:ci-cd.",
+   "Quét lỗ hổng mã nguồn và secret trong code: dùng ak:security."
+  ],
+  "params": [
+   {
+    "name": "[platform]",
+    "kind": "arg",
+    "desc": "Nền tảng đích: cloudflare, docker, gcp, kubernetes... Skill vẫn ưu tiên provider sẵn có trong repo và không đổi nhà cung cấp."
+   },
+   {
+    "name": "[task]",
+    "kind": "arg",
+    "desc": "Công việc hạ tầng: deploy serverless, containerize, CI/CD, GitOps, triển khai đa region, audit bảo mật, RBAC, network policy."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:devops cloudflare tạo Worker API có D1 và R2 binding",
+    "note": "Serverless edge theo các reference Cloudflare."
+   },
+   {
+    "cmd": "/ak:devops docker viết Dockerfile multi-stage non-root cho app Node",
+    "note": "Container hóa cục bộ, không gọi cloud CLI; có thể chạy docker_optimize.py."
+   },
+   {
+    "cmd": "/ak:devops gcp deploy lên Cloud Run region asia-southeast1",
+    "note": "Rollout production có xác định project/region, health check và rollback."
+   },
+   {
+    "cmd": "/ak:devops kubernetes Helm chart + Argo CD cho staging",
+    "note": "GitOps trên cluster, dựa vào docs upstream của Kubernetes/Helm."
+   }
+  ],
+  "tips": [
+   "Nêu rõ account/project/region khi làm production để skill không phải đoán.",
+   "Process dev (wrangler dev, docker compose up) do skill khởi chạy sẽ được dừng khi xong; kiểm tra lại không còn process mồ côi.",
+   "Chi phí: R2 hợp cho egress lớn; bật caching và right-size tài nguyên.",
+   "Kubernetes/Helm không có reference riêng, skill dựa vào docs upstream nên hãy nêu phiên bản cluster/chart.",
+   "Đổi đường deploy, nguồn log hay cách lấy credential thì mong đợi skill cập nhật tài liệu vận hành qua ak:docs; nếu không cho ghi, nó sẽ trả diff đề xuất."
+  ],
+  "related": [
+   "ak-deploy",
+   "ak-docs",
+   "ak-backend-development",
+   "ak-databases",
+   "ak-security",
+   "ak-agentize"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Dockerfile, docker-compose.yml",
+   "wrangler.toml và code Worker",
+   "Manifest Kubernetes/Helm chart",
+   "Workflow CI/CD, cấu hình GitOps",
+   "Báo cáo audit bảo mật hạ tầng",
+   "Cập nhật hướng dẫn vận hành của dự án (hoặc diff đề xuất) khi đường vận hành đổi"
+  ]
+ },
+ "ak-mobile-development": {
+  "tagline": "Xây app mobile với React Native, Flutter, SwiftUI, Jetpack Compose theo tư duy mobile-first.",
+  "summary": "ak:mobile-development hỗ trợ xây ứng dụng iOS/Android native hoặc cross-platform: UX mobile, tối ưu hiệu năng/pin/bộ nhớ, offline-first, bảo mật, test và phát hành lên App Store/Google Play. Skill đọc manifest, lockfile, file project platform để xác định framework và toolchain thực tế, giữ kiến trúc hiện có cho sửa đổi nhỏ và chỉ so sánh framework khi quyết định nền tảng còn mở. Tuyên bố về hiệu năng/pin/phần cứng phải đo trên thiết bị thật.",
+  "howItWorks": [
+   "Đọc manifest, lockfile, file project platform và cấu hình deploy để xác định framework, SDK/toolchain và thiết bị hỗ trợ.",
+   "Giữ kiến trúc hiện có cho sửa UI trong phạm vi; chỉ so sánh framework khi quyết định nền tảng còn mở (mobile-frameworks.md).",
+   "Nạp reference theo nhu cầu: mobile-ios.md (Swift 6, SwiftUI, HIG), mobile-android.md (Kotlin, Compose, Material 3), mobile-best-practices.md, mobile-debugging.md, mobile-mindset.md.",
+   "Xử lý lỗi mạng phù hợp; offline-first là lựa chọn sản phẩm chứ không phải migration bắt buộc.",
+   "Đặt performance budget từ sản phẩm, thiết bị mục tiêu, refresh rate và baseline; đo trên thiết bị thật cho release, ghi rõ thiết bị không kiểm được.",
+   "Áp implementation-checklist.md cho tính năng/release được chọn (budget trong đó chỉ là ví dụ).",
+   "Trước release, xác minh yêu cầu nộp app hiện tại của Apple/Google từ nguồn chính thức."
+  ],
+  "useWhen": [
+   "Xây tính năng mới trong app React Native/Flutter/SwiftUI/Compose.",
+   "Cần quyết định native hay cross-platform cho dự án mới.",
+   "App giật, tốn pin hoặc bộ nhớ, cần profiling.",
+   "Thiết kế đồng bộ dữ liệu offline-first.",
+   "Chuẩn bị phát hành lên App Store/Google Play."
+  ],
+  "avoidWhen": [
+   "Web app responsive chứ không phải app native: dùng ak:frontend-development hoặc ak:web-frameworks.",
+   "Chỉ cần thiết kế UI/UX, design system: dùng ak:ui-ux-pro-max.",
+   "Backend API cho app: dùng ak:backend-development.",
+   "Thanh toán in-app qua Stripe/Polar: kết hợp ak:payment-integration."
+  ],
+  "params": [
+   {
+    "name": "[platform]",
+    "kind": "arg",
+    "desc": "Nền tảng/framework: ios, android, react-native, flutter, swiftui, compose."
+   },
+   {
+    "name": "[feature]",
+    "kind": "arg",
+    "desc": "Tính năng hoặc công việc: màn hình, offline sync, push notification, tối ưu hiệu năng, release."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:mobile-development react-native thêm màn hình danh sách có infinite scroll",
+    "note": "Tính năng UI trong app có sẵn."
+   },
+   {
+    "cmd": "/ak:mobile-development flutter offline sync cho ghi chú",
+    "note": "Thiết kế offline-first là lựa chọn sản phẩm."
+   },
+   {
+    "cmd": "/ak:mobile-development ios app bị crash khi mở camera",
+    "note": "Debug theo mobile-debugging.md."
+   },
+   {
+    "cmd": "/ak:mobile-development chọn React Native hay Flutter cho app đặt lịch",
+    "note": "Quyết định framework dùng ma trận so sánh."
+   }
+  ],
+  "tips": [
+   "Các mốc SDK/deadline cũ trong ví dụ không phải căn cứ; skill kiểm lại yêu cầu hiện tại của store.",
+   "Không có thiết bị thật thì các tuyên bố hiệu năng/pin sẽ được ghi là chưa kiểm chứng.",
+   "Nêu rõ framework nếu repo có nhiều project (ví dụ app native + module RN).",
+   "Giữ secure storage và accessibility ngay cả khi sửa nhỏ."
+  ],
+  "related": [
+   "ak-frontend-development",
+   "ak-ui-ux-pro-max",
+   "ak-backend-development",
+   "ak-test",
+   "ak-payment-integration"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Mã nguồn app mobile và test",
+   "Cấu hình build/release khi chuẩn bị phát hành"
+  ]
+ },
+ "ak-tanstack": {
+  "tagline": "Xây với TanStack Start (full-stack React), TanStack Form và TanStack AI theo đúng phiên bản đã cài.",
+  "summary": "ak:tanstack hỗ trợ route file-based, server function, middleware của TanStack Start/Router, quản lý form có validation type-safe (Zod/Valibot) bằng TanStack Form, và chat/streaming AI bằng TanStack AI. Skill đọc manifest, lockfile, import và script để định tuyến theo package đã cài, dùng type/docs đúng phiên bản trước khi sửa. Không xử lý TanStack Query, Table, Virtual hay pattern React chung.",
+  "howItWorks": [
+   "Đọc package manifest, lockfile, import và script để biết package và phiên bản TanStack đã cài.",
+   "Định tuyến: route, server function, middleware → references/tanstack-start.md; state và validation form → references/tanstack-form.md; chat/streaming AI → references/tanstack-ai.md.",
+   "Chỉ nạp references/versioned-examples.md khi cần ví dụ, rồi điều chỉnh theo phiên bản thực tế.",
+   "Không bao giờ sửa tay routeTree.gen.ts; sửa route nguồn rồi chạy generator của project.",
+   "Verify type/build và hành vi bị ảnh hưởng bằng script sẵn có; sửa Form không tạo thêm app Start hay AI chat."
+  ],
+  "useWhen": [
+   "Tạo dự án TanStack Start với routing file-based và server function.",
+   "Xây form phức tạp có validation Zod/Valibot bằng TanStack Form.",
+   "Thêm chat AI streaming vào app TanStack.",
+   "So sánh TanStack Start với Next.js/Remix."
+  ],
+  "avoidWhen": [
+   "TanStack Query, Table, Virtual: ngoài phạm vi; dùng ak:frontend-development.",
+   "App Next.js App Router: dùng ak:web-frameworks.",
+   "Pattern React chung không liên quan TanStack: dùng ak:frontend-development hoặc ak:react-best-practices."
+  ],
+  "params": [
+   {
+    "name": "[framework]",
+    "kind": "arg",
+    "desc": "Thành phần TanStack: start, router, form, ai."
+   },
+   {
+    "name": "[feature]",
+    "kind": "arg",
+    "desc": "Tính năng cần làm: route, server function, middleware, form validation, AI chat."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:tanstack start thêm route /dashboard có loader và server function",
+    "note": "Routing + server function; chạy generator thay vì sửa routeTree.gen.ts."
+   },
+   {
+    "cmd": "/ak:tanstack form đăng ký nhiều bước với Zod",
+    "note": "Form state và validation."
+   },
+   {
+    "cmd": "/ak:tanstack ai chat streaming với tool calling",
+    "note": "Thêm AI chat vào app có sẵn."
+   },
+   {
+    "cmd": "/ak:tanstack so sánh TanStack Start và Next.js cho dashboard nội bộ",
+    "note": "Quyết định framework."
+   }
+  ],
+  "tips": [
+   "Sửa tay routeTree.gen.ts sẽ bị ghi đè; luôn chạy generator.",
+   "API TanStack thay đổi nhanh giữa các phiên bản; skill ưu tiên type của phiên bản đã cài hơn ví dụ.",
+   "Nói rõ thành phần (start/form/ai) để skill chỉ nạp một reference, tiết kiệm token."
+  ],
+  "related": [
+   "ak-frontend-development",
+   "ak-web-frameworks",
+   "ak-react-best-practices",
+   "ak-better-auth"
+  ],
+  "agents": [],
+  "artifacts": [
+   "File route nguồn, server function, middleware",
+   "Component form và schema validation",
+   "Code chat/streaming AI"
+  ]
+ },
+ "ak-web-frameworks": {
+  "tagline": "Next.js (App Router, RSC, SSR, ISR) và Turborepo monorepo, kèm RemixIcon tùy chọn.",
+  "summary": "ak:web-frameworks là nhóm skill cho ứng dụng web full-stack với Next.js (routing, Server Components, data fetching, caching, tối ưu) và Turborepo (workspace, task pipeline, cache local/remote), cùng RemixIcon như tích hợp tùy chọn. Skill đọc manifest và cấu hình framework/workspace rồi định tuyến sang reference phù hợp; chỉ nạp setup-recipes.md cho setup mới. Có script khởi tạo Next.js và chuyển monorepo sang Turborepo.",
+  "howItWorks": [
+   "Đọc manifest và cấu hình framework/workspace; giữ framework và thư viện icon đã chọn (RemixIcon không bắt buộc).",
+   "Thay đổi rendering/data của Next.js → nextjs-app-router.md, nextjs-server-components.md, nextjs-data-fetching.md, nextjs-optimization.md.",
+   "Thay đổi workspace/build → turborepo-setup.md, turborepo-pipelines.md, turborepo-caching.md.",
+   "Setup mới → setup-recipes.md; pattern end-to-end (monorepo với turbo.json, thư viện component dùng chung, data fetching tối ưu, CI/CD monorepo) → common-patterns.md.",
+   "Dùng script khi phù hợp: scripts/nextjs_init.py (khởi tạo Next.js với TypeScript/App Router), scripts/turborepo_migrate.py (chuyển monorepo sang Turborepo, có --dry-run).",
+   "Áp best practice: mặc định Server Components, loading/error state, Image component, metadata SEO, chiến lược cache; production dùng dòng stable đã vá bảo mật, tránh pin canary."
+  ],
+  "useWhen": [
+   "Xây hoặc mở rộng app Next.js App Router với RSC, SSR, ISR.",
+   "Cấu hình caching/revalidation cho data fetching.",
+   "Dựng monorepo Turborepo với apps/ và packages/ dùng chung.",
+   "Build monorepo chậm, cần cấu hình task pipeline và remote cache.",
+   "Tích hợp RemixIcon vào UI."
+  ],
+  "avoidWhen": [
+   "Tối ưu hiệu năng render React/Next.js chuyên sâu: dùng ak:react-best-practices.",
+   "TanStack Start: dùng ak:tanstack.",
+   "UI styling với shadcn/Tailwind: dùng ak:ui-styling.",
+   "Deploy lên Vercel/Netlify: dùng ak:deploy."
+  ],
+  "params": [
+   {
+    "name": "[framework]",
+    "kind": "arg",
+    "desc": "Framework/công cụ: nextjs, turborepo, remixicon."
+   },
+   {
+    "name": "[feature]",
+    "kind": "arg",
+    "desc": "Tính năng: routing, server components, data fetching, caching, optimization, pipeline, remote cache."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:web-frameworks nextjs thêm parallel routes cho dashboard",
+    "note": "App Router architecture."
+   },
+   {
+    "cmd": "/ak:web-frameworks nextjs ISR revalidate 60s cho trang blog",
+    "note": "Data fetching và caching."
+   },
+   {
+    "cmd": "/ak:web-frameworks turborepo chuyển monorepo pnpm hiện có sang Turborepo",
+    "note": "Có thể chạy turborepo_migrate.py --dry-run trước."
+   },
+   {
+    "cmd": "/ak:web-frameworks turborepo bật remote cache cho CI",
+    "note": "Caching strategies."
+   }
+  ],
+  "tips": [
+   "Chạy turborepo_migrate.py với --dry-run trước khi áp dụng thật.",
+   "Theo dõi security release của dòng Next.js stable; tránh pin canary trên production.",
+   "Khai báo outputs đúng trong turbo.json, nếu không cache sẽ không hiệu quả.",
+   "Dùng ^build cho dependency topological giữa các package."
+  ],
+  "related": [
+   "ak-react-best-practices",
+   "ak-frontend-development",
+   "ak-tanstack",
+   "ak-ui-styling",
+   "ak-deploy"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Code Next.js (route, layout, component)",
+   "turbo.json và cấu trúc apps/ packages/",
+   "Dự án Next.js mới (nextjs_init.py)"
+  ]
+ },
+ "ak-payment-integration": {
+  "tagline": "Tích hợp thanh toán SePay (VietQR), Polar và Stripe: checkout, webhook, subscription, QR, đơn đa provider.",
+  "summary": "ak:payment-integration triển khai xử lý thanh toán với SePay (ngân hàng Việt Nam, VND, VietQR), Polar (SaaS toàn cầu, Merchant of Record, benefit tự động) và Stripe (checkout, Billing, Connect, Payment Element). Skill giữ provider/API version hiện có, chỉ nạp recipe cần thiết và áp các bất biến trạng thái thanh toán: verify chữ ký webhook trên raw payload, idempotency, số tiền/tiền tệ/trạng thái do server sở hữu. Luồng chung: auth → products → checkout → webhooks → events.",
+  "howItWorks": [
+   "Giữ provider và API version đang dùng trừ khi yêu cầu đổi; chọn nền tảng mới theo bảng: SePay cho VN/VietQR, Polar cho SaaS/subscription, Stripe cho enterprise/Connect.",
+   "Nạp đúng recipe: references/sepay/* (overview, api, webhooks, sdk, qr-codes, best-practices), references/polar/* (overview, products, checkouts, subscriptions, webhooks, benefits, sdk, best-practices), references/stripe/* (best-practices, sdks, stripe-js, stripe-cli, stripe-upgrade).",
+   "Đơn đa provider: multi-provider-order-management-patterns.md (đơn thống nhất, quy đổi tiền tệ).",
+   "Implement theo luồng auth → products → checkout → webhooks → events.",
+   "Verify chữ ký webhook trên raw payload (scripts/sepay-webhook-verify.js, scripts/polar-webhook-verify.js), khử trùng bằng idempotency key; redirect phía client không chứng minh đã thanh toán.",
+   "Xử lý event trùng, chữ ký sai, event đến sai thứ tự mà không fulfill nhầm; test bằng sandbox, báo cáo các chuyển trạng thái đã kiểm chứng."
+  ],
+  "useWhen": [
+   "Thêm thanh toán chuyển khoản VietQR qua SePay cho khách Việt Nam.",
+   "Bán subscription SaaS toàn cầu qua Polar với benefit GitHub/Discord tự động.",
+   "Tích hợp Stripe Checkout/Payment Element, Billing hoặc Connect.",
+   "Xử lý webhook thanh toán an toàn, idempotent.",
+   "Hệ thống đơn hàng hỗ trợ nhiều provider và nhiều tiền tệ."
+  ],
+  "avoidWhen": [
+   "Billing trong Shopify app: dùng ak:shopify.",
+   "API backend tổng quát không liên quan thanh toán: dùng ak:backend-development."
+  ],
+  "params": [
+   {
+    "name": "[provider]",
+    "kind": "arg",
+    "desc": "Nhà cung cấp: sepay, polar, stripe (hoặc multi-provider)."
+   },
+   {
+    "name": "[task]",
+    "kind": "arg",
+    "desc": "Công việc: checkout, webhook, subscription, QR code, benefits, upgrade API version, order management."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:payment-integration sepay tạo VietQR cho đơn hàng và xác nhận qua webhook",
+    "note": "Thanh toán chuyển khoản VN."
+   },
+   {
+    "cmd": "/ak:payment-integration polar subscription tháng/năm có trial",
+    "note": "SaaS toàn cầu với MoR."
+   },
+   {
+    "cmd": "/ak:payment-integration stripe webhook idempotent cho checkout.session.completed",
+    "note": "Xử lý webhook an toàn."
+   },
+   {
+    "cmd": "/ak:payment-integration hỗ trợ cả SePay và Stripe trong một bảng orders",
+    "note": "Đơn đa provider."
+   }
+  ],
+  "tips": [
+   "Không bao giờ fulfill dựa trên redirect phía client; chỉ tin webhook đã verify chữ ký.",
+   "Verify chữ ký trên raw body; parse JSON trước sẽ làm chữ ký sai.",
+   "Chú ý rate limit: SePay khoảng 2 req/s, Polar 300 req/min.",
+   "Luôn test bằng sandbox/test mode và stripe CLI để forward webhook cục bộ."
+  ],
+  "related": [
+   "ak-backend-development",
+   "ak-databases",
+   "ak-shopify",
+   "ak-security"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Code checkout và webhook handler",
+   "Schema/logic đơn hàng",
+   "Checkout session (checkout-helper.js)"
+  ]
+ },
+ "ak-shopify": {
+  "tagline": "Xây Shopify app, extension và theme bằng Shopify CLI, GraphQL Admin API, Polaris, Liquid.",
+  "summary": "ak:shopify xác định công việc là app, extension hay theme từ yêu cầu và cấu hình project, đọc phiên bản CLI và API version đã cấu hình trước khi chạy lệnh. App dùng reference về OAuth, webhook, billing; extension dùng target và extension API (Checkout, Admin, POS, Functions); theme dùng Liquid, section, preview. Skill giữ OAuth scope tối thiểu, verify chữ ký webhook, trạng thái billing do server sở hữu, và kiểm chứng trên development store/preview theme.",
+  "howItWorks": [
+   "Resolve loại công việc (app, extension, theme) từ yêu cầu và cấu hình; không scaffold app chỉ để sửa theme.",
+   "Đọc phiên bản Shopify CLI và API version đã cấu hình trước khi chạy lệnh.",
+   "Nạp reference: app-development.md (OAuth, API, webhook, billing), extensions.md (Checkout, Admin, POS, Functions), themes.md (Liquid, section, deploy); setup mới dùng setup-and-workflow-recipes.md.",
+   "Lấy pattern mẫu từ essential-patterns.md (GraphQL product query phân trang, checkout UI extension React, vòng lặp Liquid); khởi tạo project bằng scripts/shopify_init.py khi cần.",
+   "Giữ scope OAuth tối thiểu, verify chữ ký webhook, billing state phía server, idempotency.",
+   "Kiểm chứng bằng development store/preview theme; publish live cần đúng store/theme đã chọn và được ủy quyền. Theo dõi và dọn dev server/tunnel do mình khởi chạy."
+  ],
+  "useWhen": [
+   "Xây Shopify app embedded có OAuth, webhook và billing.",
+   "Tạo checkout UI extension, admin extension, POS extension hoặc Shopify Functions.",
+   "Tùy biến theme bằng Liquid và section.",
+   "Truy vấn GraphQL Admin API có phân trang, bulk operation.",
+   "Debug rate limit, webhook không đến, extension không hiện."
+  ],
+  "avoidWhen": [
+   "Thanh toán ngoài Shopify (Stripe/Polar/SePay): dùng ak:payment-integration.",
+   "Storefront headless bằng Next.js không dùng Shopify CLI: dùng ak:web-frameworks.",
+   "Chiến lược marketing cho cửa hàng: dùng các skill marketing."
+  ],
+  "params": [
+   {
+    "name": "[extension-type]",
+    "kind": "arg",
+    "desc": "Loại công việc/extension: app, theme, checkout, admin, pos, functions."
+   },
+   {
+    "name": "[feature]",
+    "kind": "arg",
+    "desc": "Tính năng cần làm: OAuth, webhook, billing, GraphQL query, section Liquid..."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:shopify app thêm billing subscription cho app embedded",
+    "note": "Billing do server sở hữu."
+   },
+   {
+    "cmd": "/ak:shopify checkout extension hiển thị upsell sản phẩm",
+    "note": "Checkout UI extension."
+   },
+   {
+    "cmd": "/ak:shopify theme tạo section testimonial có setting schema",
+    "note": "Liquid, preview trước khi publish."
+   },
+   {
+    "cmd": "/ak:shopify app webhook orders/create không nhận được",
+    "note": "Troubleshooting webhook."
+   }
+  ],
+  "tips": [
+   "Preview theme không đồng nghĩa publish live; chỉ định rõ store/theme khi muốn lên live.",
+   "Ưu tiên GraphQL hơn REST, chỉ lấy field cần thiết để giảm query cost.",
+   "Gặp rate limit thì theo dõi header X-Shopify-Shop-Api-Call-Limit và dùng exponential backoff hoặc bulk operation.",
+   "API version phát hành theo quý (YYYY-MM), hỗ trợ khoảng 12 tháng; test trước khi nâng."
+  ],
+  "related": [
+   "ak-payment-integration",
+   "ak-backend-development",
+   "ak-frontend-development",
+   "ak-web-frameworks"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Project Shopify app/extension/theme",
+   "Code webhook, billing, GraphQL query",
+   "File Liquid section/template"
+  ]
+ },
+ "ak-mcp-builder": {
+  "tagline": "Xây MCP server (FastMCP Python hoặc MCP SDK Node/TypeScript) bắt đầu từ một tool hoàn chỉnh.",
+  "summary": "ak:mcp-builder xây MCP server tích hợp dịch vụ bên ngoài cho LLM. Skill bắt đầu bằng việc định nghĩa tác vụ người dùng và contract tool đầu tiên trước khi chọn hạ tầng, rồi implement một tool hoàn chỉnh từ input đã validate qua hành vi API có ủy quyền đến output hữu ích có giới hạn. Sau đó compile, chạy với client thật và viết evaluation dựa trên tác vụ. Chỉ thêm tool khi workflow yêu cầu.",
+  "howItWorks": [
+   "Định nghĩa tác vụ người dùng và contract tool đầu tiên; kiểm tra SDK/phiên bản và transport của project.",
+   "Chỉ đọc phần protocol/API chính thức cần cho tool đó (auth, schema, pagination, error/retry, transport); không cần đọc toàn bộ spec hay mọi endpoint.",
+   "Chọn reference/python-mcp-server.md hoặc reference/node-mcp-server.md cùng reference/mcp-best-practices.md.",
+   "Implement một tool hoàn chỉnh (references/tool-implementation.md): annotation readOnly/destructive/idempotent/openWorld chính xác, ràng buộc input, lỗi có hướng xử lý, cancellation/timeout; auth và scope khớp thao tác (annotation không phải cơ chế cưỡng chế).",
+   "Test đường invalid/auth/pagination/retry khi áp dụng; chỉ tách helper khi logic lặp lại thật sự.",
+   "Compile/import-check server, chạy với client hoặc harness thật, xác nhận tác vụ hoàn thành với output và hiệu ứng đúng.",
+   "Viết evaluation theo references/evaluation-authoring.md và reference/evaluation.md: 10 câu hỏi độc lập, read-only, phức tạp, thực tế, kiểm chứng được, ổn định, dạng XML; chạy bằng scripts/evaluation.py.",
+   "Dùng process server có giới hạn và dọn dẹp; báo cáo contract hoạt động, kết quả client quan sát được và capability còn thiếu."
+  ],
+  "useWhen": [
+   "Cần MCP server cho một API bên ngoài (GitHub, Notion, CRM nội bộ...) để agent dùng.",
+   "Viết MCP server bằng FastMCP Python hoặc MCP TypeScript SDK.",
+   "Thiết kế tool schema, annotation, pagination, xử lý lỗi cho MCP.",
+   "Viết bộ evaluation kiểm tra LLM dùng MCP server hiệu quả không."
+  ],
+  "avoidWhen": [
+   "Bọc code/API có sẵn trong repo thành CLI/MCP: dùng ak:agentize.",
+   "Expose tính năng website cho agent trong browser: dùng ak:webmcp.",
+   "Chỉ gọi MCP tool có sẵn: dùng MCP tool native của runtime.",
+   "Xây agent Google ADK dùng MCP tool: dùng ak:google-adk-python."
+  ],
+  "params": [
+   {
+    "name": "[service or API to integrate]",
+    "kind": "arg",
+    "desc": "Dịch vụ hoặc API cần tích hợp qua MCP server."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:mcp-builder Linear API: tool tìm issue theo trạng thái",
+    "note": "Bắt đầu bằng một tool read-only hoàn chỉnh."
+   },
+   {
+    "cmd": "/ak:mcp-builder FastMCP cho Postgres nội bộ, chỉ query read-only",
+    "note": "Python server với annotation readOnly."
+   },
+   {
+    "cmd": "/ak:mcp-builder Node SDK cho Jira, transport streamable HTTP",
+    "note": "TypeScript server remote."
+   },
+   {
+    "cmd": "/ak:mcp-builder viết evaluation 10 câu cho MCP server Slack đã có",
+    "note": "Chỉ làm phần evaluation."
+   }
+  ],
+  "tips": [
+   "Làm một tool chạy thật từ đầu đến cuối trước, đừng đăng ký hàng loạt tool rỗng.",
+   "Annotation readOnly/destructive chỉ là gợi ý cho client; quyền thật phải cưỡng chế ở code và scope.",
+   "Đăng ký thành công không phải bằng chứng hoàn thành; phải chạy với client thật.",
+   "Câu hỏi evaluation phải có đáp án ổn định, so khớp chuỗi được và chỉ cần thao tác read-only."
+  ],
+  "related": [
+   "ak-agentize",
+   "ak-webmcp",
+   "ak-google-adk-python",
+   "ak-backend-development"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Mã nguồn MCP server (Python hoặc TypeScript)",
+   "File evaluation XML",
+   "Kết quả chạy scripts/evaluation.py"
+  ]
+ },
+ "ak-google-adk-python": {
+  "tagline": "Xây AI agent bằng Google ADK Python: multi-agent, A2A, MCP tool, workflow agent, deploy Vertex AI.",
+  "summary": "ak:google-adk-python hướng dẫn Agent Development Kit (ADK) Python, bộ công cụ code-first để xây, đánh giá và deploy AI agent, tối ưu cho Gemini nhưng không phụ thuộc model. Skill bao phủ agent đơn/đa agent, giao thức A2A, tích hợp MCP server làm tool, workflow agent (sequential, parallel, loop), session/state/memory/artifact, callback/plugin, deploy Cloud Run/Vertex AI Agent Engine/GKE và đánh giá bằng adk eval. Cấu trúc agent bắt buộc: thư mục có __init__.py (from . import agent) và agent.py định nghĩa root_agent hoặc app.",
+  "howItWorks": [
+   "Kiểm tra dependency ADK đã cài và quy ước project; giữ quy ước discovery entrypoint root_agent/app.",
+   "Định tuyến theo ý định: agent đơn → agent-types-and-architecture.md; workflow/A2A → multi-agent-and-a2a-protocol.md; tool → tools-and-mcp-integration.md; state → sessions-state-memory-artifacts.md; hook → callbacks-plugins-observability.md; deploy → deployment-cloud-run-vertex-gke.md.",
+   "Ví dụ API trong implementation-recipes.md là tùy chọn; kiểm lại với SDK đã cài và danh mục model hiện tại thay vì nâng cấp cho khớp mẫu.",
+   "Với inference: định nghĩa task/eval quan sát được, ghi model, lỗi, thời gian, chi phí khi có telemetry (không có thì ghi unknown).",
+   "Kiểm tra hiệu ứng của tool, ranh giới session và đường lỗi; đánh giá bằng adk eval theo evaluation-testing-cli.md.",
+   "Bắt đầu tối giản, chỉ mở rộng để đáp ứng workflow được yêu cầu."
+  ],
+  "useWhen": [
+   "Xây agent Gemini có tool bằng ADK Python.",
+   "Thiết kế hệ đa agent với coordinator và sub-agent, hoặc giao tiếp agent từ xa qua A2A.",
+   "Dùng MCP server làm tool cho agent ADK.",
+   "Pipeline workflow agent tuần tự/song song/lặp.",
+   "Deploy agent lên Cloud Run, Vertex AI Agent Engine hoặc GKE và đánh giá bằng adk eval."
+  ],
+  "avoidWhen": [
+   "Xây agent bằng Claude API/Agent SDK: dùng claude-api.",
+   "Xây MCP server chứ không phải agent: dùng ak:mcp-builder.",
+   "Quản lý context/token cho hệ agent nói chung: dùng ak:context-engineering.",
+   "Hạ tầng GCP không liên quan ADK: dùng ak:devops."
+  ],
+  "params": [
+   {
+    "name": "[agent or feature]",
+    "kind": "arg",
+    "desc": "Agent hoặc tính năng ADK cần xây: single agent, multi-agent, A2A, MCP tool, workflow, memory, callback, deploy, eval."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:google-adk-python agent hỗ trợ khách hàng có tool tra cứu đơn hàng",
+    "note": "Agent đơn với custom tool."
+   },
+   {
+    "cmd": "/ak:google-adk-python coordinator + 3 sub-agent research/write/review",
+    "note": "Hệ đa agent."
+   },
+   {
+    "cmd": "/ak:google-adk-python dùng MCP server filesystem làm tool, lọc tool read-only",
+    "note": "Tích hợp MCP với tool filtering."
+   },
+   {
+    "cmd": "/ak:google-adk-python deploy lên Vertex AI Agent Engine và viết evalset",
+    "note": "Deploy và đánh giá."
+   }
+  ],
+  "tips": [
+   "Thiếu __init__.py với 'from . import agent' hoặc root_agent/app trong agent.py thì ADK không tìm thấy agent.",
+   "Kiểm tra tên model trong danh mục hiện tại; ví dụ cũ có thể dùng model đã ngừng.",
+   "Ghi chi phí/thời gian inference khi có telemetry; không có thì ghi là unknown thay vì bằng 0.",
+   "Bắt đầu với một agent tối giản rồi mới thêm sub-agent/plugin."
+  ],
+  "related": [
+   "ak-mcp-builder",
+   "ak-context-engineering",
+   "ak-devops",
+   "ak-agentize"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Thư mục agent (__init__.py, agent.py)",
+   "File evalset cho adk eval",
+   "Cấu hình deploy Cloud Run/Vertex/GKE"
+  ]
+ },
+ "ak-webmcp": {
+  "tagline": "Biến tính năng website thành WebMCP tool cho AI agent trong browser qua document.modelContext.",
+  "summary": "ak:webmcp expose chức năng website thành WebMCP tool: hàm JavaScript có tên, mô tả và JSON Schema mà agent trong browser gọi qua document.modelContext, thay vì scrape DOM và đoán nơi click. WebMCP là bản nháp W3C Web Machine Learning CG, là API trong browser và KHÔNG phải MCP server của Anthropic. Skill bao phủ API imperative (registerTool) và declarative (thuộc tính form), schema, safety annotation, cross-origin exposure, tích hợp framework, validate và eval; có script scaffold và validator không phụ thuộc thư viện.",
+  "howItWorks": [
+   "Xác minh browser và API đích: ghi phiên bản browser, trạng thái HTTPS/origin-isolation, các member thực có; nạp api-reference.md; feature-detect entrypoint và từng member; không hỗ trợ thì giữ UI thường.",
+   "Lập chiến lược tool: một tool = một chức năng, tránh chồng chéo, giữ bộ tool nhỏ; ưu tiên đăng ký tĩnh (best-practices.md).",
+   "Chọn API theo decision tree: form HTML đơn giản không cần đọc kết quả → declarative (declarative-api.md); còn lại (toggle state, điều hướng, widget tùy biến, cần annotation/exposedTo/getTools/executeTool) → imperative (imperative-api.md). Có thể trộn cả hai.",
+   "Viết tên theo hiệu ứng chính xác, mô tả ngôn ngữ tích cực, schema cụ thể; tôn trọng budget (tên ≤30, mô tả ≤500, mô tả tham số ≤150, output ≤1.5K).",
+   "Scaffold bằng scripts/scaffold_tool.py, nối handler execute với logic app sẵn có; validate chặt trong code, trả chuỗi ngắn gọn và lỗi mô tả rõ.",
+   "Thêm safety annotation: readOnlyHint, consequentialHint (hành động không đảo ngược), untrustedContentHint (UGC/nội dung ngoài) theo security.md.",
+   "Gate cross-origin bằng exposedTo + Permissions-Policy tools, chỉ expose cho origin tin cậy.",
+   "Validate bằng scripts/validate_webmcp.mjs (--strict nâng warning thành error), rồi test bằng Model Context Tool Inspector và eval (testing-and-evals.md)."
+  ],
+  "useWhen": [
+   "Muốn thêm AI agent tool vào website hiện có.",
+   "Biến form (đặt lịch, tìm kiếm, liên hệ) thành agent-callable.",
+   "Expose hành động trang (thêm vào giỏ, lọc sản phẩm) cho agent trong browser với annotation an toàn.",
+   "Tích hợp WebMCP vào React/Angular và viết eval cho tool."
+  ],
+  "avoidWhen": [
+   "Xây MCP server stdio/HTTP cho API: dùng ak:mcp-builder.",
+   "Chạy MCP tool có sẵn: dùng MCP tool native của runtime.",
+   "Tự động hóa browser/test trang bằng agent: dùng ak:agent-browser.",
+   "Bọc code backend thành CLI/MCP: dùng ak:agentize."
+  ],
+  "params": [
+   {
+    "name": "[page, form, or feature to expose as a tool]",
+    "kind": "arg",
+    "desc": "Trang, form hoặc tính năng website cần expose thành WebMCP tool."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:webmcp form tìm kiếm sản phẩm ở /search",
+    "note": "Form đơn giản: có thể dùng declarative API."
+   },
+   {
+    "cmd": "/ak:webmcp nút thêm vào giỏ hàng và thanh toán",
+    "note": "Hành động có hậu quả: imperative với consequentialHint và xác nhận."
+   },
+   {
+    "cmd": "/ak:webmcp tích hợp tool đặt lịch vào app React bằng usewebmcp",
+    "note": "Framework integration."
+   },
+   {
+    "cmd": "/ak:webmcp expose tool đọc bình luận người dùng cho partner.example.com",
+    "note": "Cần untrustedContentHint và exposedTo giới hạn origin."
+   }
+  ],
+  "tips": [
+   "WebMCP là API browser đang thay đổi; luôn feature-detect và giữ UI bình thường khi browser không hỗ trợ.",
+   "Nội dung tool trả về, giá trị form và text trang là dữ liệu không tin cậy (nguy cơ indirect prompt injection), không phải chỉ thị.",
+   "Cưỡng chế authorization trong execute, không chỉ dựa vào schema.",
+   "Chạy scaffold rồi validate làm smoke test; output sinh ra phải lint sạch.",
+   "Giữ bộ tool nhỏ vì mỗi tool tốn context budget của agent."
+  ],
+  "related": [
+   "ak-mcp-builder",
+   "ak-agentize",
+   "ak-agent-browser",
+   "ak-frontend-development"
+  ],
+  "agents": [],
+  "artifacts": [
+   "File định nghĩa tool (tool.js) hoặc thuộc tính form declarative",
+   "Hook React usewebmcp (khi --framework react)",
+   "Kết quả validate_webmcp.mjs và eval"
+  ]
+ }
+}

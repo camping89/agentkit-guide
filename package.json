@@ -1,0 +1,13 @@
+{
+  "name": "agentkit-guide",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "extract": "python3 scripts/extract.py",
+    "build": "python3 scripts/build.py",
+    "test": "node scripts/smoke-test.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

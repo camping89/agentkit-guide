@@ -1,0 +1,1416 @@
+{
+ "ak-frontend-design": {
+  "tagline": "Dựng giao diện frontend chỉn chu từ prompt, screenshot, video hoặc component, tránh 'AI slop'.",
+  "summary": "ak:frontend-design tạo giao diện hoạt động được, khớp mục đích, thương hiệu và reference, với hierarchy rõ ràng, layout responsive, control accessible và đầy đủ trạng thái tương tác. Đầu vào là prompt, đường dẫn ảnh/video hoặc component cần làm; đầu ra là code UI chạy được trên stack thật của dự án, đã kiểm tra render ở mobile và desktop. Skill chọn 'design contract' trước (giữ UI cũ, replicate screenshot/video, mô tả, UI mới, 3D, quick, immersive) và là nền tảng cho ak:show-off, ak:stitch handoff.",
+  "howItWorks": [
+   "Chọn design contract theo ý định: giữ/cải thiện UI có sẵn (đọc token/component), replicate screenshot (workflow-screenshot.md), replicate video (workflow-video.md), mô tả không code (workflow-describe.md), UI mới (xác định mục đích, audience, nội dung, art direction, tùy chọn aesthetic-recipes.md), 3D/WebGL (workflow-3d.md), quick (workflow-quick.md), immersive (workflow-immersive.md).",
+   "Dùng stack thật và design system sẵn có; chỉ hỏi khi thiếu quyết định làm thay đổi kết quả đáng kể.",
+   "Với replicate: dùng ak:ai-multimodal phân tích ảnh (font, màu hex, radius, spacing, shadow...), kích hoạt ak:ui-ux-pro-max, giao subagent ui-ux-designer lập plan.md và các phase rồi implement.",
+   "Implement với nội dung và asset thật (không bịa số liệu, testimonial); định nghĩa typography, màu, spacing nhất quán; đủ trạng thái default, hover, focus-visible, active, disabled, loading, error/success.",
+   "Đảm bảo semantic control, keyboard, focus rõ, contrast, touch target, và phương án reduced-motion khi có animation; nội dung vẫn hiện nếu JS/animation lỗi.",
+   "Kiểm tra render thực tế ở kích thước mobile và desktop, so sánh với nguồn khi replicate; kiểm tra overflow, text wrap, asset, tương tác, build/test; sửa lỗi và báo trung thực phần chưa verify.",
+   "Dùng ../ak-design/references/handoff-gate.md cho bước bàn giao artifact cuối khi cần."
+  ],
+  "useWhen": [
+   "Có screenshot hoặc video của một UI và muốn replicate chính xác.",
+   "Cần landing page hoặc component mới có art direction riêng, không generic.",
+   "Làm prototype nhanh để demo ý tưởng.",
+   "Xây trải nghiệm immersive hoặc 3D/WebGL trên web.",
+   "Cần mô tả chi tiết một thiết kế (design extraction) mà chưa code."
+  ],
+  "avoidWhen": [
+   "Chủ yếu là logic React/TypeScript, data fetching, routing: dùng ak-frontend-development.",
+   "Chỉ cần thêm component shadcn hoặc chỉnh theme Tailwind: dùng ak-ui-styling.",
+   "Cần chiến lược UX, chọn style/palette/font, review a11y: dùng ak-ui-ux-pro-max.",
+   "Cần logo, banner, brand identity: dùng ak-design.",
+   "Tối ưu hiệu năng React/Next.js: dùng ak-react-best-practices."
+  ],
+  "params": [
+   {
+    "name": "[prompt|image-path|component]",
+    "kind": "arg",
+    "desc": "Prompt mô tả giao diện, đường dẫn ảnh/video để replicate, hoặc tên component cần làm/cải thiện; quyết định design contract được chọn."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:frontend-design ./mockups/dashboard.png",
+    "note": "Replicate dashboard từ screenshot."
+   },
+   {
+    "cmd": "/ak:frontend-design landing page cho app thiền, phong cách tối giản ấm áp",
+    "note": "UI mới có art direction."
+   },
+   {
+    "cmd": "/ak:frontend-design ./recordings/onboarding.mp4",
+    "note": "Replicate cả motion và trạng thái từ video."
+   },
+   {
+    "cmd": "/ak:frontend-design PricingCard",
+    "note": "Cải thiện component có sẵn, giữ token hiện tại."
+   },
+   {
+    "cmd": "/ak:frontend-design hero 3D sản phẩm tai nghe xoay được",
+    "note": "Workflow 3D/WebGL."
+   }
+  ],
+  "tips": [
+   "Font khi replicate: đoán đúng font thực tế (Google Fonts), tránh mặc định Inter/Poppins.",
+   "Không có framework chỉ định thì workflow screenshot mặc định HTML/CSS/JS.",
+   "Asset ảnh sinh bằng ak:ai-multimodal, xử lý bằng ak:media-processing; motion tham khảo motion-craft.md (GSAP/Motion) hoặc animejs.md.",
+   "Seeded variation, layout quota, motion chỉ là kỹ thuật khám phá; không được lấn át gu đã được chấp nhận.",
+   "design-quality-preflight.md là preflight chống 'AI slop' dùng chung cho các design skill khác."
+  ],
+  "related": [
+   "ak-ui-ux-pro-max",
+   "ak-ui-styling",
+   "ak-frontend-development",
+   "ak-ai-multimodal",
+   "ak-media-processing",
+   "ak-threejs",
+   "ak-design",
+   "ak-show-off"
+  ],
+  "agents": [
+   "ui-ux-designer",
+   "researcher"
+  ],
+  "artifacts": [
+   "Code UI (HTML/CSS/JS hoặc component theo stack dự án)",
+   "plan.md và phase-XX-*.md trong thư mục plan (workflow screenshot/video/3D)",
+   "Asset hình ảnh sinh ra khi cần"
+  ]
+ },
+ "ak-frontend-development": {
+  "tagline": "Implement frontend React/TypeScript theo pattern hiện đại, giữ đúng stack của dự án.",
+  "summary": "ak:frontend-development hỗ trợ viết component, data fetching, routing, loading/error state, performance và TypeScript cho frontend React. Đầu vào là component hoặc tính năng cần làm; đầu ra là code React/TS đã kiểm tra trong router thật, build/type pass. Skill bắt buộc tôn trọng stack sẵn có: một task Next.js/shadcn không cho phép cài MUI hay TanStack Router; các recipe MUI v7/TanStack chỉ là ví dụ cho dự án đã dùng chúng.",
+  "howItWorks": [
+   "Inspect package manifest, thư viện router/data, convention component, alias tsconfig và styling hiện có trước khi sửa.",
+   "Giữ stack của dự án và chỉ dùng API mà version đang cài hỗ trợ.",
+   "Chọn topic guide phù hợp qua references/topic-guides.md hoặc bảng Navigation (component-patterns, data-fetching, file-organization, styling-guide, routing-guide, loading-and-error-states, performance, typescript-standards, common-patterns, complete-examples).",
+   "Implement với prop/data boundary có kiểu, control semantic accessible, hook và cleanup effect đúng, đủ loading/error/empty state, responsive; chọn memo/lazy loading dựa trên chi phí thật.",
+   "Theo export, folder, alias sẵn có; dùng references/stack-recipes.md chỉ khi dự án đã dùng MUI/TanStack.",
+   "Kiểm tra component trong router thật, verify build/type và hành vi tương tác; báo phần runtime chưa kiểm tra."
+  ],
+  "useWhen": [
+   "Viết component React/TypeScript mới theo convention dự án.",
+   "Triển khai data fetching với Suspense/useSuspenseQuery trong dự án đã dùng TanStack Query.",
+   "Thiết lập route, lazy loading, loading/error boundary.",
+   "Chuẩn hóa kiểu TypeScript và tổ chức folder feature."
+  ],
+  "avoidWhen": [
+   "Trọng tâm là độ trung thực hình ảnh và UI chỉn chu: dùng ak-frontend-design.",
+   "Vấn đề hiệu năng đã đo được ở React/Next.js: dùng ak-react-best-practices.",
+   "Next.js App Router, RSC, SSR, ISR, Turborepo: dùng ak-web-frameworks.",
+   "TanStack Start/Form/AI: dùng ak-tanstack.",
+   "Chỉ styling với shadcn/Tailwind: dùng ak-ui-styling."
+  ],
+  "params": [
+   {
+    "name": "[component or feature]",
+    "kind": "arg",
+    "desc": "Component hoặc tính năng frontend cần implement/sửa."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:frontend-development UserProfileCard",
+    "note": "Tạo component có typed props và đủ state."
+   },
+   {
+    "cmd": "/ak:frontend-development trang danh sách đơn hàng có phân trang",
+    "note": "Data fetching + loading/error/empty state."
+   },
+   {
+    "cmd": "/ak:frontend-development lazy load trang admin",
+    "note": "Tách bundle theo route với Suspense."
+   },
+   {
+    "cmd": "/ak:frontend-development form đăng ký với validation",
+    "note": "Dùng common-patterns cho Forms/Auth."
+   }
+  ],
+  "tips": [
+   "Không cài thêm thư viện (MUI, TanStack Router) nếu dự án chưa dùng; recipe trong skill chỉ là ví dụ.",
+   "Đừng memo hóa đại trà; chọn memo/lazy dựa trên chi phí thực tế.",
+   "Luôn kiểm tra component trong router thật chứ không chỉ render riêng lẻ.",
+   "Nhớ cleanup effect (listener, subscription, timer) để tránh leak."
+  ],
+  "related": [
+   "ak-frontend-design",
+   "ak-react-best-practices",
+   "ak-web-frameworks",
+   "ak-tanstack",
+   "ak-ui-styling",
+   "ak-web-testing"
+  ],
+  "agents": [],
+  "artifacts": [
+   "File component/hook/route React TypeScript trong cấu trúc dự án"
+  ]
+ },
+ "ak-react-best-practices": {
+  "tagline": "45 rule tối ưu hiệu năng React/Next.js từ Vercel Engineering, xếp theo mức tác động.",
+  "summary": "ak:react-best-practices là bộ hướng dẫn tối ưu hiệu năng React và Next.js do Vercel duy trì, gồm 45 rule trong 8 nhóm xếp theo ưu tiên: loại bỏ waterfall, bundle size, server-side, client data fetching, re-render, rendering, JavaScript, advanced patterns. Đầu vào là component hoặc pattern có vấn đề hiệu năng; đầu ra là refactor theo rule phù hợp kèm so sánh metric trước/sau. Skill áp dụng khi có bottleneck đã đo hoặc được chỉ ra, không phải để memo hóa đại trà.",
+  "howItWorks": [
+   "Xác định bottleneck quan sát được (profile, network waterfall, bundle, render).",
+   "Chọn rule liên quan theo prefix nhóm: async-, bundle-, server-, client-, rerender-, rendering-, js-, advanced-.",
+   "Đọc file rule riêng trong rules/ (vd rules/async-parallel.md): giải thích, ví dụ sai, ví dụ đúng, context bổ sung.",
+   "Verify API với version React/Next.js của dự án.",
+   "Áp dụng thay đổi và so sánh metric network/render/bundle trước và sau.",
+   "Chỉ đọc AGENTS.md (tài liệu tổng hợp) khi được yêu cầu audit rộng."
+  ],
+  "useWhen": [
+   "Có waterfall request trong server component hoặc API route (async-parallel, async-defer-await).",
+   "Bundle quá lớn do barrel import hoặc thư viện nặng (bundle-barrel-imports, bundle-dynamic-imports).",
+   "Component re-render quá nhiều đã đo được bằng profiler (rerender-*).",
+   "Review code React/Next.js về hiệu năng trước khi release.",
+   "Danh sách dài gây chậm render (rendering-content-visibility)."
+  ],
+  "avoidWhen": [
+   "Chưa có bằng chứng về vấn đề hiệu năng: không nên áp rule đại trà.",
+   "Implement tính năng React thông thường: dùng ak-frontend-development.",
+   "Cấu hình caching/SSR/ISR của Next.js ở mức framework: dùng ak-web-frameworks.",
+   "Đo Core Web Vitals/load test: dùng ak-web-testing."
+  ],
+  "params": [
+   {
+    "name": "[component or pattern]",
+    "kind": "arg",
+    "desc": "Component, trang hoặc pattern cần tối ưu/review hiệu năng."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:react-best-practices app/dashboard/page.tsx",
+    "note": "Loại bỏ waterfall fetch trong server component."
+   },
+   {
+    "cmd": "/ak:react-best-practices barrel imports trong components/index.ts",
+    "note": "Giảm bundle size."
+   },
+   {
+    "cmd": "/ak:react-best-practices ProductList re-render",
+    "note": "Tối ưu re-render đã đo bằng React Profiler."
+   },
+   {
+    "cmd": "/ak:react-best-practices audit toàn bộ app",
+    "note": "Audit rộng, khi đó mới đọc AGENTS.md."
+   }
+  ],
+  "tips": [
+   "Nhãn ưu tiên (CRITICAL, HIGH...) mô tả tác động tiềm năng, không phải bắt buộc áp mọi rule.",
+   "Nhóm CRITICAL là waterfall và bundle size; thường đem lại lợi ích lớn nhất.",
+   "Một số rule phụ thuộc version (vd after(), Activity component, React.cache()); kiểm tra version trước.",
+   "Luôn đo lại metric sau khi sửa để chứng minh cải thiện."
+  ],
+  "related": [
+   "ak-frontend-development",
+   "ak-web-frameworks",
+   "ak-web-testing",
+   "ak-ui-ux-pro-max"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Không tạo file mới; chỉnh sửa code React/Next.js hiện có"
+  ]
+ },
+ "ak-ui-styling": {
+  "tagline": "Style UI bằng shadcn/ui (Radix + Tailwind CSS): component accessible, theme, dark mode, responsive.",
+  "summary": "ak:ui-styling kết hợp shadcn/ui (component accessible dựa trên Radix UI), Tailwind CSS (utility-first) và lớp visual design dạng canvas. Đầu vào là component hoặc layout cần làm; đầu ra là component được thêm/chỉnh, theme, dark mode, cấu hình Tailwind và token nhất quán. Skill inspect cấu hình sẵn có (components.json, Tailwind config, token) và chỉ thay đổi phần được yêu cầu, không khởi tạo lại app có sẵn.",
+  "howItWorks": [
+   "Inspect version package, components.json, cấu hình Tailwind, token và convention component hiện có.",
+   "Xác định loại thay đổi: thêm component, đổi theme, sửa accessibility hay migrate phần được yêu cầu.",
+   "Chỉ load references/setup-recipes.md khi setup mới hoặc thiếu; không reinit app có sẵn.",
+   "Load reference theo chủ đề: shadcn-components.md, shadcn-theming.md, shadcn-accessibility.md, tailwind-utilities.md, tailwind-responsive.md, tailwind-customization.md, canvas-design-system.md, common-patterns.md.",
+   "Dùng script khi hữu ích: python scripts/shadcn_add.py <component...> để thêm component kèm dependency; python scripts/tailwind_config_gen.py --colors --fonts để sinh tailwind.config.js.",
+   "Giữ quyết định thiết kế hiện có và hành vi focus/keyboard."
+  ],
+  "useWhen": [
+   "Thêm component shadcn như Dialog, Data Table, Command palette vào app React.",
+   "Triển khai dark mode với next-themes và CSS variables.",
+   "Tùy biến token Tailwind (@theme, màu, font, breakpoint).",
+   "Xây layout responsive mobile-first.",
+   "Làm form có validation bằng react-hook-form + zod với primitive shadcn."
+  ],
+  "avoidWhen": [
+   "Cần art direction và độ trung thực hình ảnh cao: dùng ak-frontend-design.",
+   "Cần chọn style/palette/font hoặc review UX: dùng ak-ui-ux-pro-max.",
+   "Logic React/data fetching: dùng ak-frontend-development.",
+   "Brand identity, poster, logo: dùng ak-design."
+  ],
+  "params": [
+   {
+    "name": "[component or layout]",
+    "kind": "arg",
+    "desc": "Component hoặc layout cần thêm/style/tùy biến."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:ui-styling thêm dialog xác nhận xóa",
+    "note": "Thêm component shadcn Dialog có a11y."
+   },
+   {
+    "cmd": "/ak:ui-styling dark mode cho toàn app",
+    "note": "Thiết lập theme toggle và CSS variables."
+   },
+   {
+    "cmd": "/ak:ui-styling data table có sort và filter",
+    "note": "Pattern bảng dữ liệu phức tạp."
+   },
+   {
+    "cmd": "/ak:ui-styling đổi màu brand sang xanh ngọc",
+    "note": "Tùy biến token màu trong theme."
+   }
+  ],
+  "tips": [
+   "Script cần Python (có requirements.txt riêng); tra tài liệu mới nhất qua https://ui.shadcn.com/llms.txt.",
+   "Tránh class name động trong Tailwind vì bị purge; dùng class đầy đủ.",
+   "Áp dark variant cho mọi phần tử có theme để tránh lệch màu.",
+   "Không reinit shadcn trên app đã có components.json; chỉ thêm component cần."
+  ],
+  "related": [
+   "ak-frontend-design",
+   "ak-ui-ux-pro-max",
+   "ak-frontend-development",
+   "ak-stitch"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Component shadcn trong codebase (vd components/ui/*)",
+   "tailwind.config.js / CSS theme variables",
+   "components.json (khi setup mới)"
+  ]
+ },
+ "ak-ui-ux-pro-max": {
+  "tagline": "Trí tuệ thiết kế UI/UX có database tra cứu và bộ review guideline: style, palette, font, UX rule, design system, audit UI hiện có.",
+  "summary": "ak:ui-ux-pro-max là bộ hướng dẫn thiết kế cho web và mobile với database tìm kiếm: hơn 50 style, 161 color palette, 57 cặp font, 161 loại sản phẩm có rule suy luận, 99 UX guideline và 25 loại chart trên 10 stack. Đầu vào là component, trang, yêu cầu design system hoặc mã UI cần review; đầu ra là khuyến nghị design system (pattern, style, màu, typography, effect, anti-pattern), có thể lưu thành design-system/MASTER.md, hoặc danh sách finding review có file:line. Skill giờ kiêm luôn việc review UI theo Web Interface Guidelines của Vercel (references/web-interface-guidelines-review.md) bên cạnh sweep 10 nhóm rule §1–§10. Tiêu chí: nếu task thay đổi cách một tính năng trông, cảm nhận, chuyển động hay được tương tác thì dùng skill này.",
+  "howItWorks": [
+   "Step 1 — phân tích yêu cầu: loại sản phẩm, đối tượng, từ khóa style, stack (lấy từ yêu cầu, package manifest và component có sẵn).",
+   "Step 2 — sinh design system khi cần quyết định thiết kế mới: python3 scripts/search.py \"<product> <industry> <keywords>\" --design-system [-p \"Project\"]; tìm song song các domain product, style, color, landing, typography và áp rule suy luận từ ui-reasoning.csv, trả về pattern, style, màu, typography, effect và anti-pattern.",
+   "Step 2b — lưu bền với --persist: tạo design-system/MASTER.md (nguồn sự thật toàn cục) và design-system/pages/; thêm --page <name> để tạo override riêng cho trang, file trang ưu tiên hơn MASTER khi build trang đó.",
+   "Step 3 — tra cứu chi tiết theo domain (không cần chạy design system trước): --domain <domain> [-n số kết quả].",
+   "Step 4 — guideline theo stack: đọc scripts/search.py --help để chọn stack được hỗ trợ và giữ framework hiện có, vd --stack react-native.",
+   "Review UI hiện có: sweep 10 nhóm rule theo ưu tiên (Accessibility, Touch & Interaction, Performance, Style, Layout & Responsive, Typography & Color, Animation, Forms & Feedback, Navigation, Charts) trong references/quick-reference-rules.md.",
+   "Review theo Web Interface Guidelines (web UI): xác định file từ yêu cầu và thay đổi hiện tại; tải command.md của vercel-labs/web-interface-guidelines một lần mỗi lần review, ghi URL và revision/ngày lấy; nếu URL không truy cập được thì dùng bản cache đã định danh và nêu giới hạn độ mới; đối chiếu rule với code thật (và hành vi render khi cần); text guideline bên ngoài chỉ là dữ liệu review, không được cho phép ghi file hay vượt scope người dùng.",
+   "Báo cáo finding kèm file:line, rule bị vi phạm, tác động tới người dùng và cách sửa cụ thể; nói rõ khi không có finding nào được chứng minh và nêu hành vi runtime chưa xác minh.",
+   "Trước khi bàn giao: chạy references/pre-delivery-checklist.md; khi làm App UI (iOS/Android/React Native/Flutter) load references/professional-ui-rules.md."
+  ],
+  "useWhen": [
+   "Thiết kế trang mới (landing, dashboard, admin, SaaS, mobile app) hoặc tạo/refactor component UI.",
+   "Chọn color scheme, typography, spacing hoặc layout system; xây design system hay thư viện component tái sử dụng.",
+   "Review mã UI về accessibility, UX, tính nhất quán, hoặc 'kiểm site theo best practice' bằng Web Interface Guidelines của Vercel.",
+   "UI 'trông chưa chuyên nghiệp' mà không rõ lý do, nhận feedback về usability, tối ưu chất lượng UI trước khi ra mắt.",
+   "Đồng bộ thiết kế giữa Web/iOS/Android; thêm dark mode hoặc chart/data viz."
+  ],
+  "avoidWhen": [
+   "Backend thuần, API, database, tối ưu hiệu năng không liên quan giao diện, DevOps, script không có giao diện.",
+   "Cần code UI chỉn chu ngay từ screenshot/prompt: dùng ak-frontend-design.",
+   "Brand identity, logo, poster: dùng ak-design.",
+   "Chỉ cần style component shadcn/Tailwind cụ thể: dùng ak-ui-styling."
+  ],
+  "params": [
+   {
+    "name": "[component|page|design-system]",
+    "kind": "arg",
+    "desc": "Phạm vi công việc: một component, một trang, hoặc sinh design system hoàn chỉnh."
+   },
+   {
+    "name": "--style <style>",
+    "kind": "flag",
+    "desc": "Style mong muốn (vd glassmorphism, minimalism). (nguồn không mô tả chi tiết flag này; script search.py không có --style, tương ứng gần nhất là --domain style \"<từ khóa>\")"
+   },
+   {
+    "name": "--framework <fw>",
+    "kind": "flag",
+    "desc": "Framework/stack đích. (nguồn không mô tả chi tiết flag này; script search.py dùng --stack/-s cho guideline theo stack)"
+   },
+   {
+    "name": "--design-system (-ds)",
+    "kind": "flag",
+    "desc": "Flag của scripts/search.py: sinh khuyến nghị design system hoàn chỉnh; kết hợp -p/--project-name và -f/--format ascii|markdown (mặc định ascii box cho terminal, markdown cho tài liệu)."
+   },
+   {
+    "name": "--persist",
+    "kind": "flag",
+    "desc": "Flag của search.py: lưu design system vào design-system/MASTER.md (cấu trúc phân cấp); --page <name> tạo design-system/pages/<name>.md; -o/--output-dir đổi thư mục lưu (mặc định thư mục hiện tại)."
+   },
+   {
+    "name": "--domain (-d) <domain>",
+    "kind": "flag",
+    "desc": "Flag của search.py: tra cứu một domain. SKILL.md liệt kê product, style, typography, color, landing, chart, ux, google-fonts, react, web, prompt; --help của script hiện chấp nhận style, color, chart, landing, product, ux, typography, icons, react, web, google-fonts. -n/--max-results mặc định 3; --json để xuất JSON."
+   },
+   {
+    "name": "--stack (-s) <stack>",
+    "kind": "flag",
+    "desc": "Flag của search.py: guideline theo stack được hỗ trợ (--help hiện chỉ nhận react-native); dùng stack thật của dự án, không ép react-native lên dự án web/Vue."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:ui-ux-pro-max design-system cho spa làm đẹp 'Serenity Spa'",
+    "note": "Sinh design system hoàn chỉnh cho dự án mới."
+   },
+   {
+    "cmd": "python3 scripts/search.py \"beauty spa wellness service\" --design-system -p \"Serenity Spa\"",
+    "note": "Lệnh script tương ứng, output ASCII box."
+   },
+   {
+    "cmd": "python3 scripts/search.py \"fintech crypto\" --design-system --persist -p \"CoinApp\" --page dashboard",
+    "note": "Lưu MASTER.md và override cho trang dashboard."
+   },
+   {
+    "cmd": "python3 scripts/search.py \"search loading animation\" --domain ux",
+    "note": "Tra UX best practice cho tương tác tìm kiếm và loading."
+   },
+   {
+    "cmd": "/ak:ui-ux-pro-max component pricing card --style glassmorphism",
+    "note": "Component mới theo style chỉ định."
+   },
+   {
+    "cmd": "/ak:ui-ux-pro-max review src/app/settings về accessibility theo Web Interface Guidelines",
+    "note": "Review mã UI có sẵn: sweep §1–§10 cộng pass Web Interface Guidelines, finding kèm file:line."
+   }
+  ],
+  "tips": [
+   "Cần Python 3 để chạy scripts/search.py.",
+   "Dùng từ khóa đa chiều (sản phẩm + ngành + tone + mật độ), vd 'entertainment social vibrant content-dense' thay vì 'app'; chưa chốt style/màu thì chạy lại --design-system với từ khóa khác.",
+   "Khi build một trang, đọc design-system/pages/<page>.md trước; nếu không có mới dùng MASTER.md.",
+   "Khi review theo Web Interface Guidelines, luôn ghi URL và revision/ngày tải để kết quả tái lập được; tái dùng cùng bản khi scope và revision không đổi.",
+   "Gặp vấn đề cụ thể thì tra thẳng Quick Reference: dark mode tương phản §6, animation gượng §7, form UX §8, điều hướng §9, vỡ layout màn nhỏ §5, giật lag §3."
+  ],
+  "related": [
+   "ak-frontend-design",
+   "ak-ui-styling",
+   "ak-stitch",
+   "ak-web-testing",
+   "ak-code-review"
+  ],
+  "agents": [],
+  "artifacts": [
+   "design-system/MASTER.md (khi --persist)",
+   "design-system/pages/<page>.md (khi --page)",
+   "Danh sách finding review kèm file:line, rule, tác động và cách sửa"
+  ]
+ },
+ "ak-stitch": {
+  "tagline": "Sinh thiết kế UI bằng Google Stitch từ prompt, export Tailwind/HTML/DESIGN.md và bàn giao sang code.",
+  "summary": "ak:stitch dùng Google Stitch để sinh thiết kế UI độ trung thực cao từ text prompt, export HTML/Tailwind, ảnh chụp và DESIGN.md (spec đọc được bởi agent), rồi điều phối pipeline design-to-code với các UI skill khác. Đầu vào là prompt thiết kế hoặc action (generate, export, quota, edit); đầu ra là screen ID, ảnh preview và các file export. Skill tự cô lập project Stitch theo git repo và theo dõi quota cục bộ.",
+  "howItWorks": [
+   "Kiểm tra dependency và sự có mặt của STITCH_API_KEY (không in giá trị); nếu thiếu thì báo cần setup và dừng gọi provider.",
+   "Check quota: npx tsx scripts/stitch-quota.ts check (con số cục bộ chỉ là ước lượng, không phải quota thật của tài khoản).",
+   "Generate: npx tsx scripts/stitch-generate.ts \"<prompt>\" [--project] [--project-name] [--device] [--variants]; nếu có plan đang chạy thì truyền --project-name \"{repo}/{plan-slug}\".",
+   "Review: cho người dùng xem ảnh thiết kế để góp ý; tùy chọn sinh thêm variant.",
+   "Export: npx tsx scripts/stitch-export.ts <screen-id> --format all --output <dir> để lấy design.html, design.png, DESIGN.md.",
+   "Bàn giao: ak:frontend-design (component từ Tailwind export), ak:ui-ux-pro-max (layout đầy đủ + style guide), ak:ui-styling (trích token từ DESIGN.md); skill implement tự phát hiện DESIGN.md, chỉ dẫn của người dùng luôn ưu tiên.",
+   "Ghi nhận quota một lần sau khi generate (kiểm tra script đã tự tăng chưa trước khi increment)."
+  ],
+  "useWhen": [
+   "Muốn khám phá nhanh nhiều phương án thiết kế UI từ mô tả text.",
+   "Prototype nhanh một trang (checkout, dashboard) trước khi code.",
+   "Cần DESIGN.md làm spec cho agent implement.",
+   "Cần export HTML/Tailwind làm điểm xuất phát cho component React/Vue."
+  ],
+  "avoidWhen": [
+   "Không có STITCH_API_KEY hoặc hết quota: dùng ak-ui-ux-pro-max để thiết kế bằng text.",
+   "Cần replicate chính xác từ screenshot có sẵn: dùng ak-frontend-design.",
+   "Cần animation/micro-interaction: Stitch chỉ sinh thiết kế tĩnh, thêm bằng ak-frontend-design.",
+   "Cần export React trực tiếp: Stitch chỉ xuất HTML/Tailwind."
+  ],
+  "params": [
+   {
+    "name": "[design prompt or action]",
+    "kind": "arg",
+    "desc": "Prompt mô tả thiết kế, hoặc một action: generate, export, quota, edit."
+   },
+   {
+    "name": "generate",
+    "kind": "subcommand",
+    "desc": "Sinh thiết kế từ prompt (stitch-generate.ts); trả về screen ID và URL ảnh preview."
+   },
+   {
+    "name": "export",
+    "kind": "subcommand",
+    "desc": "Xuất thiết kế (stitch-export.ts <screen-id>) dạng HTML/Tailwind, ảnh, DESIGN.md."
+   },
+   {
+    "name": "quota",
+    "kind": "subcommand",
+    "desc": "Quản lý quota hằng ngày: check (xem credit còn lại), increment (tăng sau khi generate), reset (ép reset; tự reset mỗi ngày). Lưu tại ~/.claudekit/.stitch-quota.json, cảnh báo khi còn dưới 20%."
+   },
+   {
+    "name": "edit",
+    "kind": "subcommand",
+    "desc": "Tinh chỉnh thiết kế có sẵn qua SDK (screen.edit(\"...\"))."
+   },
+   {
+    "name": "--project <id>",
+    "kind": "flag",
+    "desc": "generate: ID project Stitch trực tiếp; ưu tiên cao nhất trong thứ tự resolve project."
+   },
+   {
+    "name": "--project-name <title>",
+    "kind": "flag",
+    "desc": "generate: tìm hoặc tạo project theo tên; ưu tiên thứ hai, sau đó STITCH_PROJECT_ID env, tên git repo, rồi 'claudekit-default'."
+   },
+   {
+    "name": "--device MOBILE|DESKTOP|TABLET",
+    "kind": "flag",
+    "desc": "generate: loại thiết bị đích của thiết kế."
+   },
+   {
+    "name": "--variants <count>",
+    "kind": "flag",
+    "desc": "generate: số phương án thiết kế thay thế bổ sung."
+   },
+   {
+    "name": "--format html|image|all",
+    "kind": "flag",
+    "desc": "export: định dạng xuất; all cho ra design.html, design.png và DESIGN.md."
+   },
+   {
+    "name": "--output <dir>",
+    "kind": "flag",
+    "desc": "export: thư mục output (vd ./stitch-exports/)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:stitch A checkout page with payment form and cart summary",
+    "note": "Sinh thiết kế trang checkout."
+   },
+   {
+    "cmd": "npx tsx scripts/stitch-generate.ts \"mobile banking home\" --device MOBILE --variants 2",
+    "note": "Sinh thiết kế mobile kèm 2 phương án."
+   },
+   {
+    "cmd": "npx tsx scripts/stitch-export.ts <screen-id> --format all --output ./stitch-exports/",
+    "note": "Xuất HTML, ảnh và DESIGN.md để bàn giao."
+   },
+   {
+    "cmd": "/ak:stitch quota check",
+    "note": "Kiểm tra credit còn lại trước khi sinh nhiều thiết kế."
+   }
+  ],
+  "tips": [
+   "Cần STITCH_API_KEY trong môi trường/secret store; skill không tự ghi placeholder hay credential vào thư mục Claude global.",
+   "Script chạy bằng npx tsx nên cần Node; cài SDK chỉ trong môi trường skill/dự án.",
+   "Khi bị rate limit, theo hướng dẫn reset/retry của service thay vì retry mù quáng.",
+   "Output có thể generic; kết hợp style guide (ak:ui-ux-pro-max) để tạo khác biệt và tự thêm breakpoint responsive.",
+   "Cấu hình MCP Stitch xem references/stitch-mcp-setup.md."
+  ],
+  "related": [
+   "ak-frontend-design",
+   "ak-ui-ux-pro-max",
+   "ak-ui-styling"
+  ],
+  "agents": [],
+  "artifacts": [
+   "design.html (HTML + Tailwind)",
+   "design.png",
+   "DESIGN.md (ở project root hoặc thư mục plan)",
+   "~/.claudekit/.stitch-quota.json"
+  ]
+ },
+ "ak-page-builder": {
+  "tagline": "Tích hợp, mở rộng hoặc vận hành page builder động dùng component có sẵn, do agent điều khiển.",
+  "summary": "ak:page-builder tích hợp một page builder động vào dự án hiện có dùng đúng stack, component và design system; agent là người vận hành chính, còn con người chỉnh trang qua editor accessible, responsive, hỗ trợ cảm ứng. Có ba mode: setup, update, operate. Đầu ra là code dự án chạy được (registry block, editor, draft/preview/publish, API/CLI/MCP/WebMCP, export SEO/Markdown) cùng một operator skill riêng của dự án tạo qua ak-skill-creator. Trong workflow, skill đứng sau ak-plan và trước ak-test.",
+  "howItWorks": [
+   "Suy ra mode từ yêu cầu và dự án (setup, update, operate); đối số tường minh luôn thắng; tái dùng outcome, ràng buộc, non-goal và acceptance criteria đã chấp nhận.",
+   "Discovery (codebase-discovery.md): xác định host app, CMS/builder sẵn có, render model, component, auth/storage, deployment và chọn adapter.",
+   "Định nghĩa registry và contract trang serialize (block-contract.md, widget-sizing.md), implement các operation dùng chung (page-operations.md), tái dùng owner hiện có.",
+   "Kết nối editor (editor-ux.md) và vòng đời preview/publication (preview-publishing.md); verify một block thật trước khi mở rộng.",
+   "Mở agent interfaces (agent-interfaces.md: API, CLI, MCP stdio/HTTP, WebMCP), export SEO/Markdown (seo-markdown.md), chuẩn bị deployment (deployment.md, ưu tiên Cloudflare cho MCP).",
+   "Kích hoạt ak-skill-creator để tạo/cập nhật operator skill của dự án (operator-skill.md); đây là output bắt buộc của setup và khi đổi contract.",
+   "Verify theo verification.md: chạy hết hành trình đã chấp nhận, sửa lỗi, báo artifact, interface đã test, đường dẫn operator skill và phần môi trường/thiết bị chưa verify.",
+   "Mode operate: đọc operator skill, khám phá schema thật, đọc revision hiện tại, tìm block, áp thay đổi đã validate, kiểm tra kết quả và chạy preview/publish; xử lý retry/conflict theo page-operations.md."
+  ],
+  "useWhen": [
+   "Xây hệ thống ghép trang tái sử dụng từ component có sẵn của dự án.",
+   "Thêm draft/preview/publish và khả năng cho agent vận hành vào builder đang có.",
+   "Mở rộng builder với block, binding, layout hoặc interface contract mới.",
+   "Cần agent tạo trang nháp và chia sẻ preview khi dự án chưa có operator skill."
+  ],
+  "avoidWhen": [
+   "Thiết kế một trang đơn lẻ: dùng ak-frontend-design.",
+   "Chỉ cần bọc API thành CLI/MCP chung: dùng ak-agentize hoặc ak-mcp-builder.",
+   "Thay đổi nội dung trang thường ngày khi dự án đã có operator skill: dùng operator skill đó.",
+   "Chỉ cần công cụ WebMCP cho website: dùng ak-webmcp."
+  ],
+  "params": [
+   {
+    "name": "setup",
+    "kind": "subcommand",
+    "desc": "Đối số skill (không phải lệnh CLI ak): tích hợp builder mới. Phạm vi mặc định gồm discovery/đăng ký component, props và binding, drag/drop, widget kích thước small/medium/large, draft/preview/publish, API, CLI, MCP stdio và HTTP, WebMCP, docs và OpenAPI tương tác, export SEO và Markdown, MCP ưu tiên Cloudflare, và operator skill."
+   },
+   {
+    "name": "update",
+    "kind": "subcommand",
+    "desc": "Mở rộng builder có sẵn (block, binding, layout, contract); chỉ đổi hành vi và contract bị ảnh hưởng, không dựng lại subsystem không liên quan."
+   },
+   {
+    "name": "operate",
+    "kind": "subcommand",
+    "desc": "Vận hành builder có sẵn: đọc operator skill, dùng operation hiện có để sửa nội dung, preview, publish; không cần regenerate source hay scout toàn bộ. Nếu chưa có operator skill thì tạo qua ak-skill-creator."
+   },
+   {
+    "name": "[project-path]",
+    "kind": "arg",
+    "desc": "Đường dẫn app đích (vd ./apps/storefront)."
+   },
+   {
+    "name": "[request]",
+    "kind": "arg",
+    "desc": "Mô tả yêu cầu cụ thể (vd thêm block ProductGrid với binding theo category)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:page-builder setup ./apps/storefront",
+    "note": "Tích hợp page builder đầy đủ vào storefront."
+   },
+   {
+    "cmd": "/ak:page-builder update Add the existing ProductGrid block with category bindings",
+    "note": "Đăng ký thêm block có sẵn kèm binding."
+   },
+   {
+    "cmd": "/ak:page-builder operate Create a pricing draft and share its preview",
+    "note": "Agent tạo trang nháp và chia sẻ preview."
+   }
+  ],
+  "tips": [
+   "setup/update/operate là đối số của skill, không phải subcommand của CLI ak.",
+   "Phân biệt rõ draft đã lưu, preview khả dụng, build đang xếp hàng và publish live đã verify; không tuyên bố publish nếu chưa có bằng chứng.",
+   "Test mutation trong môi trường dùng một lần; thiếu credential thì phần verify live coi là chưa hoàn tất.",
+   "Không bịa tên tool, giả response endpoint hay thay hành vi động bằng demo.",
+   "Thiếu ak-skill-creator hoặc runtime không hỗ trợ là năng lực chưa hoàn thành được nêu tên, không phải pass."
+  ],
+  "related": [
+   "ak-skill-creator",
+   "ak-plan",
+   "ak-test",
+   "ak-mcp-builder",
+   "ak-webmcp",
+   "ak-agentize",
+   "ak-frontend-design",
+   "ak-deploy"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Code page builder trong dự án (registry, editor, operations, preview/publish)",
+   "API, CLI, MCP server, WebMCP tools và OpenAPI docs",
+   "Export SEO/Markdown",
+   "Operator skill riêng của dự án (tạo qua ak-skill-creator)",
+   "Plan trong plans/ cho tích hợp mới"
+  ]
+ },
+ "ak-threejs": {
+  "tagline": "Xây trải nghiệm 3D trên web với Three.js: WebGL/WebGPU, GLTF, animation, physics, VR/XR.",
+  "summary": "ak:threejs hỗ trợ xây ứng dụng 3D hiệu năng cao với Three.js, kèm CLI tìm kiếm ví dụ và API trong dữ liệu đóng gói. Đầu vào là cảnh 3D hoặc tính năng cần làm; đầu ra là code Three.js chạy được, đã kiểm tra render và tương tác thật. Reference được chia 5 cấp từ fundamentals tới WebGPU/physics/XR để nạp dần theo nhu cầu.",
+  "howItWorks": [
+   "Đọc version Three.js và renderer đang dùng trước khi áp recipe (WebGL, WebGPU và TSL không thay thế nhau được).",
+   "Tìm ví dụ/API: python3 scripts/search.py \"<query>\" [--domain examples|api|use-cases|categories] [-n N]; có thể lọc --use-case, --category, --complexity.",
+   "Nạp reference theo cấp: Level 1 fundamentals/getting-started; Level 2 loaders, textures, cameras, lights, animations, materials, geometry; Level 3 interaction, postprocessing, controls; Level 4 performance, node materials (TSL), shader; Level 5 physics-vr, webgpu.",
+   "Verify đường dẫn import add-on và năng lực trình duyệt theo version; có fallback khi không hỗ trợ rendering.",
+   "Kiểm tra render và tương tác thực tế; khi teardown hủy animation loop, gỡ listener, dispose geometry, material, texture, render target.",
+   "Đo frame time hoặc bộ nhớ khi hiệu năng là một phần của yêu cầu."
+  ],
+  "useWhen": [
+   "Xây product configurator 3D với GLTF, PBR, env map.",
+   "Làm game hoặc visualization dữ liệu 3D (BufferGeometry, Points).",
+   "Panorama 360 độ hoặc trải nghiệm WebXR.",
+   "Hiệu ứng particle, postprocessing (bloom, SSAO) hoặc compute shader WebGPU."
+  ],
+  "avoidWhen": [
+   "Chỉ cần viết fragment shader procedural: dùng ak-shader.",
+   "Cần 3D bên trong video Remotion: dùng ak-remotion (rule 3d.md).",
+   "Landing page có một chút 3D nhưng trọng tâm là thiết kế: dùng ak-frontend-design (workflow 3D).",
+   "Biểu đồ 2D: dùng skill dataviz."
+  ],
+  "params": [
+   {
+    "name": "[3D scene or feature]",
+    "kind": "arg",
+    "desc": "Cảnh 3D hoặc tính năng cần xây (vd configurator, particle, XR)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:threejs product configurator cho giày với đổi màu vật liệu",
+    "note": "GLTF + PBR + tương tác chọn màu."
+   },
+   {
+    "cmd": "/ak:threejs particle effects dùng WebGPU compute",
+    "note": "Level 5 WebGPU."
+   },
+   {
+    "cmd": "/ak:threejs panorama 360 có hotspot",
+    "note": "Use case độ phức tạp thấp."
+   },
+   {
+    "cmd": "python3 scripts/search.py \"camera\" --domain api",
+    "note": "Tra API các class camera."
+   }
+  ],
+  "tips": [
+   "Kiểm tra version three trước khi copy recipe; API addon và TSL thay đổi giữa các bản.",
+   "Luôn dispose tài nguyên GPU khi unmount để tránh rò bộ nhớ.",
+   "Dùng instancing, LOD, batching (12-performance.md) cho cảnh nhiều object.",
+   "Script search cần Python 3."
+  ],
+  "related": [
+   "ak-shader",
+   "ak-frontend-design",
+   "ak-remotion",
+   "ak-web-testing"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Code scene Three.js (JS/TS) trong dự án"
+  ]
+ },
+ "ak-shader": {
+  "tagline": "Viết GLSL fragment shader cho đồ họa procedural: SDF, pattern, noise, fBm, màu, animation.",
+  "summary": "ak:shader hướng dẫn viết fragment shader chạy trên GPU để tạo texture procedural, hình dạng bằng distance field, pattern, noise, gradient và hiệu ứng động. Đầu vào là hiệu ứng hoặc pattern mong muốn; đầu ra là code GLSL tương thích renderer đích (WebGL, Three.js, Processing), đã compile và kiểm tra hình ảnh thật. Reference được chia theo fundamentals, drawing, procedural và API.",
+  "howItWorks": [
+   "Inspect renderer thật, version WebGL/GLSL, precision, tên và kiểu uniform (snippet mẫu là GLSL ES 1; dự án GLSL ES 3 cần interface tương ứng).",
+   "Chỉ load reference noise/SDF/màu cần cho hiệu ứng (fundamentals, shaping functions, colors, shapes SDF, patterns, noise, cellular/voronoi, fBm, procedural textures, builtin API).",
+   "Viết shader dùng uniform chuẩn (u_time, u_resolution, u_mouse), chuẩn hóa tọa độ st = gl_FragCoord.xy / u_resolution và các hàm mix, step, smoothstep, fract...",
+   "Compile và render trong môi trường đích, kiểm tra hình ảnh và đo hiệu năng theo brief; validate cú pháp thôi là chưa đủ.",
+   "Giữ nguyên quyền sở hữu và vòng đời uniform hiện có."
+  ],
+  "useWhen": [
+   "Tạo texture procedural như gỗ, đá cẩm thạch, mây, địa hình.",
+   "Vẽ hình bằng signed distance field (tròn, chữ nhật, đa giác, sao).",
+   "Tạo noise Perlin/simplex/cellular hoặc fBm cho generative art.",
+   "Viết custom shader cho material Three.js hoặc hiệu ứng nền WebGL."
+  ],
+  "avoidWhen": [
+   "Xây cả scene 3D với model, camera, ánh sáng: dùng ak-threejs.",
+   "Hiệu ứng CSS/animation UI đơn giản: dùng ak-frontend-design.",
+   "Xử lý ảnh/video offline: dùng ak-media-processing.",
+   "Shader dạng node graph TSL trong Three.js: xem ak-threejs (13-node-materials.md)."
+  ],
+  "params": [
+   {
+    "name": "[effect or pattern]",
+    "kind": "arg",
+    "desc": "Hiệu ứng hoặc pattern cần tạo (vd marble texture, voronoi, wave animation)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:shader nền gradient động theo thời gian",
+    "note": "Animation dùng u_time."
+   },
+   {
+    "cmd": "/ak:shader texture đá cẩm thạch bằng fBm",
+    "note": "Procedural texture."
+   },
+   {
+    "cmd": "/ak:shader pattern truchet có domain warping",
+    "note": "Pattern symmetry nâng cao."
+   },
+   {
+    "cmd": "/ak:shader voronoi cho material Three.js",
+    "note": "Cellular noise trong ShaderMaterial."
+   }
+  ],
+  "tips": [
+   "Công cụ thử nhanh: editor.thebookofshaders.com, glslViewer (CLI chạy .frag), glslCanvas, ShaderToy (dùng iTime, iResolution, iMouse thay vì u_*).",
+   "Thư viện hàm tái sử dụng: LYGIA (lygia.xyz); bài viết tham khảo của Inigo Quilez.",
+   "Chú ý khác biệt GLSL ES 1 (gl_FragColor) và ES 3 (out vec4) khi đưa vào WebGL2/Three.js.",
+   "Đo hiệu năng: noise nhiều octave có thể nặng trên thiết bị yếu."
+  ],
+  "related": [
+   "ak-threejs",
+   "ak-frontend-design",
+   "ak-remotion"
+  ],
+  "agents": [],
+  "artifacts": [
+   "File shader .frag/.glsl hoặc chuỗi shader nhúng trong code"
+  ]
+ },
+ "ak-design": {
+  "tagline": "Art direction, brand identity và tài sản hình ảnh: logo, CIP, slide, banner, poster, social image, icon.",
+  "summary": "ak:design sở hữu art direction, nhận diện thương hiệu và các deliverable hình ảnh; không phải recipe React/Tailwind (UI thuộc frontend-design, frontend-development, ui-styling). Đầu vào là loại thiết kế và context (brief, đối tượng, brand asset, định dạng); đầu ra là logo, mockup CIP, slide, banner, poster, ảnh social, icon đã kiểm tra khi export. Skill có script tìm kiếm style/màu/ngành và sinh hình bằng Gemini, cùng Handoff Gate dùng chung cho frontend-design, show-off, slides.",
+  "howItWorks": [
+   "Xác định brief, audience, brand asset, định dạng và acceptance trước; tái dùng preference đã chốt, chỉ hỏi quyết định quan trọng còn thiếu.",
+   "Với thương hiệu thật có tên, load references/brand-asset-protocol.md; không bao giờ bịa logo của thương hiệu đó.",
+   "Chọn deliverable và load reference: logo → logo-builtin-usage.md, CIP → cip-builtin-usage.md, slides → slides-create.md, banner → banner-sizes-and-styles.md, poster → poster-builtin-usage.md, social → social-photos-design.md, icon → icon-builtin-usage.md.",
+   "Brief mới/mơ hồ dùng design-workflow.md; ví dụ end-to-end trong deliverable-recipes.md.",
+   "Chạy script phù hợp: scripts/logo/search.py và generate.py, scripts/cip/search.py, generate.py, render-html.py, scripts/icon/generate.py, scripts/poster/search.py, generate.py, analyze.py.",
+   "Review bằng design-critique-guide.md (concept, brand, legibility, output) và kiểm tra export về clipping, độ phân giải, độ trung thực; báo trung thực giới hạn."
+  ],
+  "useWhen": [
+   "Thiết kế logo mới hoặc chỉnh logo theo ràng buộc thương hiệu.",
+   "Tạo bộ nhận diện doanh nghiệp (CIP): danh thiếp, bảng hiệu, đồng phục, bao bì.",
+   "Làm poster sự kiện/editorial hoặc banner quảng cáo đúng kích thước nền tảng.",
+   "Thiết kế bộ icon SVG hoặc ảnh social cho chiến dịch."
+  ],
+  "avoidWhen": [
+   "Code UI React/Tailwind: dùng ak-frontend-design, ak-frontend-development hoặc ak-ui-styling.",
+   "Chỉ cần sinh ảnh concept/mockup từ prompt curated: dùng ak-ai-artist."
+  ],
+  "params": [
+   {
+    "name": "[design-type]",
+    "kind": "arg",
+    "desc": "Loại deliverable: logo, corporate identity (CIP), slides, banner, poster, social image, icons."
+   },
+   {
+    "name": "[context]",
+    "kind": "arg",
+    "desc": "Brief, đối tượng, brand asset, định dạng và yêu cầu nghiệm thu."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:design logo cho startup fintech 'TechFlow' phong cách tối giản",
+    "note": "Sinh logo qua scripts/logo/generate.py."
+   },
+   {
+    "cmd": "/ak:design CIP cho quán cà phê vintage",
+    "note": "Mockup bộ nhận diện và trang HTML trình bày."
+   },
+   {
+    "cmd": "/ak:design poster hội thảo AI tháng 10",
+    "note": "Poster sự kiện với prompt engineering."
+   },
+   {
+    "cmd": "/ak:design banner LinkedIn cho ra mắt sản phẩm",
+    "note": "Đúng kích thước và style nền tảng."
+   },
+   {
+    "cmd": "/ak:design bộ icon SVG cho dashboard",
+    "note": "Sinh icon bằng scripts/icon/generate.py."
+   }
+  ],
+  "tips": [
+   "Script sinh hình dùng Gemini (Nano Banana; CIP có model flash mặc định và pro), cần API key Gemini đã cấu hình.",
+   "Logo được sinh trên nền trắng để dễ tách và đặt lên mọi bề mặt.",
+   "Khi script lỗi, sửa script thay vì lách qua.",
+   "Handoff Gate 5 chiều (context fit, visual hierarchy, craft, usability/a11y, implementation safety) ở references/handoff-gate.md được frontend-design, show-off, slides dùng chung."
+  ],
+  "related": [
+   "ak-ai-artist",
+   "ak-frontend-design"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Ảnh logo/CIP mockup/poster/banner/social (PNG...)",
+   "Icon SVG",
+   "Trang HTML trình bày CIP (cip/render-html.py)",
+   "Slide HTML"
+  ]
+ },
+ "ak-ai-artist": {
+  "tagline": "Sinh mockup, asset marketing, brand visual và concept art qua Nano Banana với 129 prompt curated.",
+  "summary": "ak:ai-artist sinh ảnh dựa trên 129 prompt tuyển chọn từ bộ awesome-nano-banana-pro-prompts, định tuyến render qua ai-multimodal với Google trực tiếp hoặc OpenRouter. Có các mode search (mặc định), creative, wild và all. Đầu vào là concept kèm ràng buộc style, mood, màu; đầu ra là file ảnh. Skill tái dùng brief và brand đã có, chỉ hỏi khi một lựa chọn chưa rõ làm thay đổi đáng kể hình ảnh.",
+  "howItWorks": [
+   "Resolve concept, kích thước output và ràng buộc reference/brand từ yêu cầu; brief đầy đủ thì đi thẳng tới generate.",
+   "Chỉ hỏi câu tập trung khi lựa chọn chưa rõ ảnh hưởng lớn; --skip bỏ qua bước làm rõ tùy chọn.",
+   "Tìm prompt: search.py dùng BM25 trên data/awesome-prompts.csv (domain awesome).",
+   "Chạy python3 scripts/generate.py \"<concept>\" -o <output.png> [--mode] [--provider] [-ar] [--model]: search chọn prompt khớp nhất, creative trộn top 3, wild áp biến đổi nghệ thuật ngẫu nhiên, all sinh cả 3.",
+   "Render cuối qua ai-multimodal với provider đã resolve (auto ưu tiên Google trực tiếp, tôn trọng IMAGE_GEN_PROVIDER=openrouter)."
+  ],
+  "useWhen": [
+   "Cần banner hội thảo, thumbnail, quote card cho mạng xã hội.",
+   "Tạo ảnh sản phẩm kiểu commercial/Apple-style hoặc mockup e-commerce.",
+   "Làm infographic Bento grid, chalkboard hoặc concept art phong cách Ukiyo-e, cyberpunk, vintage patent.",
+   "Muốn nhiều biến thể sáng tạo cho cùng một concept (--mode all)."
+  ],
+  "avoidWhen": [
+   "Cần logo/CIP/brand system có quy trình thiết kế: dùng ak-design.",
+   "Cần phân tích ảnh, OCR, sinh video hoặc audio: dùng ak-ai-multimodal.",
+   "Chỉnh sửa ảnh có sẵn (resize, xóa nền): dùng ak-media-processing.",
+   "Thiết kế UI: dùng ak-frontend-design hoặc ak-stitch."
+  ],
+  "params": [
+   {
+    "name": "[concept]",
+    "kind": "arg",
+    "desc": "Ý tưởng/chủ đề ảnh cần sinh."
+   },
+   {
+    "name": "--mode search|creative|wild|all",
+    "kind": "flag",
+    "desc": "search (mặc định): prompt curated khớp nhất; creative: trộn yếu tố từ top 3 prompt; wild: biến đổi nghệ thuật ngẫu nhiên (Ukiyo-e, Bento glass, patent 1800s, cyberpunk, isometric, poster điện ảnh...); all: sinh cả 3 biến thể. Script dùng -m/--mode."
+   },
+   {
+    "name": "--provider auto|google|openrouter",
+    "kind": "flag",
+    "desc": "auto (mặc định): tôn trọng IMAGE_GEN_PROVIDER=openrouter nếu đặt, ngược lại ưu tiên Google trực tiếp trừ khi chỉ có credential OpenRouter; google hoặc openrouter để ép provider."
+   },
+   {
+    "name": "--skip",
+    "kind": "flag",
+    "desc": "Bỏ qua phỏng vấn làm rõ/validation tùy chọn và sinh luôn với giả định đã nêu."
+   },
+   {
+    "name": "-o, --output",
+    "kind": "flag",
+    "desc": "Tùy chọn script generate.py: đường dẫn output (bắt buộc)."
+   },
+   {
+    "name": "-ar, --aspect-ratio",
+    "kind": "flag",
+    "desc": "Tùy chọn script: tỉ lệ khung 1:1, 16:9, 9:16..."
+   },
+   {
+    "name": "--model",
+    "kind": "flag",
+    "desc": "Tùy chọn script: flash2 (mặc định, nhanh + chất lượng), flash (bản trước), pro (chất lượng/4K)."
+   },
+   {
+    "name": "-v, --verbose",
+    "kind": "flag",
+    "desc": "Tùy chọn script: hiển thị prompt khớp và chi tiết."
+   },
+   {
+    "name": "--dry-run",
+    "kind": "flag",
+    "desc": "Tùy chọn script: chỉ hiển thị prompt, không sinh ảnh."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:ai-artist tech conference banner",
+    "note": "Mode search mặc định."
+   },
+   {
+    "cmd": "python3 scripts/generate.py \"tech conference banner\" -o banner.png -ar 16:9 --provider openrouter",
+    "note": "Ép provider OpenRouter, tỉ lệ 16:9."
+   },
+   {
+    "cmd": "/ak:ai-artist AI workshop --mode creative",
+    "note": "Trộn nhiều prompt để có ý tưởng mới."
+   },
+   {
+    "cmd": "/ak:ai-artist futuristic city --mode all --skip",
+    "note": "Sinh cả 3 biến thể không hỏi lại."
+   },
+   {
+    "cmd": "python3 scripts/generate.py \"product showcase\" -o p.png --dry-run -v",
+    "note": "Xem prompt sẽ dùng trước khi tốn quota."
+   }
+  ],
+  "tips": [
+   "Cần GEMINI_API_KEY (Google) hoặc OPENROUTER_API_KEY; ảnh được render qua ai-multimodal/Multix.",
+   "Dùng --dry-run để kiểm tra prompt trước khi tốn phí sinh ảnh.",
+   "--model pro cho chất lượng cao/4K nhưng chậm và đắt hơn flash2.",
+   "Xem hoặc tìm prompt trực tiếp: python3 scripts/search.py \"<query>\" --domain awesome hoặc cat data/awesome-prompts.csv."
+  ],
+  "related": [
+   "ak-ai-multimodal",
+   "ak-design",
+   "ak-media-processing"
+  ],
+  "agents": [],
+  "artifacts": [
+   "File ảnh output (đường dẫn -o), nhiều file khi --mode all"
+  ]
+ },
+ "ak-ai-multimodal": {
+  "tagline": "Phân tích và sinh ảnh, audio, video, tài liệu; ưu tiên vision gốc của model, fallback Multix CLI.",
+  "summary": "ak:ai-multimodal xử lý audio, ảnh, video và tài liệu. Với hiểu ảnh/tài liệu (OCR, mô tả, trích xuất), skill ưu tiên vision gốc của model trong phiên; chỉ dùng CLI @mrgoonie/multix (bản npm latest qua npx) khi vision gốc không đủ điều kiện hoặc khi cần sinh ảnh/video, TTS, nhạc, transcription với provider đã cấu hình (Gemini, OpenRouter, MiniMax). Đầu vào là đường dẫn file và prompt; đầu ra là phân tích, transcript Markdown có timestamp, hoặc file media được sinh.",
+  "howItWorks": [
+   "Routing trước khi chạy: hiểu ảnh/tài liệu → vision gốc; sinh/sửa ảnh, sinh video, TTS/nhạc/transcription → Multix nếu có key phù hợp.",
+   "Chỉ fallback sang Multix cho phân tích hình ảnh khi phiên không có vision, input vượt giới hạn (video dài, định dạng không hỗ trợ, tài liệu quá lớn) hoặc người dùng yêu cầu rõ; phải nêu lý do.",
+   "Kiểm tra sự có mặt của GEMINI_API_KEY, OPENROUTER_API_KEY, MINIMAX_API_KEY (không in giá trị) và chỉ route tới provider có key bao phủ đúng năng lực.",
+   "Không có route hợp lệ thì nêu rõ blocker (không có năng lực gốc, thiếu credential, tác vụ không hỗ trợ, provider không khớp) và tên biến env cần thiết; không đoán.",
+   "Load references/setup.md trước lần chạy Multix đầu tiên (Node, key, multix check), rồi reference theo modality (vision-understanding, image-generation, audio-processing, music-generation, video-analysis, video-generation, cli-recipes).",
+   "Trước khi generate: chạy multix ... --help bản npm latest, kiểm tra catalog model và giá của provider, chọn model tường minh và ghi lại khi cần tái lập.",
+   "Media vượt giới hạn thì chia bằng ffmpeg, xử lý từng đoạn rồi gộp; transcript xuất Markdown có metadata và dòng [HH:MM:SS -> HH:MM:SS]."
+  ],
+  "useWhen": [
+   "Transcribe file audio/video dài thành transcript có timestamp.",
+   "Sinh hoặc chỉnh sửa ảnh với provider đã cấu hình key.",
+   "Sinh video ngắn hoặc nhạc/TTS (MiniMax).",
+   "Phân tích video dài hoặc tài liệu vượt giới hạn vision gốc của model."
+  ],
+  "avoidWhen": [
+   "Ảnh/tài liệu model hiện tại tự đọc được: dùng vision gốc, không cần gọi Multix.",
+   "Cần prompt curated cho ảnh marketing: dùng ak-ai-artist (vẫn render qua skill này).",
+   "Chuyển đổi/encode media bằng FFmpeg/ImageMagick: dùng ak-media-processing."
+  ],
+  "params": [
+   {
+    "name": "[file-path]",
+    "kind": "arg",
+    "desc": "Đường dẫn file media/tài liệu đầu vào (ảnh, audio, video, PDF) hoặc đích output khi sinh."
+   },
+   {
+    "name": "[prompt]",
+    "kind": "arg",
+    "desc": "Yêu cầu phân tích hoặc mô tả nội dung cần sinh."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:ai-multimodal ./meeting.mp3 transcribe có timestamp",
+    "note": "Transcription qua Gemini."
+   },
+   {
+    "cmd": "/ak:ai-multimodal ./hero.png tạo biến thể nền hoàng hôn",
+    "note": "Sửa/sinh ảnh với key đã cấu hình."
+   },
+   {
+    "cmd": "/ak:ai-multimodal ./demo.mp4 tóm tắt các cảnh chính",
+    "note": "Video dài vượt giới hạn vision gốc."
+   },
+   {
+    "cmd": "/ak:ai-multimodal ./invoice.pdf trích tổng tiền",
+    "note": "Thường xử lý bằng vision gốc, không cần Multix."
+   }
+  ],
+  "tips": [
+   "Chạy Multix qua npx --yes --prefer-online --package=@mrgoonie/multix@latest -- multix; không cài hay gọi multix global.",
+   "Cần Node.js 20+; phiên offline/sandbox nên pre-warm bằng lệnh multix --version khi còn mạng.",
+   "Key đặt trong shell, .env dự án hoặc ~/.multix/.env; key cho một modality không cho phép route modality khác.",
+   "Lỗi API provider: giữ nguyên lỗi (đã ẩn key), chỉ retry sau khi sửa auth, billing, quota, quyền model hoặc tham số.",
+   "Không tự suy model 'mới nhất/mặc định'; luôn kiểm tra catalog provider hiện tại."
+  ],
+  "related": [
+   "ak-ai-artist",
+   "ak-media-processing",
+   "ak-project-organization",
+   "ak-frontend-design"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Transcript Markdown có timestamp",
+   "Ảnh/video/audio/nhạc được sinh",
+   "Kết quả phân tích trong hội thoại"
+  ]
+ },
+ "ak-media-processing": {
+  "tagline": "Xử lý media bằng FFmpeg (video/audio), ImageMagick (ảnh) và RMBG (xóa nền bằng AI).",
+  "summary": "ak:media-processing xử lý video, audio và ảnh bằng các CLI FFmpeg, ImageMagick và RMBG: encode, chuyển định dạng, filter, thumbnail, GIF, batch, streaming HLS/DASH, xóa nền. Đầu vào là file media và thao tác; đầu ra là file đã xử lý ở thư mục riêng, đã verify codec, kích thước, thời lượng hoặc metadata ảnh. Mặc định giữ nguyên file nguồn; chỉnh sửa tại chỗ cần phạm vi overwrite tường minh.",
+  "howItWorks": [
+   "Ưu tiên đường dẫn output của người dùng/repo; chỉ gọi năng lực tổ chức asset khi việc sắp xếp nhiều asset là một phần của task.",
+   "Chọn tool theo tác vụ: FFmpeg cho encode/convert video, trích audio, thumbnail, GIF từ video; ImageMagick cho resize/effect ảnh và batch (mogrify); RMBG cho xóa nền AI chạy local.",
+   "Load reference khi cần chi tiết: ffmpeg-encoding, ffmpeg-streaming, ffmpeg-filters, imagemagick-editing, imagemagick-batch, rmbg-background-removal, common-workflows, format-compatibility, troubleshooting.",
+   "Chạy lệnh hoặc script hỗ trợ (media_convert.py, video_optimize.py, batch_resize.py, remove-background.sh, batch-remove-background.sh).",
+   "Ghi output batch vào thư mục riêng, giữ file nguồn, rồi verify codec/kích thước/thời lượng hoặc metadata ảnh."
+  ],
+  "useWhen": [
+   "Chuyển MKV/AVI sang MP4 H.264 hoặc nén video cho web.",
+   "Trích audio khỏi video, tạo thumbnail hoặc GIF.",
+   "Resize hàng loạt ảnh, đổi định dạng, xóa metadata.",
+   "Xóa nền ảnh sản phẩm bằng AI chạy local.",
+   "Đóng gói streaming HLS/DASH."
+  ],
+  "avoidWhen": [
+   "Sinh ảnh/video mới bằng AI: dùng ak-ai-multimodal hoặc ak-ai-artist.",
+   "Dựng video có animation từ code React: dùng ak-remotion.",
+   "Dựng video từ HTML composition/template: dùng ak-hyperframes.",
+   "Transcribe audio: dùng ak-ai-multimodal."
+  ],
+  "params": [
+   {
+    "name": "[input-file]",
+    "kind": "arg",
+    "desc": "File media đầu vào (video, audio, ảnh) hoặc tập file cho batch."
+   },
+   {
+    "name": "[operation]",
+    "kind": "arg",
+    "desc": "Thao tác cần làm: convert, encode, extract audio, resize, thumbnail, GIF, remove background, HLS/DASH..."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:media-processing input.avi chuyển sang mp4 H.264 crf 22",
+    "note": "ffmpeg -c:v libx264 -crf 22 -c:a aac."
+   },
+   {
+    "cmd": "/ak:media-processing video.mp4 trích audio",
+    "note": "ffmpeg -vn -c:a copy."
+   },
+   {
+    "cmd": "/ak:media-processing ./photos/*.jpg resize 800px chất lượng 85",
+    "note": "Batch resize bằng ImageMagick ra thư mục riêng."
+   },
+   {
+    "cmd": "/ak:media-processing product.jpg xóa nền chất lượng cao",
+    "note": "rmbg -m briaai."
+   },
+   {
+    "cmd": "/ak:media-processing lecture.mp4 đóng gói HLS",
+    "note": "Theo ffmpeg-streaming.md."
+   }
+  ],
+  "tips": [
+   "Cần cài ffmpeg, imagemagick (magick) và rmbg-cli (npm install -g rmbg-cli); verify bằng ffmpeg -version && magick -version && rmbg --version.",
+   "mogrify ghi đè tại chỗ; chỉ dùng khi được phép overwrite, nếu không hãy xuất ra thư mục khác.",
+   "CRF thấp hơn là chất lượng cao hơn (0-51); -preset slow nén tốt hơn nhưng chậm.",
+   "RMBG: -m briaai chất lượng cao, -m u2netp nhanh, -r 4096 giới hạn độ phân giải.",
+   "Script Python cần cài requirements.txt riêng của skill."
+  ],
+  "related": [
+   "ak-ai-multimodal",
+   "ak-ai-artist",
+   "ak-remotion",
+   "ak-hyperframes",
+   "ak-project-organization"
+  ],
+  "agents": [],
+  "artifacts": [
+   "File media đã xử lý (MP4, M4A, JPG/PNG, GIF, playlist HLS/DASH) trong thư mục output riêng"
+  ]
+ },
+ "ak-remotion": {
+  "tagline": "Dựng video bằng code React với Remotion: animation, sequence, caption, render dữ liệu.",
+  "summary": "ak:remotion cung cấp kiến thức chuyên biệt khi làm việc với code Remotion để tạo video theo lập trình bằng React. Skill là tập rule theo chủ đề (animation, composition, sequencing, timing, transition, audio, caption, font, asset, chart, 3D, Lottie, Tailwind...). Đầu vào là video hoặc component cần làm; đầu ra là code composition Remotion và, khi yêu cầu export, file video đã render và kiểm tra.",
+  "howItWorks": [
+   "Xác định thay đổi được yêu cầu và chỉ đọc file rule tương ứng trong rules/ (vd rules/animations.md, rules/sequencing.md, rules/display-captions.md).",
+   "Implement composition/component theo rule: định nghĩa composition, props mặc định, calculate-metadata cho thời lượng động, interpolation/spring, transition, asset.",
+   "Verify ID composition và props, kích thước, fps, thời lượng, dải frame, tải asset và đồng bộ audio.",
+   "Khi yêu cầu export: dùng lệnh render của version đã cài và kiểm tra file media cuối; preview không phải bằng chứng render.",
+   "Báo cáo phần audio/kích thước frame chưa verify."
+  ],
+  "useWhen": [
+   "Tạo video data-driven (chart động, số liệu) từ code React.",
+   "Thêm caption kiểu TikTok có highlight từng từ, import .srt hoặc transcribe audio.",
+   "Làm video intro/explainer có transition, text animation và nhạc nền.",
+   "Nhúng 3D (React Three Fiber) hoặc Lottie vào video."
+  ],
+  "avoidWhen": [
+   "Composition viết bằng HTML/CSS thuần với thuộc tính data-* timing: dùng ak-hyperframes.",
+   "Chỉ encode/cắt/chuyển định dạng: dùng ak-media-processing."
+  ],
+  "params": [
+   {
+    "name": "[video or component]",
+    "kind": "arg",
+    "desc": "Video hoặc component Remotion cần tạo/sửa."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:remotion video 30 giây tổng kết doanh thu theo quý bằng chart động",
+    "note": "Rule charts + animations."
+   },
+   {
+    "cmd": "/ak:remotion thêm caption kiểu TikTok cho clip podcast",
+    "note": "Rule display-captions và transcribe-captions."
+   },
+   {
+    "cmd": "/ak:remotion transition giữa các scene intro",
+    "note": "Rule transitions và timing."
+   },
+   {
+    "cmd": "/ak:remotion render composition Promo ra MP4",
+    "note": "Dùng lệnh render của version đã cài và kiểm tra file."
+   }
+  ],
+  "tips": [
+   "Chỉ đọc rule cho đúng thay đổi; không cần nạp toàn bộ rules/.",
+   "Preview trong Studio không chứng minh render thành công; luôn kiểm tra file output.",
+   "Dùng Mediabunny (rules get-video-duration, get-audio-duration, can-decode, extract-frames) để lấy metadata media.",
+   "Font cần load đúng cách (rules/fonts.md) để tránh nhấp nháy khi render."
+  ],
+  "related": [
+   "ak-hyperframes",
+   "ak-media-processing",
+   "ak-threejs"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Code composition Remotion (React)",
+   "File video render (MP4...) khi được yêu cầu export"
+  ]
+ },
+ "ak-hyperframes": {
+  "tagline": "Bọc CLI HyperFrames của HeyGen để dựng video lập trình từ HTML composition: clip dọc social, launch clip, motion graphics.",
+  "summary": "ak:hyperframes là wrapper chỉ gồm tài liệu và lệnh gọi cho CLI hyperframes của HeyGen: không vendor mã nguồn HeyGen, không chép agent skill của HeyGen; mọi lệnh chạy gói npm qua npx với version được pin (hyperframes@0.7.99, do references/render-workflow.md sở hữu). Composition là file HTML thuần gắn thuộc tính data-composition-id, data-width, data-height trên root và data-start/data-duration/data-track-index cùng class=\"clip\" trên phần tử có timing. Đầu vào là composition hoặc lệnh; đầu ra là MP4 render local (hoặc qua lệnh cloud render với HEYGEN_API_KEY), chỉ coi là xong khi ffprobe xác nhận. HyperFrames là engine video HTML mặc định của kit; nexu-io/html-video chỉ là phương án thay thế mô tả trong reference.",
+  "howItWorks": [
+   "Kiểm tra điều kiện trước: node scripts/verify-prereqs.mjs (thêm --json để lấy output máy đọc) kiểm Node.js 22+ và FFmpeg trên PATH; in READY khi đạt, nếu không in lệnh khắc phục theo nền tảng. Tái dùng kết quả chẩn đoán đến khi môi trường thay đổi.",
+   "init: npx -y hyperframes@0.7.99 init <tên> --resolution <preset> dựng project composition; không có --resolution thì giữ kích thước của template (thường 1920x1080).",
+   "Sửa trực tiếp HTML composition theo contract data-* trong references/composition-basics.md; không có bước build, runtime tự quản ẩn/hiện cho phần tử class=\"clip\".",
+   "preview: npx -y hyperframes@0.7.99 preview <tên> mở server local có timeline để scrub, kiểm tra trình tự data-start/data-duration trước khi tốn thời gian render; chỉ dừng process preview do task này khởi động.",
+   "lint luôn chạy trước render: npx -y hyperframes@0.7.99 lint <tên>; lint fail khi data-composition-id thiếu/trùng, data-start/data-duration không parse được, hoặc phần tử có timing thiếu class=\"clip\".",
+   "render: npx -y hyperframes@0.7.99 render <tên> --output ./assets/videos/<tên>.mp4; render cloud là lệnh top-level riêng hyperframes cloud render (cần HEYGEN_API_KEY), render không có flag --engine/cloud.",
+   "Xác minh bằng ffprobe -v error -show_streams -show_format -of json <file>.mp4: chỉ coi là hoàn thành khi duration khác 0 và width/height đúng như mong đợi.",
+   "Nếu version cài đặt lệch với pin: báo version đang cài và version kỳ vọng, xử lý lại lệnh gọi, không tự nâng cấp âm thầm."
+  ],
+  "useWhen": [
+   "Video dọc ngắn cho social (1080x1920, 9:16) dựng từ HTML/CSS.",
+   "Clip ra mắt sản phẩm, promo loop, motion graphics viết dạng HTML composition thay vì component React hay timeline editor.",
+   "Nguồn sự thật của composition là markup HTML với thuộc tính timing data-composition-id/data-start.",
+   "Cần render trên cloud của HeyGen (hyperframes cloud render) hoặc render phân tán tự host qua lệnh lambda (AWS)/cloudrun (GCP)."
+  ],
+  "avoidWhen": [
+   "Composition dạng cây component React, interpolation chính xác từng frame, hoặc cần hệ sinh thái audio/caption của Remotion: dùng ak-remotion.",
+   "Chỉ encode, cắt, transcode, thumbnail, HLS/DASH hoặc batch FFmpeg/ImageMagick: dùng ak-media-processing.",
+   "Chỉ cần preview HTML tĩnh, slide, tài liệu, demo không cần MP4: dùng ak-preview hoặc ak-show-off."
+  ],
+  "params": [
+   {
+    "name": "[composition or command]",
+    "kind": "arg",
+    "desc": "Tên/đường dẫn composition hoặc lệnh HyperFrames cần chạy (init, preview, lint, render, cloud render...)."
+   },
+   {
+    "name": "init",
+    "kind": "subcommand",
+    "desc": "Dựng project composition mới, vd init my-composition --resolution portrait. Chạy init --help để xác nhận flag hiện hành vì danh sách có thể trễ so với upstream."
+   },
+   {
+    "name": "--resolution <preset>",
+    "kind": "flag",
+    "desc": "Flag của init: landscape (1920x1080), portrait (1080x1920), landscape-4k (3840x2160), portrait-4k (2160x3840), square (1080x1080), square-4k (2160x2160), cùng alias 1080p, 4k, uhd, 1080p-square, square-1080p, 4k-square."
+   },
+   {
+    "name": "preview",
+    "kind": "subcommand",
+    "desc": "Phục vụ composition cục bộ với timeline có thể scrub; mở URL local được in ra."
+   },
+   {
+    "name": "lint",
+    "kind": "subcommand",
+    "desc": "Kiểm tra thuộc tính data-* và timing; bắt buộc chạy và sửa hết lỗi trước render."
+   },
+   {
+    "name": "render",
+    "kind": "subcommand",
+    "desc": "Render MP4 cục bộ (Chromium capture rồi FFmpeg encode), dùng --output <path>; không cần HEYGEN_API_KEY."
+   },
+   {
+    "name": "--output <path>",
+    "kind": "flag",
+    "desc": "Đường dẫn file MP4 đầu ra cho render và cloud render, vd ./assets/videos/<tên>.mp4."
+   },
+   {
+    "name": "cloud render",
+    "kind": "subcommand",
+    "desc": "Render trên cloud được HeyGen quản lý; là lệnh top-level riêng, không phải flag của render; cần HEYGEN_API_KEY. cloud list / cloud get / cloud delete quản lý các lần render cloud trước. Chạy cloud render --help trước khi dựa vào tên flag."
+   },
+   {
+    "name": "lambda / cloudrun",
+    "kind": "subcommand",
+    "desc": "Lệnh top-level cho render phân tán tự host trên AWS (lambda) hoặc GCP (cloudrun). (nguồn không mô tả chi tiết)"
+   },
+   {
+    "name": "skills",
+    "kind": "subcommand",
+    "desc": "npx -y hyperframes@0.7.99 skills cài 25 agent skill của HeyGen vào ~/.agents/skills/; skills check kiểm tra đã mới nhất chưa, skills update cập nhật tại chỗ. Không có subcommand skills add."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "node scripts/verify-prereqs.mjs --json",
+    "note": "Kiểm tra Node 22+ và FFmpeg trước khi làm việc render."
+   },
+   {
+    "cmd": "npx -y hyperframes@0.7.99 init launch-clip --resolution portrait",
+    "note": "Dựng composition dọc 1080x1920 cho clip ra mắt."
+   },
+   {
+    "cmd": "npx -y hyperframes@0.7.99 preview launch-clip",
+    "note": "Scrub timeline để kiểm trình tự clip trước khi render."
+   },
+   {
+    "cmd": "npx -y hyperframes@0.7.99 lint launch-clip",
+    "note": "Bắt lỗi data-composition-id, data-start, thiếu class clip."
+   },
+   {
+    "cmd": "npx -y hyperframes@0.7.99 render launch-clip --output ./assets/videos/launch-clip.mp4",
+    "note": "Render MP4 local, sau đó xác minh bằng ffprobe."
+   },
+   {
+    "cmd": "npx -y hyperframes@0.7.99 cloud render launch-clip --output ./assets/videos/launch-clip.mp4",
+    "note": "Render trên HeyGen cloud khi đã đặt HEYGEN_API_KEY."
+   }
+  ],
+  "tips": [
+   "Yêu cầu Node.js 22+ và FFmpeg trên PATH; HEYGEN_API_KEY chỉ cần cho cloud render, lưu theo quy ước secret của dự án (vd .agentkit/.env) và không bao giờ in ra log.",
+   "MP4 trắng hoặc ngắn bất thường thường do data-start/data-composition-id sai; chạy lint trước là bắt được phần lớn lỗi render.",
+   "Đừng tự viết CSS opacity/visibility theo data-start: runtime đã xử lý cho mọi phần tử class=\"clip\"; clip chồng thời gian cần data-track-index khác nhau để biết lớp nào nằm trên.",
+   "CLI báo flag lạ thì pin có thể đang trễ upstream: chạy lệnh pin kèm --help để xác nhận trước khi cập nhật pin.",
+   "Cần kỹ thuật sâu (keyframe, caption, template product-launch...) thì cài bộ agent skill của HeyGen bằng lệnh skills thay vì tự viết lại.",
+   "Chỉ cân nhắc nexu-io/html-video khi người dùng đã có binary/checkout html-video hoặc catalog template của nó khớp yêu cầu; mặc định vẫn là HyperFrames."
+  ],
+  "related": [
+   "ak-remotion",
+   "ak-media-processing",
+   "ak-preview",
+   "ak-agent-browser"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Thư mục project composition HTML (từ init)",
+   "./assets/videos/<tên>.mp4",
+   "Output JSON của ffprobe dùng làm bằng chứng render"
+  ]
+ },
+ "ak-agent-browser": {
+  "tagline": "Tự động hóa trình duyệt do tool quản lý bằng agent-browser: snapshot, click, form, test.",
+  "summary": "ak:agent-browser dùng CLI agent-browser (Rust, của vercel-labs) điều khiển Chrome/Chromium qua CDP với accessibility-tree snapshot và ref phần tử gọn dạng @eN. Dùng cho test trình duyệt, screenshot, điền form, scraping, QA khám phá, app Electron, Slack, cloud browser. Đầu vào là URL hoặc task; đầu ra là kết quả thao tác, ảnh chụp, dữ liệu trích xuất. SKILL.md chỉ là stub khám phá: hướng dẫn thật được lấy từ binary đã cài qua agent-browser skills get core.",
+  "howItWorks": [
+   "Quyết định: nếu tác vụ cần profile Chrome thật (cookie, tài khoản đã đăng nhập, workspace) thì chuyển sang ak:chrome-profile; ngược lại dùng skill này.",
+   "Thiếu binary/browser hoặc cần nâng cấp: load references/setup-and-upgrade.md; tái dùng binary đang chạy được, không cài lại định kỳ.",
+   "Trước mọi lệnh, load nội dung workflow từ CLI: agent-browser skills get core (thêm --full cho toàn bộ command reference và template).",
+   "Với tác vụ đặc thù, load skill chuyên biệt: electron, slack, dogfood (QA/bug hunt), vercel-sandbox, agentcore; xem danh sách bằng agent-browser skills list.",
+   "Thực thi: mở trang, snapshot (-i) lấy ref @eN, click/điền form, chụp màn hình; chạy snapshot lại sau mỗi thay đổi trang.",
+   "Cloud browser: đặt BROWSERBASE_API_KEY và BROWSERBASE_PROJECT_ID rồi dùng agent-browser -p browserbase open <url>; theo dõi qua dashboard cổng 4848."
+  ],
+  "useWhen": [
+   "Kiểm tra nhanh một trang vừa build (self-verifying build loop), chụp màn hình.",
+   "Điền form, scraping hoặc thao tác nhiều tab không cần đăng nhập thật.",
+   "QA khám phá/bug hunt với skill dogfood.",
+   "Tự động hóa app Electron (VS Code, Slack, Discord, Figma) hoặc Slack workspace.",
+   "Chạy trình duyệt trên CI qua Browserbase hoặc AWS AgentCore."
+  ],
+  "avoidWhen": [
+   "Cần cookie, tài khoản Google, tenant đang mở trong Chrome hằng ngày: dùng ak-chrome-profile.",
+   "Test E2E lặp lại được trong CI: dùng ak-web-testing hoặc Playwright của dự án.",
+   "Điều khiển cửa sổ app native mức OS: dùng skill computer-use.",
+   "Chẩn đoán CDP mức thấp: dùng chrome-devtools-mcp nếu có."
+  ],
+  "params": [
+   {
+    "name": "[url or task]",
+    "kind": "arg",
+    "desc": "URL cần mở hoặc mô tả tác vụ trình duyệt cần thực hiện."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:agent-browser http://localhost:3000 kiểm tra form đăng ký",
+    "note": "Tự verify sau khi build."
+   },
+   {
+    "cmd": "/ak:agent-browser chụp màn hình trang pricing ở mobile và desktop",
+    "note": "Screenshot đa kích thước."
+   },
+   {
+    "cmd": "/ak:agent-browser dogfood app staging tìm bug",
+    "note": "QA khám phá với skill dogfood."
+   },
+   {
+    "cmd": "agent-browser -p browserbase open https://example.com",
+    "note": "Chạy trên cloud browser Browserbase."
+   }
+  ],
+  "tips": [
+   "Cài: npm install -g agent-browser; thiếu Chromium: agent-browser install; Linux thiếu thư viện: agent-browser install --with-deps.",
+   "Lệnh/flag lạ hoặc cũ: cập nhật binary rồi chạy agent-browser skills get core --full vì hướng dẫn đi theo version đã cài.",
+   "'Element not found': chạy lại agent-browser snapshot -i sau khi trang thay đổi; session treo thì agent-browser close.",
+   "Dashboard quan sát ở cổng 4848; chỉ cần mở origin dashboard, không cần expose port từng session."
+  ],
+  "related": [
+   "ak-chrome-profile",
+   "ak-web-testing",
+   "ak-test",
+   "ak-show-off"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Ảnh chụp màn hình, video ghi lại session, dữ liệu trích xuất (theo lệnh sử dụng)"
+  ]
+ },
+ "ak-chrome-profile": {
+  "tagline": "Nhắm đúng profile Chrome thật của người dùng để tự động hóa qua Chrome DevTools MCP.",
+  "summary": "ak:chrome-profile cung cấp CLI chrome-profile để mở URL trong đúng profile Chrome (tài khoản Google, cookie, workspace, tenant, phiên đăng nhập) và gắn marker #cdp-profile=<key>&cdp-open=<token> để agent chọn chính xác tab trong danh sách của Chrome DevTools MCP. Đầu vào là URL, profile key và tùy chọn tab; đầu ra là tab đã bind để snapshot, click, evaluate, chụp màn hình. Đây không phải lựa chọn mặc định cho test trình duyệt thông thường.",
+  "howItWorks": [
+   "Bước quyết định: tác vụ có cần profile Chrome thật không; nếu không thì dùng ak:agent-browser, ak:web-testing hoặc điều hướng Chrome DevTools MCP thường.",
+   "Kiểm tra readiness 3 lớp: chrome-profile list resolve được key; live probe Chrome DevTools MCP liệt kê/đọc được trang; sau khi mở, danh sách trang chứa đúng cdp-open=<token>.",
+   "Nếu thiếu mapping: hướng dẫn chrome-profile setup; nếu bridge nghi lỗi: chạy chrome-profile doctor rồi live probe MCP (list pages) trước khi yêu cầu người dùng đổi cấu hình hay mở lại Chrome.",
+   "Mở tab: chrome-profile open --json <key> <url>, lấy bind_selector từ JSON.",
+   "List pages qua MCP, chọn tab có URL chứa đúng cdp-open=<token>, kiểm tra thêm cdp-profile=<key>, rồi snapshot/click/evaluate/screenshot.",
+   "Không dùng new_page hay navigate_page của MCP để tạo tab cho việc theo profile; SPA ghi đè hash thì lưu page ID ngay sau khi mở."
+  ],
+  "useWhen": [
+   "Thao tác trên GitHub/Gmail/Google Workspace bằng đúng tài khoản đã đăng nhập.",
+   "Người dùng có nhiều profile Chrome và cần nhắm chính xác một profile.",
+   "Tác vụ cần cookie hoặc tenant đang mở trong Chrome hằng ngày.",
+   "Mở tab cho người dùng trong profile cụ thể (kể cả chạy nền trên macOS)."
+  ],
+  "avoidWhen": [
+   "Trình duyệt mới/do tool quản lý là đủ: dùng ak-agent-browser.",
+   "Test lặp lại trong CI: dùng ak-web-testing hoặc Playwright của dự án.",
+   "Trình duyệt không phải Google Chrome stable: CLI không hỗ trợ.",
+   "Điều khiển cửa sổ app mức OS: dùng computer-use."
+  ],
+  "params": [
+   {
+    "name": "[url]",
+    "kind": "arg",
+    "desc": "URL cần mở trong profile đích (map sang tham số url của chrome-profile open)."
+   },
+   {
+    "name": "--profile <name>",
+    "kind": "flag",
+    "desc": "Profile key cần nhắm, resolve theo email tài khoản Google hoặc chuỗi con của display name (map sang tham số key của chrome-profile open), không dùng tên thư mục kiểu 'Profile 17'."
+   },
+   {
+    "name": "--tab <title|url>",
+    "kind": "flag",
+    "desc": "Chọn tab theo tiêu đề hoặc URL. (nguồn không mô tả chi tiết flag này; SKILL.md yêu cầu bind tab theo bind_selector cdp-open=<token> thay vì chọn tab mới nhất)"
+   },
+   {
+    "name": "open",
+    "kind": "subcommand",
+    "desc": "chrome-profile open <key> <url>: mở URL trong profile; --json in dữ liệu bind (bind_selector, opened_url, profile_key...); --force mở dù không phát hiện bridge đọc được; --no-activate (macOS) trả focus về app trước đó; --show-emails hiện email đầy đủ."
+   },
+   {
+    "name": "setup",
+    "kind": "subcommand",
+    "desc": "Khám phá profile và ghi profiles.json ($XDG_CONFIG_HOME/chrome-profile/profiles.json); --yes/-y chấp nhận key tự suy, --non-interactive."
+   },
+   {
+    "name": "list",
+    "kind": "subcommand",
+    "desc": "Hiện các key đã cấu hình và profile chúng resolve tới trên máy này."
+   },
+   {
+    "name": "discover",
+    "kind": "subcommand",
+    "desc": "Liệt kê mọi profile Chrome trên máy (không cần config)."
+   },
+   {
+    "name": "doctor",
+    "kind": "subcommand",
+    "desc": "Heuristic tĩnh kiểm tra agent có đọc được tab đã mở không; --json cho trạng thái bridge. Không phải nguồn sự thật duy nhất, luôn kèm live probe MCP."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:chrome-profile https://github.com/org/repo/pulls --profile work",
+    "note": "Xem PR bằng tài khoản công việc."
+   },
+   {
+    "cmd": "chrome-profile open --json work \"https://mail.google.com\"",
+    "note": "Mở Gmail đúng profile và lấy bind_selector."
+   },
+   {
+    "cmd": "chrome-profile setup --yes",
+    "note": "Khởi tạo mapping profile không tương tác."
+   },
+   {
+    "cmd": "chrome-profile doctor --json",
+    "note": "Kiểm tra trạng thái bridge trước khi chạy live probe."
+   }
+  ],
+  "tips": [
+   "Yêu cầu Python 3.9+ và Google Chrome stable; chạy được trên macOS, Linux, Windows.",
+   "Lần gọi MCP đầu tiên có thể kích hoạt hộp thoại cho phép remote control của Chrome; bảo người dùng chấp thuận rồi thử lại một lần.",
+   "Key không resolve nghĩa là tài khoản Google chưa đăng nhập vào profile trên máy này; đăng nhập một lần qua Chrome UI.",
+   "CLI chỉ đọc metadata từ Local State, không đọc cookie hay mật khẩu; không tiết lộ email/profile mapping nếu không cần.",
+   "Chạy nền trên macOS: thêm --no-activate hoặc đặt CHROME_PROFILE_NO_ACTIVATE=1."
+  ],
+  "related": [
+   "ak-agent-browser",
+   "ak-web-testing"
+  ],
+  "agents": [],
+  "artifacts": [
+   "$XDG_CONFIG_HOME/chrome-profile/profiles.json (cấu hình per-machine)",
+   "Tab Chrome mở với marker #cdp-profile=<key>&cdp-open=<token>"
+  ]
+ }
+}

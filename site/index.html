@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentKit Guide: hiểu từng layer, skill, flag và workflow</title>
+<meta name="description" content="Tài liệu tiếng Việt chi tiết về AgentKit: kiến trúc các layer, vòng đời một prompt, hooks, rules, agents, 102 skills Engineer kèm tham số, workflow theo feature và mẹo sử dụng.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <button class="menu-btn" id="menuBtn" aria-label="Mở menu">☰</button>
+  <a class="brand" href="#/home"><span class="logo">AK</span> AgentKit Guide</a>
+  <div class="search-wrap">
+    <input id="globalSearch" type="search" placeholder="Tìm skill, flag, agent, hook…  (phím /)" autocomplete="off">
+    <div id="searchResults" class="search-results" hidden></div>
+  </div>
+  <span class="ver" id="verBadge"></span>
+</header>
+
+<nav class="sidebar" id="sidebar">
+  <div class="nav-group">Tổng quan</div>
+  <a href="#/home">Trang chủ</a>
+  <a href="#/start">Bắt đầu nhanh</a>
+  <div class="nav-group">Hiểu hệ thống</div>
+  <a href="#/architecture">Kiến trúc &amp; các layer</a>
+  <a href="#/lifecycle">Vòng đời một prompt</a>
+  <a href="#/hooks">Hooks</a>
+  <a href="#/rules">Rules</a>
+  <a href="#/agents">Agents</a>
+  <div class="nav-group">Sử dụng</div>
+  <a href="#/skills">Skills (tra cứu)</a>
+  <a href="#/flags">Flag chung &amp; ma trận</a>
+  <a href="#/workflows">Workflow theo feature</a>
+  <a href="#/chooser">Chọn skill theo tình huống</a>
+  <a href="#/tips">Mẹo &amp; lỗi thường gặp</a>
+  <div class="nav-group">Tham chiếu</div>
+  <a href="#/config">Cấu hình config.yaml</a>
+  <a href="#/cli">CLI <code>ak</code></a>
+  <a href="#/troubleshoot">Xử lý sự cố</a>
+  <a href="#/sources">Nguồn &amp; cách cập nhật</a>
+</nav>
+
+<main id="main">
+
+<!-- ================= HOME ================= -->
+<section data-page="home">
+  <div class="hero">
+    <h1>AgentKit, giải thích từng layer</h1>
+    <p class="lead">AgentKit là bộ workflow cài vào coding agent (Claude Code, Codex, Cursor…). Nó thêm các <b>skill</b> (quy trình có tên như <code>/ak:plan</code>, <code>/ak:cook</code>), các <b>agent</b> chuyên trách, <b>hook</b> chạy theo sự kiện, và <b>rule</b> định hướng hành vi. Trang này giải thích mỗi phần nằm ở đâu, chạy khi nào, xử lý ra sao, và khi nào nên dùng skill nào với tham số gì.</p>
+    <div class="stats" id="homeStats"></div>
+  </div>
+
+  <h2>Hình dung trong 30 giây</h2>
+  <p>Một đầu bếp giỏi (model) được thêm vào ba thứ. Thứ nhất là <b>sổ công thức</b> (skills), thứ hai là <b>đội phụ bếp</b> chuyên môn (agents), thứ ba là <b>nội quy bếp</b> (rules). Ngoài ra có <b>chuông cảnh báo gắn ở cửa</b> (hooks) tự kêu khi có sự kiện như mở phiên, gửi prompt hay sửa file. CLI <code>ak</code> là người giao hàng: tải bộ công thức đã ký, đặt đúng chỗ cho từng loại bếp (adapter) và cập nhật hoặc thu hồi khi cần.</p>
+
+  <div class="flow big">
+    <span>Registry</span><i>→</i><span><code>ak</code> CLI</span><i>→</i><span>Adapter</span><i>→</i><span>Runtime</span><i>→</i><span>Skill / Agent</span><i>→</i><span>Artifacts</span><i>→</i><span>Bạn review</span>
+  </div>
+
+  <h2>Đi đâu tiếp?</h2>
+  <div class="cards">
+    <a class="card" href="#/architecture"><h3>Kiến trúc &amp; layer</h3><p>7 bước từ registry tới review, 5 khối xây dựng, cách chia quyền sở hữu giữa lúc cài đặt và lúc thực thi.</p></a>
+    <a class="card" href="#/lifecycle"><h3>Vòng đời một prompt</h3><p>Từ lúc bạn gõ <code>/ak:cook</code> tới khi agent dừng: hook nào chèn gì, rule nào áp dụng, subagent nhận context gì.</p></a>
+    <a class="card" href="#/skills"><h3>Tra cứu 102 skill</h3><p>Lọc theo nhóm, kit, flag. Mỗi skill có cách hoạt động, tham số, ví dụ, khi nên và không nên dùng.</p></a>
+    <a class="card" href="#/workflows"><h3>Workflow theo feature</h3><p>Các chuỗi skill cho feature mới, bugfix, review PR, ship, tài liệu, UI, dự án mới và bảo mật…</p></a>
+    <a class="card" href="#/flags"><h3>Flag chung</h3><p><code>--fast</code>, <code>--hard</code>, <code>--advice</code>, <code>--ultra</code>, <code>--yagni</code>, <code>--tdd</code>… nghĩa là gì và skill nào hỗ trợ.</p></a>
+    <a class="card" href="#/tips"><h3>Mẹo &amp; lỗi thường gặp</h3><p>Những thói quen giúp tiết kiệm token, tránh chuỗi thừa và tránh ship khi chưa test.</p></a>
+  </div>
+
+  <h2>Cú pháp gọi skill</h2>
+  <table>
+    <tr><th>Runtime</th><th>Cú pháp</th><th>Ví dụ</th></tr>
+    <tr><td>Claude Code, Cursor</td><td><code>/ak:&lt;skill&gt;</code></td><td><code>/ak:plan "thêm đăng nhập Google" --hard</code></td></tr>
+    <tr><td>Codex</td><td><code>$ak:&lt;skill&gt;</code></td><td><code>$ak:cook plans/260926-auth/plan.md</code></td></tr>
+  </table>
+  <p class="note">Không chắc gọi skill nào? Gõ <code>/ak:agentkit "mô tả việc cần làm"</code>. Router sẽ chọn đúng một chủ sở hữu (owner) rồi giao việc cho nó. Nếu đã biết skill thì gọi thẳng, vì router sẽ chuyển ngay mà không thêm bước nào.</p>
+</section>
+
+<!-- ================= START ================= -->
+<section data-page="start">
+  <h1>Bắt đầu nhanh</h1>
+  <ol class="steps">
+    <li><b>Cài CLI.</b> macOS/Linux: <code>curl -fsSL https://agentkit.best/install.sh | sh</code>. Windows PowerShell: <code>irm https://agentkit.best/install.ps1 | iex</code>. Muốn dùng kênh beta thì thêm <code>AK_CHANNEL=beta</code>. Binary nằm ở <code>~/.local/bin</code>, nên cần mở terminal mới để PATH có hiệu lực.</li>
+    <li><b>Kiểm tra.</b> <code>ak --version</code> rồi <code>ak doctor --json</code>.</li>
+    <li><b>Thiết lập lần đầu.</b> <code>ak setup</code> dò các runtime bạn đã đăng nhập, cho chọn adapter, và ghi <code>~/.agentkit/config.yaml</code>. Lệnh này <u>không</u> đăng nhập và <u>không</u> cài kit.</li>
+    <li><b>Đăng nhập.</b> Cách khuyên dùng là API key: <code>ak login --api-key ak_live_... --no-interactive</code>. Cũng có thể dùng email + OTP: <code>ak login --email you@example.com</code>. Sau đó chạy <code>ak whoami</code> và <code>ak licenses</code>.</li>
+    <li><b>Cài kit.</b> <code>ak kit init engineer --yes</code>. Mặc định cài ở phạm vi project, thêm <code>--global</code> để dùng cho mọi project.</li>
+    <li><b>Khởi động lại coding agent</b> hoặc mở phiên mới, rồi thử <code>/ak:help</code>, <code>/ak:agentkit "..."</code> hoặc <code>/ak:plan "..."</code>.</li>
+  </ol>
+  <p class="note">Lối tắt: <code>ak onboard --kit engineer --target claude-code</code> chỉ chạy những bước còn thiếu (setup, login, cài kit). <code>--yes</code> tự đồng ý các câu hỏi nhưng không bao giờ ghi đè hay chiếm quyền sở hữu file.</p>
+
+  <h2>Buổi đầu tiên nên thử</h2>
+  <table>
+    <tr><th>Mục đích</th><th>Lệnh</th></tr>
+    <tr><td>Chỉnh độ sâu giải thích theo trình độ</td><td><code>/ak:coding-level 2</code> (0 = ELI5, 5 = architect)</td></tr>
+    <tr><td>Hỏi kiến trúc hoặc so sánh lựa chọn</td><td><code>/ak:ask "nên dùng SSE hay WebSocket cho notification?"</code></td></tr>
+    <tr><td>Hiểu nhanh một repo lạ</td><td><code>/ak:scout "luồng xác thực"</code> rồi <code>/ak:explain "auth flow" --html</code></td></tr>
+    <tr><td>Sửa một lỗi cụ thể</td><td><code>/ak:fix "test user.spec.ts fail sau khi đổi schema"</code></td></tr>
+    <tr><td>Làm feature nhỏ, yêu cầu rõ</td><td><code>/ak:cook "thêm nút copy link" --fast</code></td></tr>
+    <tr><td>Xem đang dở việc gì</td><td><code>/ak:watzup</code></td></tr>
+  </table>
+</section>
+
+
+<!-- ================= ARCHITECTURE ================= -->
+<section data-page="architecture">
+  <h1>Kiến trúc &amp; các layer</h1>
+  <p>AgentKit tách thành hai nửa. <b>Nửa cài đặt</b> do CLI <code>ak</code> sở hữu: xác thực, tải, kiểm chữ ký, cài, cập nhật, gỡ. <b>Nửa thực thi</b> do runtime (Claude Code…) sở hữu: model, tool, quyền, sự kiện lifecycle. CLI không "chạy" skill. Nó chỉ đặt file đúng chỗ để runtime tự tìm thấy.</p>
+
+  <h2>7 bước từ release tới kết quả</h2>
+  <div class="layers">
+    <div class="layer l1"><b>1. Registry có xác thực</b><span>Nguồn tin cậy phát hành Kit đã xác minh (site này chỉ nói về Engineer Kit). Cần <code>ak login</code> và license.</span></div>
+    <div class="layer l2"><b>2. CLI <code>ak</code></b><span>Xác thực, resolve phiên bản, verify, cài, update, chẩn đoán, gỡ. Chỉ đụng tới file nó nhận ra là của AgentKit (ownership tracking). Chụp snapshot trước khi ghi.</span></div>
+    <div class="layer l3"><b>3. Runtime adapter</b><span>Dịch nội dung kit sang cấu trúc mà từng runtime hiểu. Ví dụ với Claude Code là <code>~/.claude/skills</code>, <code>agents</code>, <code>hooks</code>, <code>rules</code>. Thứ gì runtime không có tương đương thì bị giữ làm tài liệu, bỏ kèm cảnh báo, hoặc đánh dấu unsupported. Adapter là ranh giới tương thích, không phải lời hứa ngang bằng tính năng.</span></div>
+    <div class="layer l4"><b>4. Coding agent (runtime)</b><span>Tự khám phá skills, agents, hooks, rules đã cài. Hook được đăng ký trong <code>hooks/hooks.json</code> và chạy theo sự kiện.</span></div>
+    <div class="layer l5"><b>5. Workflow skill / agent</b><span>Bạn gọi skill trực tiếp, hoặc mô tả kết quả mong muốn để runtime tự chọn. Skill có thể giao việc cho subagent.</span></div>
+    <div class="layer l6"><b>6. Artifacts trong project</b><span>Code, <code>plans/…/plan.md</code>, <code>phase-*.md</code>, <code>plans/reports/*.md</code>, test, docs, journal.</span></div>
+    <div class="layer l7"><b>7. Bạn review</b><span>Bạn quyết định giữ, commit, publish hay gửi. "AgentKit không thay thế bạn."</span></div>
+  </div>
+
+  <h2>Các layer bên trong runtime (Claude Code)</h2>
+  <p>Khi đã cài, mỗi lượt làm việc có sự tham gia của các lớp sau, xếp từ "luôn có mặt" tới "chỉ khi được gọi":</p>
+  <table>
+    <tr><th>Layer</th><th>Ở đâu (Claude Code)</th><th>Khi nào tác động</th><th>Vai trò</th></tr>
+    <tr><td><b>Rules</b></td><td><code>~/.claude/rules/*.md</code></td><td>Nạp vào system context mỗi phiên</td><td>Nội quy chung: primary workflow, dev rules, orchestration protocol, review/audit, quản lý process, định tuyến skill. <a href="#/rules">Xem chi tiết</a></td></tr>
+    <tr><td><b>Hooks</b></td><td><code>~/.claude/hooks/*.cjs</code> và <code>hooks.json</code></td><td>Theo sự kiện lifecycle</td><td>Chèn context (session, plan, naming), chặn truy cập (privacy, scout-block), nhắc bước tiếp, lưu state trước khi compact. <a href="#/hooks">Xem chi tiết</a></td></tr>
+    <tr><td><b>Skills</b></td><td><code>~/.claude/skills/ak-*/SKILL.md</code>, kèm <code>references/</code> và <code>scripts/</code></td><td>Khi bạn gọi <code>/ak:x</code>, hoặc model tự chọn theo <code>description</code>/<code>when_to_use</code></td><td>Quy trình có tên, có gate, có mode/flag. Chỉ SKILL.md được nạp, references nạp dần khi cần (progressive disclosure). <a href="#/skills">Tra cứu</a></td></tr>
+    <tr><td><b>Agents</b></td><td><code>~/.claude/agents/*.md</code></td><td>Khi skill hoặc controller spawn subagent</td><td>Vai chuyên trách (planner, tester, code-reviewer, kongming…) với model, tool riêng và context sạch. <a href="#/agents">Xem chi tiết</a></td></tr>
+    <tr><td><b>Supporting artifacts</b></td><td><code>references/*.md</code>, <code>scripts/</code>, templates, <code>.ckignore</code></td><td>Khi skill cần</td><td>Tài liệu tra cứu, script deterministic, mẫu. Chúng không tự hành động.</td></tr>
+    <tr><td><b>Config</b></td><td><code>~/.agentkit/config.yaml</code> và <code>.agentkit/config.yaml</code></td><td>Được hook và skill đọc</td><td>coding_level, đường dẫn plans/docs, bật tắt hook, ngôn ngữ, validation. <a href="#/config">Xem chi tiết</a></td></tr>
+    <tr><td><b>State</b></td><td><code>~/.agentkit/session-states</code>, <code>plans</code>, <code>backups</code></td><td>Liên tục</td><td>Plan đang active, checkpoint trước compact, snapshot để recover.</td></tr>
+  </table>
+
+  <h2>5 khối xây dựng</h2>
+  <div class="cards">
+    <div class="card"><span class="tag">KIT</span><h3>Kit</h3><p>Gói có phiên bản, gom skills, agents, hooks, rules và file hỗ trợ. Cài kit <u>không</u> làm chạy mọi thứ bên trong. Engineer Kit gồm phần core dùng chung cộng các skill kỹ thuật, tổng cộng 102 skill.</p></div>
+    <div class="card"><span class="tag">SKL</span><h3>Skill</h3><p>Workflow tái sử dụng hướng tới một kết quả. Thường được gọi có chủ đích kèm mục tiêu hoặc đầu vào. Frontmatter chứa <code>argument-hint</code> (cú pháp), <code>when_to_use</code>, <code>workflow.follows/precedes</code>.</p></div>
+    <div class="card"><span class="tag">AGT</span><h3>Agent</h3><p>Vai chuyên trách để giao việc. Nó không có thẩm quyền cao hơn skill. Thường bạn không gọi agent trực tiếp, hãy bắt đầu bằng skill và để skill tự giao việc.</p></div>
+    <div class="card"><span class="tag">HK</span><h3>Hook</h3><p>Tự động hóa gắn với sự kiện lifecycle. Hook <u>không</u> phải ranh giới bảo mật, và có file hook chưa chắc nó đã được đăng ký hay chạy. Adapter có thể dịch, thu hẹp hoặc bỏ hook.</p></div>
+    <div class="card"><span class="tag">ART</span><h3>Supporting artifacts</h3><p>Rules, references, scripts, config, templates. Chúng phục vụ workflow chứ không tự hành động.</p></div>
+  </div>
+
+  <h2>Giải phẫu một skill</h2>
+<pre><code>~/.claude/skills/ak-cook/
+├── SKILL.md            ← frontmatter + quy trình cốt lõi (luôn nạp khi skill kích hoạt)
+├── README.md
+└── references/         ← nạp theo nhu cầu (progressive disclosure)
+    ├── workflow-routing.md      bảng chuỗi skill theo intent
+    ├── intent-detection.md      chọn mode từ input
+    ├── blocking-gates.md        các điểm dừng bắt buộc
+    ├── required-subagents.md    tester / code-reviewer bắt buộc
+    ├── review-cycle.md
+    ├── advisory-supervision-checkpoints.md   (--advice)
+    └── plan-state-files-first.md</code></pre>
+<pre><code>---
+name: ak:cook
+description: "Implement features, plans, and fixes with structured workflow…"
+user-invocable: true
+when_to_use: "Invoke to implement known scope after requirements are clear."
+argument-hint: "[task|plan-path] [--interactive|--fast|--parallel|--auto|--no-test] [--tdd] [--advice] [--yagni] [--skip-journal]"
+metadata:
+  workflow:
+    follows: [ak-plan]     ← thường đứng sau plan
+    precedes: [ak-test]    ← thường đứng trước test
+---</code></pre>
+  <p>Model thấy <code>description</code> của mọi skill trong danh mục và dùng nó để chọn skill khi bạn không gọi đích danh. Viết yêu cầu có từ khóa trùng với <code>when_to_use</code> sẽ giúp router chọn đúng.</p>
+
+  <h2>Phạm vi cài đặt (scope)</h2>
+  <table>
+    <tr><th>Scope</th><th>Lệnh</th><th>Hiệu lực</th></tr>
+    <tr><td>Project (mặc định)</td><td><code>ak kit init engineer</code></td><td>Chỉ trong repo hiện tại (<code>.claude/</code> của repo)</td></tr>
+    <tr><td>User / Global</td><td><code>ak kit init engineer --global</code></td><td>Thư mục user của runtime (<code>~/.claude/</code>), áp cho mọi project</td></tr>
+  </table>
+  <p class="note">Nếu một skill xuất hiện hai lần hoặc chạy lạ, hãy kiểm tra cả hai scope. Cập nhật scope này không đụng tới scope kia.</p>
+
+  <h2>Hỗ trợ theo runtime</h2>
+  <table>
+    <tr><th>Runtime</th><th>Skills</th><th>Agents</th><th>Hooks</th><th>Statusline</th><th>Ghi chú</th></tr>
+    <tr><td>Claude Code</td><td>✔</td><td>✔</td><td>✔</td><td>✔</td><td>Hỗ trợ rộng nhất; hai chế độ phân phối là native hoặc plugin; có slash commands và rules</td></tr>
+    <tr><td>Codex</td><td>✔</td><td>✔ dispatch</td><td>một phần</td><td>✘</td><td>Gọi bằng <code>$ak:</code>; một số nhóm hook bị bỏ hoặc thu hẹp; <code>/ak:advise --agent</code> lùi về chạy inline</td></tr>
+    <tr><td>Cursor</td><td>✔</td><td>✔</td><td>✔</td><td>?</td><td>Install/update/invoke có thể chưa đầy đủ, đừng suy ra ngang bằng Claude Code</td></tr>
+    <tr><td>Grok</td><td>giới hạn</td><td>giới hạn</td><td>✘</td><td>✘</td><td>Chỉ những gì Grok tự expose</td></tr>
+    <tr><td>Pi / Oh My Pi</td><td>✔</td><td>?</td><td>?</td><td>?</td><td>Là hai runtime khác nhau; <code>ak update</code> chỉ refresh Pi theo project</td></tr>
+    <tr><td>DeepSeek Harness</td><td>✔</td><td>?</td><td>?</td><td>?</td><td>Chỉ cài từ kit có sẵn trên máy, không tải từ registry</td></tr>
+  </table>
+</section>
+
+<!-- ================= LIFECYCLE ================= -->
+<section data-page="lifecycle">
+  <h1>Vòng đời một prompt</h1>
+  <p>Lấy ví dụ bạn mở Claude Code rồi gõ <code>/ak:cook "thêm export CSV cho báo cáo"</code>. Dưới đây là những gì AgentKit làm ở mỗi nhịp. Tên hook là file thật trong <code>~/.claude/hooks/</code>.</p>
+  <div class="timeline">
+    <div class="tl"><div class="tl-ev">SessionStart</div><div class="tl-body"><b>session-init.cjs</b> đọc config, nhận diện project (type, package manager, framework, git root, worktree), ghi vào biến môi trường và in context: tên project, quy ước đặt tên plan <code>{date}-{issue}-{slug}</code>, đường dẫn plans/reports/docs. Sau <code>/clear</code> hoặc compact, hook này chạy lại và gợi ý plan đang active.</div></div>
+    <div class="tl"><div class="tl-ev">Rules</div><div class="tl-body">Các file trong <code>rules/</code> nằm sẵn trong system context: <i>primary-workflow</i> (brainstorm, inspect, plan, verify, review), <i>development-rules</i> (KISS/DRY, không mock giả, chỉ YAGNI khi có <code>--yagni</code>), <i>orchestration-protocol</i> (hợp đồng giao việc cho subagent)…</div></div>
+    <div class="tl"><div class="tl-ev">UserPromptSubmit</div><div class="tl-body"><b>dev-rules-reminder.cjs</b> chèn khối "Session / Rules / Paths / Plan Context / Naming": ngày giờ, timezone, đường dẫn report như <code>plans/reports/{type}-YYMMDD-HHmm-{slug}.md</code>, plan đang active. <b>secret-output-guardrail.cjs</b> nhắc cẩn thận khi prompt có dấu hiệu liên quan secret. <b>simplify-gate.cjs</b> thấy động từ ship/merge/pr/deploy trong khi diff lớn (quá 400 LOC, hoặc quá 8 file, hoặc một file thêm quá 200 LOC) thì chặn cứng và yêu cầu chạy code-simplifier trước; với commit/release thì chỉ cảnh báo. <b>usage-quota-cache-refresh</b> làm mới số liệu quota cho statusline.</div></div>
+    <div class="tl"><div class="tl-ev">Skill kích hoạt</div><div class="tl-body">Runtime nạp <code>ak-cook/SKILL.md</code>. Skill chọn mode từ input (task text, đường dẫn plan, hay có <code>--fast</code>/<code>--auto</code>…), rồi nạp dần các reference cần thiết như <code>intent-detection.md</code> và <code>blocking-gates.md</code>. Với đường dẫn plan, nó đọc <code>plan.md</code> và <code>phase-*.md</code> trước tiên.</div></div>
+    <div class="tl"><div class="tl-ev">PreToolUse</div><div class="tl-body">Mỗi lần model định dùng tool: <b>privacy-block.cjs</b> chặn Read/Write/Edit/Bash vào <code>.env</code>, credential, key. Model phải xin phép và thử lại với tiền tố <code>APPROVED:</code>. <b>scout-block.cjs</b> chặn Read/Bash đi vào thư mục nặng trong <code>.ckignore</code> (node_modules, dist, .git…) nhưng vẫn cho phép lệnh build, và cảnh báo glob quá rộng. <b>descriptive-name.cjs</b> trước khi Write sẽ nhắc quy ước tên file (kebab-case cho JS/TS/Py, PascalCase cho C#/Java…). <b>context-firewall.cjs</b> đo "bán kính nổ" của Read/Grep/Glob/Bash: file lớn, glob rộng, output shell khổng lồ. Nó phản hồi theo thang allow → warn → narrow (tự thu hẹp input mà giữ nguyên ngữ nghĩa) → block (kèm gợi ý phương án có giới hạn). Ngưỡng mặc định: đọc file từ 256 KB thì cảnh báo, từ 2 MB thì chặn; output shell từ 128 KB thì cảnh báo, từ 512 KB thì chặn.</div></div>
+    <div class="tl"><div class="tl-ev">SubagentStart</div><div class="tl-body">Khi cook spawn <code>tester</code> hoặc <code>code-reviewer</code>: <b>subagent-init.cjs</b> chèn khoảng 200 token context tối thiểu (cwd, plan, đường dẫn report, quy tắc). <b>team-context-inject.cjs</b> thêm thông tin đồng đội nếu đang chạy Agent Teams. Subagent <u>không</u> thấy hội thoại, nên prompt giao việc phải có đủ 7 phần của hợp đồng.</div></div>
+    <div class="tl"><div class="tl-ev">PostToolUse</div><div class="tl-body">Sau Write/Edit: <b>dev-rules-reminder</b> nhắc lại rules, <b>plan-format-kanban.cjs</b> cảnh báo nếu <code>plan.md</code> dùng tên file làm link text. Sau Agent/Task/TodoWrite: <b>session-state.cjs</b> lưu checkpoint tiến độ cho statusline và handoff.</div></div>
+    <div class="tl"><div class="tl-ev">SubagentStop / Stop</div><div class="tl-body"><b>cook-after-plan-reminder.cjs</b>: khi planner vừa xong, hook in các bước tiếp theo cho bạn chọn và đường dẫn tuyệt đối của plan, để phiên mới sau <code>/clear</code> vẫn tìm được. <b>session-state</b> ghi trạng thái cuối. <b>agent-behavior-linter.cjs</b> theo dõi suốt phiên (PostToolUse, PreCompact) và khi Stop thì báo các anti-pattern chứng minh được: đọc lại file không đổi, chạy lại một lỗi deterministic, quét cả cây thư mục thay vì thu hẹp, tích output mà không đổi được gì, chạy cả suite toàn repo cho thay đổi chỉ về tài liệu. Hook này cố ý không đăng ký ở PreToolUse nên không bao giờ chặn.</div></div>
+    <div class="tl"><div class="tl-ev">PreCompact</div><div class="tl-body"><b>precompact-capture.cjs</b> lưu các mốc định hướng (worktree, project root, branch, HEAD, số file dirty, plan active) vào session state. Sau compact, SessionStart dùng chúng để nhắc lại cho model.</div></div>
+  </div>
+  <h2>Bên trong <code>/ak:cook</code></h2>
+  <div class="flow">
+    <span>Nắm outcome / constraints / non-goals / acceptance</span><i>→</i><span>Đọc code &amp; test lân cận</span><i>→</i><span>Implement theo phase</span><i>→</i><span>tester (subagent)</span><i>→</i><span>code-reviewer (subagent)</span><i>→</i><span>Sửa regression, chạy lại check</span><i>→</i><span>Journal (trừ khi <code>--skip-journal</code>)</span>
+  </div>
+  <p>Vì cook đã có sẵn test và review, chuỗi <code>cook → test → code-review → ship</code> chỉ cần thêm <code>/ak:test</code> hay <code>/ak:code-review</code> khi bạn muốn một cổng kiểm tra <b>độc lập</b>.</p>
+  <h2>Router <code>/ak:agentkit</code> nghĩ thế nào</h2>
+  <ul>
+    <li><b>Proportionality gate:</b> đã gọi tên skill thì đi thẳng tới skill đó. Một domain rõ ràng thì đi thẳng tới owner của domain đó. Nếu chỉ là trò chuyện thì không cần workflow.</li>
+    <li><b>Khung chuỗi:</b> <code>understand → decide → execute → verify → deliver</code>. Chuỗi chỉ chạy tiến. Gặp vấn đề thì rẽ nhánh (detour) rồi quay lại đúng mắt xích đã lỗi.</li>
+    <li><b>Collapse rule:</b> gộp hoặc bỏ một mắt xích khi nó dưới khoảng 5 phút, không sinh artifact nào được đọc lại, và việc bỏ nó không làm mất bước verify mà mức rủi ro đòi hỏi.</li>
+    <li><b>Insertion rule:</b> việc cỡ epic thì thêm bước decide (plan). Rủi ro cao thì thêm verify và một vòng review độc lập, cộng thêm xin phép trước bước không thể đảo ngược. Từ 2 domain trở lên thì chia execute theo domain.</li>
+    <li><b>Truyền context:</b> chuỗi 1–2 mắt xích truyền trong hội thoại. Chuỗi dài hơn ghi artifact ra file (<code>plans/reports/</code>) và truyền <i>đường dẫn</i> thay vì tóm tắt.</li>
+    <li><b>Khi nào spawn subagent:</b> chỉ khi được lợi một trong bốn thứ: context sạch, giới hạn tool, chạy song song, hoặc system prompt chuyên gia. Tối đa 3–4 agent song song, và các agent phải sở hữu file tách biệt.</li>
+  </ul>
+</section>
+
+<!-- ================= HOOKS ================= -->
+<section data-page="hooks">
+  <h1>Hooks</h1>
+  <p>Hook là script Node (<code>.cjs</code>) đăng ký trong <code>~/.claude/hooks/hooks.json</code>, chạy theo sự kiện lifecycle của runtime. Hầu hết hook của AgentKit là <b>fail-open</b>: nếu hook lỗi, thao tác vẫn tiếp tục và lỗi được ghi log. Mỗi hook kiểm tra <code>isHookEnabled('&lt;tên&gt;')</code>, nên bạn tắt được từng hook qua config.</p>
+  <h2>Tắt hoặc bật một hook</h2>
+<pre><code># Tắt simplify-gate cho project hiện tại (commit được vào repo)
+ak config prefs set hooks.simplify-gate false --scope project
+# Bật lại (xóa key = mặc định bật)
+ak config prefs unset hooks.simplify-gate --scope project
+# Tắt tạm bằng biến môi trường (chỉ simplify-gate)
+CK_SIMPLIFY_DISABLED=1 claude</code></pre>
+  <h2>Danh sách hook đang đăng ký</h2>
+  <div id="hooksTable"></div>
+  <h2>Hook chặn và hook nhắc</h2>
+  <table>
+    <tr><th>Loại</th><th>Hook</th><th>Hành vi</th></tr>
+    <tr><td>Chặn (block)</td><td>privacy-block</td><td>Chặn file nhạy cảm. Model phải xin phép bạn rồi thử lại với <code>APPROVED:&lt;path&gt;</code>. Tắt được bằng <code>privacy_block: false</code>.</td></tr>
+    <tr><td>Chặn (block)</td><td>scout-block</td><td>Chặn duyệt vào thư mục trong <code>.claude/.ckignore</code>. Có thể thêm file <code>.ckignore</code> riêng ở git root để override.</td></tr>
+    <tr><td>Chặn / thu hẹp / cảnh báo</td><td>context-firewall</td><td>Gác cổng lượng context một tool call có thể trả về (Read/Grep/Glob/Bash). Thang xử lý allow → warn → narrow → block. Nó bổ sung cho scout-block: scout-block hỏi "đường dẫn có nằm trong thư mục generated không", còn context-firewall hỏi "lệnh này trả về bao nhiêu".</td></tr>
+    <tr><td>Chặn / cảnh báo</td><td>simplify-gate</td><td>Chặn cứng ship/merge/pr/deploy/publish khi diff lớn; commit/finalize/release thì chỉ cảnh báo. Ngưỡng nằm trong config <code>simplify.threshold</code> (mặc định <code>locDelta 400</code>, <code>fileCount 8</code>, <code>singleFileLoc 200</code>).</td></tr>
+    <tr><td>Chèn context</td><td>session-init, dev-rules-reminder, subagent-init, team-context-inject, descriptive-name, secret-output-guardrail</td><td>Thêm <code>additionalContext</code>, không chặn.</td></tr>
+    <tr><td>Nhắc và lưu state</td><td>cook-after-plan-reminder, plan-format-kanban, session-state, precompact-capture, usage-quota-cache-refresh, agent-behavior-linter</td><td>Gợi ý bước tiếp, lưu checkpoint, làm mới statusline.</td></tr>
+  </table>
+  <p class="note">Hook không phải ranh giới bảo mật. Nó giúp nhắc và chặn nhầm lẫn, chứ không thay được permission của runtime.</p>
+</section>
+
+<!-- ================= RULES ================= -->
+<section data-page="rules">
+  <h1>Rules</h1>
+  <p>Rules là file Markdown trong <code>~/.claude/rules/</code>, nạp vào context mỗi phiên. Chúng định nghĩa "cách làm việc mặc định" áp cho mọi skill. Skill là <i>quy trình cụ thể</i>, còn rules là <i>nội quy chung</i>. Khi hai bên mâu thuẫn, chỉ dẫn của người dùng và CLAUDE.md luôn thắng.</p>
+  <div class="cards" id="rulesSummary">
+    <div class="card"><h3>primary-workflow</h3><p>Năm bước: Brainstorm outcome (outcome, constraints, non-goals, acceptance), Inspect, Plan &amp; implement, Verify, Review &amp; finish. Với bug: chứng minh nguyên nhân trước rồi mới chọn cách sửa.</p></div>
+    <div class="card"><h3>development-rules</h3><p>KISS, DRY. Giao đủ scope được yêu cầu và không thêm gì. YAGNI chỉ áp khi bạn truyền <code>--yagni</code>. Không mock hay data giả để qua check. Không giấu test fail. Dùng conventional commit và không nhắc tới AI.</p></div>
+    <div class="card"><h3>orchestration-protocol</h3><p>Prompt giao cho subagent phải có đủ task, file được đọc, file được sửa, acceptance, constraints, work context, report path, cùng các flag ảnh hưởng scope (nhất là <code>--yagni</code>). Kết thúc bằng Status DONE / DONE_WITH_CONCERNS / BLOCKED / NEEDS_CONTEXT. Khi model dưới fable bị kẹt thì hỏi <code>kongming</code>.</p></div>
+    <div class="card"><h3>review-audit-self-decision</h3><p>Đừng đảo quyết định đã được kiểm chứng chỉ vì audit nêu lo ngại trừu tượng. Đừng lặng lẽ hủy quyết định của người dùng. Xác định threat model trước khi sửa lỗi bảo mật. Không đưa ID plan hay mã finding vào code comment hoặc commit message.</p></div>
+    <div class="card"><h3>skill-workflow-routing</h3><p>Các chuỗi mẫu: Core <code>[brainstorm]→[plan]→[implement]→[test]→[review]→[ship]→[journal]</code>, Bugfix <code>[frame]→[scout]→[diagnose]→[choose fix]→[implement]→[test]→[review]</code>, và Investigation.</p></div>
+    <div class="card"><h3>skill-domain-routing</h3><p>Chọn skill từ catalog đang cài (live), không từ trí nhớ. Mỗi intent có một skill chính. Không bao giờ gọi skill không tồn tại. Mới: tùy chọn "shadow comparison" qua <code>ak eval decision</code> (profile <code>domain-routing</code>, tối đa 15 capability), chỉ chạy khi bạn yêu cầu thí nghiệm. Kết quả chỉ là bằng chứng thử nghiệm, không thay đổi routing thật.</p></div>
+    <div class="card"><h3>documentation-management</h3><p>Chỉ cập nhật docs khi hành vi, setup, lệnh, kiến trúc hay contract thay đổi. Plan và report là bản ghi trạng thái, không phải tài liệu lâu dài. Mới: việc ngoài repo mà thay đổi "đường vận hành" (deploy path, nguồn log, nguồn credential, webhook/OAuth/DNS, backup/rollback) cũng tính là docs impact.</p></div>
+    <div class="card"><h3>process-management</h3><p>Theo dõi mọi process nền (PID, port, worktree). Tái sử dụng hoặc dừng process cũ thay vì mở port mới. Dừng thứ mình đã khởi động. Không kill process của người khác.</p></div>
+  </div>
+  <p class="note">Toàn văn các rule nằm ở <code>~/.claude/rules/</code> trên máy đã cài AgentKit. Site chỉ đăng tóm tắt.</p>
+</section>
+
+<!-- ================= AGENTS ================= -->
+<section data-page="agents">
+  <h1>Agents</h1>
+  <p>Agent là file <code>~/.claude/agents/&lt;tên&gt;.md</code> với frontmatter <code>model</code>, <code>tools</code> và system prompt riêng. Skill spawn agent để có <b>context sạch</b>, <b>giới hạn tool</b>, <b>chạy song song</b> hoặc <b>chuyên môn</b>. Subagent không thấy hội thoại. Thứ duy nhất nó biết là prompt giao việc.</p>
+  <h2>Hai agent đặc biệt</h2>
+  <div class="cards">
+    <div class="card"><h3>kongming (fable)</h3><p>Cố vấn tự động từ model mạnh nhất, trả lời trong một lượt, không phỏng vấn người dùng, chỉ tư vấn chứ không viết code. Được gọi qua flag <code>--advice</code> ở brainstorm/plan/cook/fix/vibe (giám sát sau mỗi phase, khi kẹt, trước quyết định rủi ro cao). Nó cũng là verifier trong <code>--ultra</code>.</p></div>
+    <div class="card"><h3>advisor (fable)</h3><p>Chạy <code>/ak:advise --agent</code> trong context cô lập. Nó phỏng vấn từng câu một thông qua orchestrator (subagent không tự gọi được AskUserQuestion), rồi đưa lời khuyên, checklist và metric.</p></div>
+  </div>
+  <h2>Ba cách "xin ý kiến"</h2>
+  <table>
+    <tr><th></th><th><code>/ak:advise "…"</code></th><th><code>/ak:advise "…" --agent</code></th><th><code>--advice</code> trên plan/cook/fix…</th></tr>
+    <tr><td>Model</td><td>Model phiên hiện tại</td><td>Subagent advisor (fable)</td><td>kongming (fable) giám sát</td></tr>
+    <tr><td>Context</td><td>Toàn bộ hội thoại</td><td>Cô lập</td><td>Checkpoint trong lúc chạy</td></tr>
+    <tr><td>Tương tác</td><td>Phỏng vấn từng câu</td><td>Phỏng vấn qua relay</td><td>Không hỏi bạn</td></tr>
+    <tr><td>Chi phí</td><td>Rẻ, nhanh (80–90% trường hợp)</td><td>Chậm, tốn token</td><td>Tốn, nhất là khi kết hợp <code>--hard --advice</code></td></tr>
+    <tr><td>Dùng khi</td><td>Muốn ý kiến thứ hai trước khi chọn hướng</td><td>Rủi ro cao, cuộc phỏng vấn dài, cần góc nhìn độc lập</td><td>Việc nhiều module, blast radius lớn</td></tr>
+  </table>
+  <h2>Danh sách agents đang cài</h2>
+  <div class="filters"><input id="agentFilter" type="search" placeholder="Lọc agent…"></div>
+  <div id="agentsGrid" class="cards"></div>
+</section>
+
+<!-- ================= SKILLS ================= -->
+<section data-page="skills">
+  <h1>Tra cứu skills</h1>
+  <p>Dữ liệu lấy trực tiếp từ <code>SKILL.md</code> đang cài (frontmatter <code>argument-hint</code>, <code>when_to_use</code>, workflow) và được diễn giải chi tiết bằng tiếng Việt. Bấm vào một skill để xem cách hoạt động, tham số, ví dụ và mẹo.</p>
+  <div class="filters">
+    <input id="skillFilter" type="search" placeholder="Lọc theo tên, mô tả, flag (vd: --tdd)…">
+    <select id="groupFilter"><option value="">Tất cả nhóm</option></select>
+    <select id="kitFilter"><option value="">Mọi phần</option><option value="core">Core (dùng chung)</option><option value="engineer">Engineer</option></select>
+    <label class="chk"><input type="checkbox" id="commonOnly"> Chỉ skill hay dùng</label>
+  </div>
+  <div id="skillCount" class="muted"></div>
+  <div id="skillsGrid"></div>
+</section>
+
+<!-- skill detail (routed #/skill/ak-x) -->
+<section data-page="skill"><div id="skillDetail"></div></section>
+
+<!-- ================= FLAGS ================= -->
+<section data-page="flags">
+  <h1>Flag chung &amp; ma trận hỗ trợ</h1>
+  <p>Nhiều skill dùng chung một bộ flag với ý nghĩa nhất quán. Hiểu nhóm flag này là đủ để điều khiển phần lớn AgentKit.</p>
+  <table class="flag-table">
+    <tr><th>Flag</th><th>Ý nghĩa</th><th>Chi phí</th><th>Dùng khi</th></tr>
+    <tr><td><code>--fast</code></td><td>Đường ngắn nhất, không research. Với plan: Analyze → Plan (planner) → Hydrate tasks. Flag này chỉ giảm <i>độ sâu workflow</i>, không cắt scope sản phẩm (muốn cắt scope thì dùng <code>--yagni</code>).</td><td>Thấp</td><td>Việc nhỏ, rõ, ít rủi ro</td></tr>
+    <tr><td><code>--hard</code></td><td>(plan) Research với tối đa 2 <code>researcher</code> song song → Scout → Plan → Red Team → Validate → Hydrate tasks.</td><td>Cao</td><td>Nhiều module, stack lạ</td></tr>
+    <tr><td><code>--deep</code></td><td>(plan) Scout theo từng phase cho đại tu kiến trúc: plan chi tiết Phase 1, chỉ phác thảo các phase sau. Khi cook, mỗi phase kế tiếp được scout riêng trước khi thực thi.</td><td>Cao</td><td>Refactor diện rộng</td></tr>
+    <tr><td><code>--parallel</code></td><td>Chia phase với ranh giới file tách biệt tuyệt đối để nhiều agent chạy song song. Plan <code>--parallel</code> được thực thi bằng <code>/ak:cook --parallel</code>.</td><td>Trung bình–cao</td><td>Phase độc lập, file không chồng nhau</td></tr>
+    <tr><td><code>--two</code> / <code>--debate</code></td><td>(plan) <code>--two</code>: research 2 kiến trúc khác nhau kèm ma trận trade-off để bạn chọn, rồi chi tiết hóa hướng được chọn. <code>--debate</code>: 3 planner độc lập soạn 3 plan song song, orchestrator tổng hợp ý tốt nhất thành một plan. Debate chỉ chạy khi bạn chủ động bật.</td><td>Cao</td><td>Có hai hướng khả thi ngang nhau</td></tr>
+    <tr><td><code>--auto</code></td><td>Tự duyệt các gate, chạy không dừng hỏi. Không kết hợp được với <code>--ultra</code>.</td><td>—</td><td>Việc đã rõ và rủi ro thấp. Cẩn thận với việc rủi ro cao.</td></tr>
+    <tr><td><code>--interactive</code></td><td>(cook) Dừng hỏi ở mỗi gate.</td><td>—</td><td>Muốn kiểm soát từng bước</td></tr>
+    <tr><td><code>--tdd</code></td><td>Viết test trước theo từng phase. Nên dùng <b>cả</b> ở plan và cook để khớp nhau.</td><td>Trung bình</td><td>Logic nghiệp vụ, thuật toán, API contract</td></tr>
+    <tr><td><code>--no-test</code></td><td>(cook) Bỏ bước test tự động.</td><td>—</td><td>Hiếm khi dùng, chỉ khi bạn tự test</td></tr>
+    <tr><td><code>--advice</code></td><td>kongming (fable) giám sát: go/no-go sau mỗi phase, khi kẹt, trước quyết định rủi ro cao. Được truyền tiếp xuống skill kế tiếp. Không thay việc bạn tự review plan.</td><td>Cao</td><td>Blast radius lớn, quyết định khó</td></tr>
+    <tr><td><code>--ultra</code></td><td>Tạo 5 ứng viên độc lập song song, verifier mạnh nhất chọn ra một và giữ nguyên bản thắng. Loại trừ với <code>--fast/--hard/--deep/--parallel/--two/--debate/--auto</code>.</td><td>Rất cao</td><td>Quyết định cực quan trọng</td></tr>
+    <tr><td><code>--yagni</code></td><td>Chủ động cắt mọi scope không thật cần cho outcome. Mặc định AgentKit giao <b>đủ</b> scope, chỉ cắt khi có flag này. Flag được truyền cho subagent.</td><td>Giảm</td><td>Muốn MVP gọn nhất</td></tr>
+    <tr><td><code>--html</code></td><td>Sinh thêm artifact HTML trực quan, ví dụ <code>plan.html</code>, báo cáo brainstorm hay advise.</td><td>Thấp</td><td>Review plan bằng mắt, chia sẻ</td></tr>
+    <tr><td><code>--wiki</code> / <code>--github</code></td><td>Publish plan hoặc advise lên AgentWiki, hoặc gắn với GitHub issue/PR.</td><td>Thấp</td><td>Làm việc nhóm</td></tr>
+    <tr><td><code>--skip-journal</code></td><td>Không ghi journal cuối workflow.</td><td>Giảm</td><td>Việc vặt, không có bài học đáng lưu</td></tr>
+    <tr><td><code>--no-antv</code>, <code>--no-diagram-design</code>, <code>--no-editorial-visuals</code></td><td>"No-visual flags": tắt các loại hình minh họa trong artifact HTML.</td><td>Giảm</td><td>Muốn output nhẹ, thuần chữ</td></tr>
+  </table>
+  <h2>Ma trận: skill nào hỗ trợ flag nào</h2>
+  <p class="muted">Sinh tự động từ <code>argument-hint</code> của từng SKILL.md. Bấm tên skill để xem chi tiết.</p>
+  <div id="flagMatrix" class="matrix-wrap"></div>
+</section>
+
+<!-- ================= WORKFLOWS ================= -->
+<section data-page="workflows">
+  <h1>Workflow theo feature</h1>
+  <p>Nhịp chung là <b>Hiểu → Quyết → Làm → Kiểm → Giao</b>. Mỗi recipe bên dưới là gợi ý, bạn cắt hoặc thêm bước theo rủi ro. Việc càng nhỏ và càng dễ đảo ngược thì chuỗi càng ngắn.</p>
+  <div class="filters"><select id="wfLevel"><option value="">Mọi mức</option><option>Dễ</option><option>Vừa</option><option>Nâng cao</option></select></div>
+  <div id="workflowList"></div>
+</section>
+
+<!-- ================= CHOOSER ================= -->
+<section data-page="chooser">
+  <h1>Chọn skill theo tình huống</h1>
+  <p>Tra nhanh câu "tôi đang muốn…" thì dùng skill nào. Các skill gần nghĩa được đặt cạnh nhau để phân biệt.</p>
+  <div id="chooserTable"></div>
+</section>
+
+<!-- ================= TIPS ================= -->
+<section data-page="tips">
+  <h1>Mẹo &amp; lỗi thường gặp</h1>
+  <h2>Nguyên tắc vàng</h2>
+  <ol>
+    <li><b>Chọn độ dài chuỗi theo rủi ro, không theo thói quen.</b> Sửa một file thì dùng <code>/ak:cook --fast</code> hoặc skill domain. Auth, thanh toán hay public API thì giữ đủ plan, validate, review và security.</li>
+    <li><b>Cook đã tự test và review.</b> Chỉ thêm <code>/ak:test</code> hay <code>/ak:code-review</code> khi cần một cổng kiểm tra độc lập, chẳng hạn trước khi ship một thay đổi nhạy cảm.</li>
+    <li><b>Luôn tự đọc plan trước khi cook.</b> <code>--advice</code> hay <code>--auto</code> không thay được bước này. Dùng <code>plan.html</code> (tạo bằng <code>--html</code>) để đọc cho dễ.</li>
+    <li><b>Dùng <code>--tdd</code> theo cặp</b>: nếu plan có <code>--tdd</code> thì cook cũng phải có.</li>
+    <li><b>Truyền đường dẫn plan cho cook</b> (<code>/ak:cook plans/…/plan.md</code>) thay vì mô tả lại. Cook đọc state file trước và không hỏi lại những gì plan đã chốt.</li>
+    <li><b>Đừng re-plan khi không có dữ kiện mới.</b> Hãy sửa đúng bước hỏng rồi đi tiếp.</li>
+    <li><b>Dành <code>--advice</code> và <code>--ultra</code> cho quyết định khó.</b> Gắn vào mọi lệnh chỉ đốt quota.</li>
+    <li><b><code>/ak:ship</code> mở PR, không chứng minh là đã merge hay CI xanh.</b> Muốn merge có review và chờ CI thì dùng <code>--merge</code>, hoặc theo dõi CI riêng.</li>
+    <li><b>Sau khi cài hoặc cập nhật kit thì mở phiên mới.</b> Skill không hiện là do runtime chưa nạp lại.</li>
+    <li><b>Có 4 skill chỉ gọi được thủ công</b> vì có <code>disable-model-invocation</code>: <code>/ak:advise</code>, <code>/ak:ask</code>, <code>/ak:coding-level</code>, <code>/ak:loop</code>. Model sẽ không tự chọn chúng, bạn phải gõ đích danh.</li>
+    <li><b>Gọi skill không tồn tại là lỗi.</b> Hãy kiểm tra bằng <code>ak skills list</code> hoặc <code>/ak:find-skills</code>.</li>
+  </ol>
+  <h2>Tiết kiệm context &amp; token</h2>
+  <ul>
+    <li>Chuỗi dài thì truyền artifact qua file (<code>plans/reports/</code>) thay vì dán nội dung vào hội thoại.</li>
+    <li>Dùng <code>/ak:scout</code> hoặc agent Explore để quét repo, vì kết quả thô nằm trong context của subagent và phiên chính chỉ nhận kết luận.</li>
+    <li>Hết context giữa chừng: dùng <code>/ak:handoff</code> để tạo "continuation contract" rồi mở phiên mới. Nếu muốn giao cho runtime khác thì thêm <code>--dispatch --agent &lt;id&gt;</code>.</li>
+    <li>Việc dài và tự động: chạy <code>/ak:goal-warmup "goal"</code> trước để chốt Outcome Contract và phát hiện blocker, sau đó mới chạy <code>/goal</code>.</li>
+    <li>Tìm chỗ tốn token: <code>ak usage limits --provider claude</code>, <code>ak insights skills</code>, <code>/ak:context-engineering</code>.</li>
+  </ul>
+  <h2>Lỗi thường gặp</h2>
+  <table>
+    <tr><th>Sai</th><th>Nên</th></tr>
+    <tr><td>Chuỗi dài cho một chỉnh sửa một file</td><td><code>/ak:cook --fast</code> hoặc skill domain</td></tr>
+    <tr><td>Bỏ review với auth/payment</td><td>Giữ bước security và review: <code>/ak:security</code>, <code>/ak:code-review --pending</code></td></tr>
+    <tr><td>Ship trước khi test pass</td><td>Test (và review nếu rủi ro) trước <code>/ak:ship</code></td></tr>
+    <tr><td>Nhầm các kiểu "xin ý kiến"</td><td><code>/ak:advise</code> = model phiên; <code>--agent</code> = advisor/fable; <code>--advice</code> = kongming</td></tr>
+    <tr><td>Cook khi yêu cầu còn mơ hồ</td><td><code>/ak:brainstorm</code> trước, hoặc <code>/ak:advise</code> để được phỏng vấn làm rõ</td></tr>
+    <tr><td>Sửa bug khi chưa rõ nguyên nhân</td><td><code>/ak:debug</code> để chứng minh root cause, sau đó <code>/ak:fix</code></td></tr>
+    <tr><td>Chạy nhiều agent song song sửa cùng file</td><td>Chia file sở hữu trước (<code>--parallel</code>), chỉ cho explorer read-only chạy song song thoải mái</td></tr>
+    <tr><td>Xóa <code>~/.claude</code> hoặc <code>~/.agentkit</code> để "cài sạch"</td><td>Làm theo hướng dẫn clean reinstall: <code>ak kit uninstall</code> rồi cài lại</td></tr>
+  </table>
+  <h2>Mẹo theo coding_level</h2>
+  <p><code>/ak:coding-level N</code> hoặc key <code>coding_level</code> trong config điều chỉnh độ sâu giải thích và độ phức tạp của code: -1 tắt, 0 ELI5, 1 junior, 2 mid, 3 senior, 4 tech lead, 5 architect. Nếu đang học một stack mới, đặt mức 1–2 để agent giải thích nhiều hơn.</p>
+</section>
+
+<!-- ================= CONFIG ================= -->
+<section data-page="config">
+  <h1>Cấu hình <code>config.yaml</code></h1>
+  <table>
+    <tr><th>Scope</th><th>Vị trí</th><th>Dùng cho</th></tr>
+    <tr><td>User</td><td><code>~/.agentkit/config.yaml</code> (hoặc <code>$AGENTKIT_HOME/config.yaml</code>)</td><td>Theo máy: API key, update, adapter, telemetry</td></tr>
+    <tr><td>Project</td><td><code>.agentkit/config.yaml</code> trong repo</td><td>Deep-merge lên trên config user: coding_level, paths, hooks. Nên commit. <b>Không bao giờ</b> chứa credential.</td></tr>
+  </table>
+<pre><code>ak config                      # dashboard
+ak config prefs resolve        # xem config hiệu lực sau khi merge
+ak config prefs validate       # kiểm schema
+ak config prefs set hooks.simplify-gate false --scope project
+ak config prefs unset hooks.simplify-gate --scope project</code></pre>
+  <h2>Key workflow (project, an toàn để commit)</h2>
+  <table>
+    <tr><th>Key</th><th>Mặc định</th><th>Ý nghĩa</th></tr>
+    <tr><td><code>coding_level</code></td><td>-1</td><td>-1 tắt · 0 eli5 · 1 junior · 2 mid · 3 senior · 4 tech-lead · 5 architect</td></tr>
+    <tr><td><code>privacy_block</code></td><td>true</td><td>Hook chặn đọc .env/credential/key</td></tr>
+    <tr><td><code>paths.docs</code> / <code>paths.plans</code></td><td>docs / plans</td><td>Thư mục docs và plans</td></tr>
+    <tr><td><code>docs.max_loc</code></td><td>800</td><td>Số dòng tối đa gợi ý cho mỗi file docs (100–5000)</td></tr>
+    <tr><td><code>locale.response_language</code></td><td>null</td><td>Ngôn ngữ trả lời (vd <code>vi</code>). null = theo người dùng</td></tr>
+    <tr><td><code>locale.thinking_language</code></td><td>null</td><td>Ngôn ngữ suy luận nội bộ (null = English)</td></tr>
+    <tr><td><code>plan.naming_format</code></td><td><code>{date}-{issue}-{slug}</code></td><td>Mẫu tên thư mục plan</td></tr>
+    <tr><td><code>plan.date_format</code></td><td>YYMMDD-HHmm</td><td>Định dạng token {date}</td></tr>
+    <tr><td><code>plan.issue_prefix</code></td><td>GH-</td><td>Tiền tố issue (GH-, JIRA-…)</td></tr>
+    <tr><td><code>plan.reports_dir</code></td><td>reports</td><td>Thư mục report trong plan</td></tr>
+    <tr><td><code>plan.resolution.order</code></td><td>["session","branch"]</td><td>Thứ tự tìm plan đang active: session, branch, directory</td></tr>
+    <tr><td><code>plan.validation.mode</code></td><td>prompt</td><td>prompt / auto / strict / none: khi nào chạy phỏng vấn validate plan</td></tr>
+    <tr><td><code>plan.validation.min_questions</code>/<code>max_questions</code></td><td>3 / 8</td><td>Số câu hỏi validate</td></tr>
+    <tr><td><code>hooks.&lt;name&gt;</code></td><td>(không có = bật)</td><td>Bật/tắt hook theo tên script</td></tr>
+    <tr><td><code>project.type</code></td><td>auto</td><td>library, application, monorepo, cli, api, web, mobile</td></tr>
+    <tr><td><code>gemini.model</code></td><td>gemini-3-flash-preview</td><td>Model Gemini CLI mà một số skill dùng</td></tr>
+  </table>
+  <h2>Key do setup ghi (user)</h2>
+  <table>
+    <tr><th>Key</th><th>Ý nghĩa</th></tr>
+    <tr><td><code>keys.anthropic</code>, <code>keys.openai</code></td><td>API key, chỉ để ở config user</td></tr>
+    <tr><td><code>provider.default</code>/<code>model</code>/<code>image</code></td><td>Provider và model mặc định</td></tr>
+    <tr><td><code>kit.default</code></td><td>Kit mặc định (engineer)</td></tr>
+    <tr><td><code>adapters.enabled</code></td><td><code>claude-code,codex,cursor,grok,…</code></td></tr>
+    <tr><td><code>updates.enabled</code>/<code>channel</code></td><td>Tự cập nhật; stable/beta</td></tr>
+    <tr><td><code>backups.scope</code>/<code>keep_last</code></td><td>full/lean; giữ 20 snapshot (0 = không dọn)</td></tr>
+    <tr><td><code>telemetry.enabled</code></td><td>Mặc định false, chỉ bật khi bạn chủ động opt-in</td></tr>
+  </table>
+  <h2>Ví dụ project</h2>
+<pre><code># yaml-language-server: $schema=https://releases.agentkit.best/schemas/config/v1.json
+coding_level: 3
+paths: { docs: docs, plans: plans }
+privacy_block: true
+hooks:
+  simplify-gate: false
+locale:
+  response_language: vi
+plan:
+  naming_format: "{date}-{slug}"
+  validation: { mode: prompt }</code></pre>
+</section>
+
+<!-- ================= CLI ================= -->
+<section data-page="cli">
+  <h1>CLI <code>ak</code></h1>
+  <p>Flag dùng chung cho mọi lệnh: <code>--json</code>, <code>--yes</code>, <code>--no-interactive</code>, <code>--quiet</code>. Có hơn 50 lệnh (bản 2.18.1 thêm <code>ak policy</code>).</p>
+  <div id="cliTables"></div>
+  <h2>Cập nhật: phân biệt ba lệnh</h2>
+  <table>
+    <tr><th>Mục tiêu</th><th>Lệnh</th></tr>
+    <tr><td>Chỉ nâng CLI</td><td><code>ak self-update --check</code> rồi <code>ak self-update --yes</code></td></tr>
+    <tr><td>Refresh kit sau release</td><td><code>ak update --dry-run</code> rồi <code>ak update --yes</code></td></tr>
+    <tr><td>Chỉ kit global</td><td><code>ak update --global --yes</code></td></tr>
+    <tr><td>Một kit, ghi lại toàn bộ</td><td><code>ak kit refresh engineer --yes</code> (force, xóa file generated cũ)</td></tr>
+    <tr><td>Khôi phục</td><td><code>ak backups list</code> → <code>ak backups show &lt;id&gt;</code> → <code>ak recover &lt;id&gt; --dry-run</code></td></tr>
+  </table>
+  <p>Mã thoát của <code>ak update</code>: 0 = ok, 1 = lỗi hoặc lỗi một phần, 2 = flag sai, 3 = chỉ preview (không ghi gì, xảy ra khi shell không tương tác mà thiếu <code>--yes</code>). File bạn đã sửa được giữ nguyên, trừ khi dùng <code>--force</code>.</p>
+</section>
+
+<!-- ================= TROUBLESHOOT ================= -->
+<section data-page="troubleshoot">
+  <h1>Xử lý sự cố</h1>
+  <table>
+    <tr><th>Triệu chứng</th><th>Nguyên nhân</th><th>Cách xử lý</th></tr>
+    <tr><td><code>ak: command not found</code></td><td>Thư mục cài không nằm trong PATH, hoặc terminal cũ</td><td>Thêm <code>~/.local/bin</code> vào PATH, mở terminal mới, chạy <code>ak --version</code></td></tr>
+    <tr><td>Skill không hiện</td><td>Sai runtime hoặc scope, chưa restart, sai cú pháp, adapter đã bỏ component</td><td>Kiểm tra scope project/global, mở phiên mới, dùng <code>/ak:</code> hoặc <code>$ak:</code> cho đúng, đọc cảnh báo adapter</td></tr>
+    <tr><td>Skill xuất hiện hai lần hoặc chạy lạ</td><td>Cài ở cả project lẫn global</td><td>Gỡ ở một scope: <code>ak kit uninstall engineer --dry-run</code></td></tr>
+    <tr><td><code>ak uninstall</code> không gỡ kit global</td><td>Lệnh này chỉ gỡ project do AK quản lý</td><td>Dùng <code>ak kit uninstall &lt;kit&gt;</code></td></tr>
+    <tr><td>Bị chặn khi đọc <code>.env</code></td><td>Hook privacy-block</td><td>Đồng ý cho agent đọc (nó sẽ dùng <code>APPROVED:</code>), hoặc đặt <code>privacy_block: false</code></td></tr>
+    <tr><td>Bị chặn "ship" khi diff lớn</td><td>Hook simplify-gate</td><td>Chạy code-simplifier hoặc <code>/simplify</code>, hoặc tắt <code>hooks.simplify-gate</code></td></tr>
+    <tr><td>Lỗi sau khi migrate từ ClaudeKit</td><td>—</td><td><code>ak migrate rollback</code>, <code>ak backups list</code>, <code>ak recover &lt;id&gt; --dry-run</code> (bundle project cần <code>--allow-root</code>)</td></tr>
+    <tr><td>CLI, app hoặc adapter chạy lạ</td><td>—</td><td><code>ak doctor --json</code>, <code>ak doctor --json --offline</code>, <code>ak audit</code></td></tr>
+  </table>
+</section>
+
+<!-- ================= SOURCES ================= -->
+<section data-page="sources">
+  <h1>Nguồn &amp; cách cập nhật site</h1>
+  <ul>
+    <li>Dữ liệu skills, agents, hooks, rules được trích từ bản cài AgentKit thật trên máy (<code>~/.claude</code>) bằng <code>scripts/extract.py</code>.</li>
+    <li>Phần diễn giải chi tiết từng skill nằm ở <code>data/detail/*.json</code>, viết dựa trên SKILL.md và <code>references/</code>.</li>
+    <li>Phần kiến trúc, cấu hình, CLI, workflow tham khảo <a href="https://www.vividkit.dev/guides/agentkit/workflows" target="_blank" rel="noopener">vividkit.dev/guides/agentkit</a>. Bố cục lấy cảm hứng từ <a href="https://camping89.github.io/cokit/index.html" target="_blank" rel="noopener">CoKit</a>.</li>
+  </ul>
+<pre><code># Sau khi ak update, trích lại dữ liệu rồi build
+python3 scripts/extract.py
+python3 scripts/build.py
+# Xem thử site
+python3 -m http.server 8765 -d site   # hoặc mở thẳng site/index.html
+# Push lên main sẽ tự deploy GitHub Pages</code></pre>
+  <p class="muted" id="buildInfo"></p>
+</section>
+
+</main>
+<div id="overlay" class="overlay" hidden></div>
+<script src="data.js"></script>
+<script src="content.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

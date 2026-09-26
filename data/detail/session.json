@@ -1,0 +1,1608 @@
+{
+ "ak-context-engineering": {
+  "tagline": "Quản lý context, ngân sách task, compaction và chọn model dựa trên bằng chứng kết quả thay vì cảm tính.",
+  "summary": "ak:context-engineering giúp hoàn thành đúng việc với ít context, chi phí, thời gian và số bước agent lãng phí nhất, nhưng không bao giờ cắt phạm vi hoặc bước xác minh để đạt mục tiêu hiệu quả. Đầu vào là một chủ đề hoặc câu hỏi (token lãng phí, còn bao nhiêu context, phiên chậm/hay quên, chọn model, thiết kế memory/multi-agent). Đầu ra là khuyến nghị có căn cứ, checkpoint trạng thái, hoặc số liệu từ các script phân tích offline. Skill được các skill khác load khi thực sự có vấn đề về context/budget.",
+  "howItWorks": [
+   "Frame: xác định outcome, ràng buộc và acceptance check; tái sử dụng plan đã chấp nhận; task ngắn không cần thêm plan hay ledger.",
+   "Observe: dùng telemetry runtime sẵn có, tách bạch mức chiếm context, tổng chi tiêu task, quota nhà cung cấp và chi phí tiền; giá trị thiếu là unknown, không ước lượng.",
+   "Allocate: chừa chỗ cho kết quả kế tiếp, phản hồi và checkpoint; dành ngân sách cho xác minh và tích hợp trước khi giao việc độc lập.",
+   "Execute: tìm owner trước, đọc một đơn vị logic đủ dùng, giới hạn output tool nhưng giữ lỗi, ghi lại quyết định/bằng chứng đáng giữ.",
+   "Reassess: chỉ mở rộng khi thiếu bằng chứng, dừng khám phá khi đạt acceptance; checkpoint trước bước có thể vượt headroom.",
+   "Áp dụng dải context tham khảo Green <50%, Yellow 50–<70%, Orange 70–<85%, Red ≥85%; ở Orange hoàn tất ranh giới atomic, checkpoint rồi dùng compaction được hỗ trợ; ở Red ưu tiên phục hồi.",
+   "Chọn model theo 4 metric: Average cost per task, Average task duration, Estimated cost per successful first attempt, Average agent steps — trên cohort task khớp nhau, không trộn thành điểm tùy ý, không tự đổi model.",
+   "Chỉ delegate khi công việc độc lập hoặc cần cô lập context bù được chi phí khởi động/giao tiếp; packet gồm task, path đọc/sở hữu, acceptance, ràng buộc, ngân sách, điều kiện dừng.",
+   "Checkpoint contract: gộp trạng thái vào plan/note hiện có (intent, ràng buộc nguyên văn, file/revision, quyết định, lệnh/kết quả, điểm chưa chắc, bước an toàn kế tiếp); sau compaction đọc lại note và kiểm tra lại state có thể đã đổi.",
+   "Script offline: context_analyzer.py (estimate/analyze/budget), compression_evaluator.py, benchmark_metrics.py."
+  ],
+  "useWhen": [
+   "Phiên làm việc dài bắt đầu chậm, quên quyết định cũ hoặc sắp hết context.",
+   "Cần quyết định có nên chia việc cho subagent hay không và giao packet thế nào.",
+   "So sánh chi phí/thời gian/số bước giữa các model hoặc cấu hình effort trên cùng tập task.",
+   "Thiết kế hệ thống memory, pipeline agent hoặc đánh giá chất lượng nén context.",
+   "Gặp giới hạn usage và muốn giảm token lãng phí mà không bỏ bước xác minh."
+  ],
+  "avoidWhen": [
+   "Task ngắn không có vấn đề context — không cần nghi thức ledger/checkpoint.",
+   "Cần chuyển giao phiên cho agent khác — dùng ak:handoff (thêm --dispatch --agent <id> để giao luôn).",
+   "Muốn benchmark model trên DeepSWE — dùng ak:deep-swe.",
+   "Chọn skill phù hợp cho task — dùng ak:agentkit."
+  ],
+  "params": [
+   {
+    "name": "[topic or question]",
+    "kind": "arg",
+    "desc": "Chủ đề hoặc câu hỏi về context/budget: token lãng phí, context còn lại, compaction, chọn model, delegation, memory, đánh giá nén. Skill chỉ load một reference cho câu hỏi hiện tại."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:context-engineering phiên này còn bao nhiêu context và nên checkpoint chưa?",
+    "note": "Đánh giá headroom và quyết định checkpoint/compaction."
+   },
+   {
+    "cmd": "/ak:context-engineering có nên tách refactor này cho 3 subagent không?",
+    "note": "Cân nhắc chi phí delegation so với làm inline."
+   },
+   {
+    "cmd": "/ak:context-engineering so sánh opus và sonnet cho các task sửa lỗi của repo",
+    "note": "Chọn model dựa trên 4 metric trên cohort khớp nhau."
+   },
+   {
+    "cmd": "/ak:context-engineering thiết kế memory cho agent chạy nhiều ngày",
+    "note": "Tham khảo memory-systems.md."
+   }
+  ],
+  "tips": [
+   "Không có telemetry thì ghi unknown — đừng quy đổi 20 hay 40 lần gọi tool thành phần trăm context.",
+   "Tìm kiếm trước khi đọc file lớn (khoảng 2k token là gợi ý), nhưng đọc cả file khi cấu trúc hoặc contract xuyên suốt là câu hỏi.",
+   "Batch các lệnh độc lập nhưng vẫn giới hạn tổng output — batching không tạo thêm dung lượng context.",
+   "Đổi tên skill hay sắp xếp lại prompt không tự chứng minh cải thiện cache; cần so sánh run gốc và run ứng viên.",
+   "Lỗi xác định (deterministic) phải sửa nguyên nhân trước khi thử lại; chỉ retry có backoff với lỗi tạm thời."
+  ],
+  "related": [
+   "ak-handoff",
+   "ak-orchestrate",
+   "ak-team",
+   "ak-fable-thinking",
+   "ak-deep-swe"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Checkpoint gộp vào plan/note hiện có",
+   "Output phân tích từ scripts/context_analyzer.py, compression_evaluator.py, benchmark_metrics.py"
+  ]
+ },
+ "ak-handoff": {
+  "tagline": "Ghi một continuation contract Markdown đã redact để agent mới tiếp tục việc dang dở an toàn — và tùy chọn giao luôn cho một coding runtime được chọn qua --dispatch.",
+  "summary": "ak:handoff tạo đúng một file Markdown gồm 9 phần bắt buộc (mission, guardrails, trạng thái live, quyết định, việc đã làm, xác minh, rủi ro/blocker, bước kế tiếp chính xác, source pointers) tại plans/handoffs/<slug>-<YYYYMMDD-HHmm>.md, rồi in đường dẫn và một câu hướng dẫn để dán vào phiên mới. Ở chế độ mặc định skill chỉ đọc workspace và ghi một file, không chạy runtime hay sửa code. Với --dispatch --agent <id>, skill (thay cho skill handover riêng trước đây) còn validate artifact, dựng một job spec đơn định và giao cho ak:orchestrate chạy trên runtime do người dùng chọn — preflight, safety gate, capture và arbiter review do orchestrate đảm nhận. Người đọc là một AI agent sắp tiếp tục đúng task này; báo cáo trạng thái cho người thì dùng ak:watzup.",
+  "howItWorks": [
+   "Kiểm tra task focus: nếu chứa giá trị trông như credential thì từ chối và yêu cầu viết lại, trước khi ghi bất cứ thứ gì.",
+   "Chạy các probe read-only (batch được): git rev-parse --is-inside-work-tree, --show-toplevel, --abbrev-ref HEAD, HEAD, git status --short (tối đa 200 dòng, đánh dấu truncated); git diff --stat và 200 dòng đầu git diff chỉ khi --include-diff. Không có git repo thì ghi 'Not captured in this session' cho các trường git và tiếp tục.",
+   "Tổng hợp session context: quyết định, ràng buộc người dùng, lệnh đã chạy — không dump transcript, không lộ reasoning ẩn; tách sự thật quan sát được khỏi khẳng định. Tham khảo handoff cũ trong plans/handoffs/*.md và plans/reports/handoff-*.md (legacy).",
+   "Soạn đủ 9 H2 theo đúng thứ tự trong references/artifact-schema.md; mục không có thông tin đáng tin ghi 'Not captured in this session'; Exact next actions có marker **First safe step**.",
+   "Redact toàn bộ artifact và các khối --include-diff/--include-status (API key, token, JWT, private key, giá trị .env, password, DB URL có credential, URL nội bộ, dữ liệu cá nhân → marker [REDACTED:loại]); collision guard từ chối ghi đè nếu thiếu --force.",
+   "Chế độ mặc định: ghi file, in đường dẫn tuyệt đối và câu 'Read <path> and verify the Current state section against the repo before acting.' — không in nội dung artifact.",
+   "Với --dispatch: (1) Capture như trên, trừ khi đưa --handoff PATH hợp lệ; (2) Validate — đủ H2 đúng chính tả, First safe step là mục đầu, không khớp mẫu secret, handoff-version (nếu có) là 1; lỗi nào cũng là blocker cứng.",
+   "(3) Spec — dựng một job spec đơn từ references/dispatch-job-spec-template.md: prompt = lời dặn đọc handoff + task text; task là enum định tuyến (mặc định implement), không phải prose; model chỉ cho runtime CLI; effect: scoped-write, approval: require (inherit khi --yes hoặc có authorization đã ghi nhận; thay đổi destructive luôn require); isolation: worktree trừ khi gọi --cwd . trên tree sạch; timeout 10m. Spec lưu ở plans/reports/orchestrate-<timestamp>/jobs.yaml.",
+   "(4) Dispatch qua ak:orchestrate — preflight, runtime matrix live, capture, resume, arbiter là việc của orchestrate; runtime thiếu hoặc preflight lỗi thì báo blocker, không tự thay runtime khác, vẫn trả đường dẫn artifact. (5) In khối **Handoff Dispatch Result** (artifact, run, runtime, model, job result, verification, first safe step, next action, Unresolved)."
+  ],
+  "useWhen": [
+   "Sắp hết context hoặc kết thúc phiên và muốn phiên sau tiếp tục mà không phải khám phá lại.",
+   "Chuyển công việc sang model hoặc runtime khác (Codex, Cursor, OpenCode...) — thêm --dispatch --agent <id> để giao luôn.",
+   "Cần lưu lại quyết định, trạng thái xác minh và blocker của một task đang dở.",
+   "Đã có sẵn một file handoff và muốn giao nó cho runtime khác chạy tiếp (--dispatch --handoff PATH)."
+  ],
+  "avoidWhen": [
+   "Muốn báo cáo trạng thái dự án cho người từ branch/worktree/plan — dùng ak:watzup.",
+   "Muốn chia việc cho nhiều runtime/job song song có stage và arbiter — dùng thẳng ak:orchestrate.",
+   "Cần viết plan hoặc ADR — dùng ak:plan hoặc skill docs.",
+   "Tóm tắt kết quả đã implement cho người đọc — dùng ak:sumup.",
+   "Muốn skill tự chọn coding agent “tốt nhất” — --dispatch chỉ giao cho runtime người dùng chọn; hỏi kongming hoặc ak:advise để được khuyến nghị."
+  ],
+  "params": [
+   {
+    "name": "[task focus]",
+    "kind": "arg",
+    "desc": "Chuỗi focus cho agent kế nhiệm; đưa nguyên văn vào mục Mission và dùng làm slug tên file. Chứa credential thì bị từ chối. Bỏ trống thì slug suy từ tên branch hoặc tóm tắt mục tiêu."
+   },
+   {
+    "name": "--output PATH",
+    "kind": "flag",
+    "desc": "Đường dẫn artifact tường minh, phải nằm trong workspace; tự tạo thư mục cha; không áp slug/timestamp tự động; vẫn cần --force để ghi đè file đã có."
+   },
+   {
+    "name": "--include-diff",
+    "kind": "flag",
+    "desc": "Thêm tóm tắt diff có giới hạn: git diff --stat và 200 dòng đầu git diff, đã redact, đánh dấu rõ chỗ bị cắt."
+   },
+   {
+    "name": "--include-status",
+    "kind": "flag",
+    "desc": "Thêm snapshot git status --short đã redact."
+   },
+   {
+    "name": "--force",
+    "kind": "flag",
+    "desc": "Cho phép ghi đè artifact đã tồn tại tại đường dẫn đích; không có thì từ chối kèm mtime file cũ. Không được ngầm bật bởi --output."
+   },
+   {
+    "name": "--dispatch",
+    "kind": "flag",
+    "desc": "Bật chế độ giao việc: capture (hoặc dùng --handoff), validate artifact, dựng một job spec và gọi ak:orchestrate. Cần ak:orchestrate có trong catalog; thiếu thì dừng sau capture và báo dispatch không khả dụng."
+   },
+   {
+    "name": "--agent <id>",
+    "kind": "flag",
+    "desc": "Bắt buộc khi --dispatch; không có mặc định, không tự thay thế. First-class: claude-code, codex, ak-run, internal. Ngoài, qua preflight: opencode, copilot, cursor, cline, qwen-code, grok, kimi, agy. gemini-cli bị từ chối; ID lạ bị từ chối kèm danh sách hỗ trợ."
+   },
+   {
+    "name": "--handoff PATH",
+    "kind": "flag",
+    "desc": "Dùng lại một artifact handoff đã có thay vì capture mới; file phải tồn tại và qua validate schema + redaction."
+   },
+   {
+    "name": "--cwd PATH",
+    "kind": "flag",
+    "desc": "Workspace root cho job được giao; mặc định là workspace hiện tại, chuyển nguyên văn vào trường cwd: của job orchestrate. Gọi --cwd . trên tree sạch thì isolation có thể là none thay vì worktree."
+   },
+   {
+    "name": "--model NAME",
+    "kind": "flag",
+    "desc": "Ghi đè model cho job chạy runtime CLI; bị từ chối khi --agent internal (job internal không bao giờ đặt model). Không có --model thì model theo chính sách model-routing của orchestrate."
+   },
+   {
+    "name": "--yes",
+    "kind": "flag",
+    "desc": "Chấp thuận việc ghi trong job được giao: đổi approval từ require sang inherit. Không có tác dụng với thay đổi mà mục Scope đánh dấu destructive/external-destructive — những job đó vẫn require."
+   },
+   {
+    "name": "--task TEXT",
+    "kind": "flag",
+    "desc": "Dạng thay thế cho task focus positional khi --dispatch; nếu có cả hai thì positional thắng và --task bị bỏ qua kèm cảnh báo."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:handoff \"continue the OAuth callback fix\"",
+    "note": "Chỉ ghi continuation contract có focus rõ cho agent kế nhiệm."
+   },
+   {
+    "cmd": "/ak:handoff --include-diff --include-status",
+    "note": "Kèm diff và status khi có nhiều thay đổi chưa commit."
+   },
+   {
+    "cmd": "/ak:handoff --force --output plans/handoffs/oauth-callback.md",
+    "note": "Ghi đè handoff cố định đã có."
+   },
+   {
+    "cmd": "/ak:handoff --dispatch --agent claude-code \"continue the OAuth callback fix\"",
+    "note": "Capture rồi giao cho Claude Code qua orchestrate, approval: require."
+   },
+   {
+    "cmd": "/ak:handoff --dispatch --agent cursor --handoff plans/handoffs/oauth-callback.md",
+    "note": "Dùng lại handoff có sẵn, không capture mới."
+   },
+   {
+    "cmd": "/ak:handoff --dispatch --agent opencode --model anthropic/claude-sonnet-5 --yes",
+    "note": "Chọn model cho runtime CLI và cho phép ghi (approval: inherit)."
+   }
+  ],
+  "tips": [
+   "Dự án chưa có thư mục plans/ thì skill sẽ hỏi vị trí an toàn trước khi ghi.",
+   "Phiên mới nên đọc handoff rồi đối chiếu phần Current state với repo trước khi hành động — trạng thái có thể đã đổi.",
+   "Không đưa secret vào task focus; skill sẽ từ chối toàn bộ lời gọi.",
+   "--include-diff làm file dài hơn đáng kể; chỉ bật khi thay đổi chưa commit là quan trọng cho phiên sau.",
+   "Không có --fallback-agent: runtime được chọn thiếu binary hoặc chưa auth thì nhận blocker và tự chọn --agent khác; artifact vẫn được giữ nên không mất việc.",
+   "Các flag bypass như --dangerously-skip-permissions, --allow-all-tools, --yolo không bao giờ được đưa vào job; spec nào chứa chúng bị từ chối.",
+   "Khả dụng, auth, model của runtime không được khẳng định trong skill này — luôn lấy từ runtime matrix live của ak:orchestrate lúc dispatch."
+  ],
+  "related": [
+   "ak-orchestrate",
+   "ak-watzup",
+   "ak-sumup",
+   "ak-context-engineering",
+   "ak-plan"
+  ],
+  "agents": [],
+  "artifacts": [
+   "plans/handoffs/<slug>-<YYYYMMDD-HHmm>.md (hoặc đường dẫn từ --output)",
+   "plans/reports/orchestrate-<timestamp>/jobs.yaml (khi --dispatch)",
+   "Khối Handoff Dispatch Result (khi --dispatch)"
+  ]
+ },
+ "ak-journal": {
+  "tagline": "Ghi nhật ký kỹ thuật theo thời gian cho phiên làm việc qua CLI ak journal create.",
+  "summary": "ak:journal thu thập các sự kiện quan trọng của phiên (root cause, thay đổi chính, tác động, quyết định, bước tiếp theo) và lưu thành một entry Markdown dưới plans/journals/. Đầu vào là chủ đề hoặc nội dung suy ngẫm; đầu ra là file YYYY-MM-DD-<slug>.md tạo bằng ak journal create. Journal là lịch sử công việc, không thay thế tài liệu hiện hành hay ADR. Đây là skill kết thúc, thường chạy tự động cuối ak:plan, ak:cook, ak:fix, ak:ship, ak:bootstrap.",
+  "howItWorks": [
+   "Thu thập sự kiện quan trọng: root cause, thay đổi chính, tác động, quyết định, bước tiếp theo.",
+   "Soạn title ngắn và body Markdown, ưu tiên lỗi cụ thể, đường dẫn và kết quả thay vì tóm tắt chung chung.",
+   "Lưu bằng CLI: ak journal create \"<title>\" --summary \"<one-line>\" --stdin (tùy chọn --date YYYY-MM-DD, --project <registry-name>).",
+   "Validate khi cần: ak journal validate <slug-or-filename-stem>.",
+   "AgentWiki publish tạm hoãn: báo 'AgentWiki publish skipped', file local là nguồn chuẩn.",
+   "Tùy chọn gọi subagent journal-writer khi cần viết thẳng thắn về thất bại; vẫn lưu qua ak journal create.",
+   "Chỉ load social-publishing-workflow.md khi người dùng yêu cầu đăng mạng xã hội rõ ràng; phải preview đích/nội dung và có receipt của provider mới được báo đăng thành công."
+  ],
+  "useWhen": [
+   "Vừa xong một bug khó và muốn ghi lại root cause cùng cách khắc phục.",
+   "Cuối phiên muốn lưu quyết định và bài học theo dòng thời gian.",
+   "Một hướng tiếp cận thất bại và cần 'khảo cổ' lại lý do (dùng journal-writer).",
+   "Muốn ghi thủ công khi workflow tự động đã bị tắt journal."
+  ],
+  "avoidWhen": [
+   "Ghi quyết định kiến trúc lâu dài — dùng ADR/docs (ak:docs).",
+   "Chuyển giao cho agent khác tiếp tục — dùng ak:handoff.",
+   "Tóm tắt kết quả implementation cho người đọc — dùng ak:sumup.",
+   "Retro dựa trên số liệu git — dùng ak:retro."
+  ],
+  "params": [
+   {
+    "name": "[topic or reflection]",
+    "kind": "arg",
+    "desc": "Chủ đề hoặc nội dung suy ngẫm cho entry. Bỏ trống thì skill tự tổng hợp từ phiên hiện tại."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:journal",
+    "note": "Ghi journal cho phiên vừa làm."
+   },
+   {
+    "cmd": "/ak:journal migration Postgres thất bại và cách rollback",
+    "note": "Tập trung vào một sự cố cụ thể."
+   },
+   {
+    "cmd": "/ak:journal bài học khi tách service thanh toán",
+    "note": "Suy ngẫm về quyết định kiến trúc đã làm."
+   }
+  ],
+  "tips": [
+   "Tắt bước journal tự động bằng --skip-journal trên skill gọi, hoặc ak config prefs set journal.auto false; ưu tiên flag > config project > config user > mặc định true.",
+   "Lời gọi /ak:journal tường minh luôn chạy, không bị ảnh hưởng bởi journal.auto.",
+   "Trùng tên file sẽ thêm hậu tố -2, -3...",
+   "Xem lại bằng ak journal list / ak journal show <slug> hoặc trang Journals trên dashboard."
+  ],
+  "related": [
+   "ak-cook",
+   "ak-fix",
+   "ak-ship",
+   "ak-plan",
+   "ak-sumup",
+   "ak-retro"
+  ],
+  "agents": [
+   "journal-writer"
+  ],
+  "artifacts": [
+   "plans/journals/YYYY-MM-DD-<slug>.md"
+  ]
+ },
+ "ak-orchestrate": {
+  "tagline": "Điều phối nhiều job theo stage hoặc song song trên coding runtime đã kiểm chứng live, phiên Pi và subagent nội bộ — có worktree, resume, safety gate và arbiter review; tự onboard Pi khi cần.",
+  "summary": "ak:orchestrate biến một mô tả việc hoặc YAML job spec thành đồ thị job có task, cwd, timeout, expected output và file ownership, rồi định tuyến từng job tới runtime/model/agent phù hợp theo capability và risk dựa trên bằng chứng live (model-routing.md là nguồn định tuyến duy nhất). Job ghi song song được cô lập bằng worktree; trạng thái được lưu để resume; kết quả được một route C3 độc lập review trước khi báo hoàn thành. Bản mới hỗ trợ Pi coding agent như một runtime: mỗi job Pi là một session resumable nằm trong run directory, job phụ thuộc continue/fork session thượng nguồn; nếu job hoặc người dùng yêu cầu Pi mà Pi chưa cài/chưa auth, skill chạy onboarding (cài, profile, auth, chiếu AgentKit vào Pi) như một bước setup hiển thị. Đầu ra là plans/reports/orchestrate-<timestamp>/report.md.",
+  "howItWorks": [
+   "Brainstorm và intake: làm rõ outcome, ràng buộc, non-goals, bằng chứng acceptance; xác định workspace root, phụ thuộc, ý định destructive/external; từ chối kế hoạch đưa secret vào prompt/capture; ưu tiên một agent nếu orchestration không thêm giá trị.",
+   "Xây job graph: mỗi job có task, cwd, timeout, expected_output, ownership; depends_on tạo stage; job cùng stage chạy song song chỉ khi không chồng ownership; importance: high cho việc public-contract/bảo mật/khó revert; isolation: worktree cho writer song song; ghi rõ skill mỗi job headless cần load. Mô tả tự do thì tạo plans/reports/orchestrate-<timestamp>/jobs.yaml.",
+   "Discover, profile, route: lập inventory runtime live (runtime-matrix.md), profile harness (harness-profiles.md), Pi thêm bằng chứng theo pi-sessions.md (probe, pi auth check, --list-models, pi list); chọn route qua model-routing.md và ghi runtime, model/agent, tier, controls, lý do fallback. Không ứng viên nào đạt floor capability và risk thì job blocked.",
+   "Onboard khi cần: ứng viên được pin, fallback hoặc người dùng nêu tên (vd “as pi sessions”) mà thiếu/chưa auth thì chạy onboarding hiển thị rồi probe lại. Với Pi (pi-onboarding.md): detect → npm install -g @earendil-works/pi-coding-agent → chuẩn bị profile (snapshot trước khi ghi đè) → người dùng tự auth, kiểm bằng pi auth check → ak kit init <kit> --target pi [--global] → probe + smoke test → báo cáo kèm lệnh rollback. Discovery tự nó không bao giờ cài hay login.",
+   "Safety gate: xác nhận cwd, file được phép, writable root, side effect; quyền tối thiểu đã kiểm chứng; tắt mọi chế độ bypass; ghi authorization hiện có vào authority và chỉ hỏi lại cho hành động ngoài phạm vi; mỗi process CLI có timeout ngoài.",
+   "Dispatch và quan sát: tạo worktree, ak orchestrate prepare <jobs.yaml> <run-dir>, ak orchestrate advance <run-dir> --json; job internal dispatch qua harness native; job Pi dùng --session-dir <run-dir>/pi-sessions, lưu session id làm handle, job phụ thuộc continue (-c/--session) hoặc --fork; đọc status/events/output tới all_settled; retry chỉ trong chính sách có giới hạn.",
+   "Arbiter review: chờ mọi job settle, dùng route C3 riêng (ưu tiên khác family; arbiter Pi chỉ tính độc lập khi model family khác), so kết quả với expected_output và intent, chạy checks, gắn cờ mâu thuẫn/claim không kiểm chứng/thiếu artifact.",
+   "Report: ghi report.md với trạng thái từng job, tier, runtime/model/agent, artifact, lỗi, verdict arbiter, lệnh tái hiện, diff worktree chờ tích hợp, handle và export session Pi, các hành động onboarding; kết thúc bằng khối Orchestrate Result."
+  ],
+  "useWhen": [
+   "Nghiên cứu nhiều phương án song song rồi so sánh.",
+   "Muốn một runtime khác family review độc lập kết quả của runtime chính.",
+   "Công việc có stage phụ thuộc (scout → implement → review) cần chạy lặp lại được qua YAML spec.",
+   "Muốn chạy job dưới dạng phiên Pi resumable (vd các scout rồi một arbiter), kể cả khi máy chưa cài Pi — skill sẽ onboard.",
+   "Chia implementation cho nhiều writer với worktree riêng và ownership tách biệt.",
+   "Tiếp tục một lượt orchestrate bị gián đoạn (--resume)."
+  ],
+  "avoidWhen": [
+   "Task đơn giản một agent làm được — orchestration chỉ thêm chi phí; một scout đơn giản thường không đáng.",
+   "Chỉ cần chuyển giao phiên hiện tại cho một agent — dùng ak:handoff --dispatch --agent <id>.",
+   "Cần team nhiều phiên trao đổi trực tiếp với nhau — dùng ak:team.",
+   "Cần process supervision ngoài trên máy không phải Darwin — đây là giới hạn đã ghi của ak orchestrate.",
+   "Việc destructive hoặc có credential ngoài mà chỉ chạy trên Pi — Pi headless không có sandbox và không duyệt từng thao tác."
+  ],
+  "params": [
+   {
+    "name": "<job-spec.yaml>",
+    "kind": "arg",
+    "desc": "Đường dẫn YAML job spec cho lượt chạy lặp lại được (schema trong references/job-spec.md; runtime có thể là CLI đã kiểm chứng, internal hoặc pi)."
+   },
+   {
+    "name": "<task description>",
+    "kind": "arg",
+    "desc": "Mô tả tự do; skill tạo spec plans/reports/orchestrate-<timestamp>/jobs.yaml trước khi dispatch. Nêu tên runtime trong yêu cầu (vd “as pi sessions”) là yêu cầu tường minh đưa runtime đó vào tập ứng viên và kích hoạt onboarding nếu thiếu."
+   },
+   {
+    "name": "--resume <run-dir>",
+    "kind": "flag",
+    "desc": "Tiếp tục một run đã có; advance đối chiếu các attempt hiện hữu trước khi dispatch, không khởi chạy thủ công bỏ qua attempt chưa rõ trạng thái."
+   },
+   {
+    "name": "--yes",
+    "kind": "flag",
+    "desc": "Chấp thuận cho hành động trong phạm vi spec (nguồn không mô tả chi tiết cơ chế; theo safety gate, authorization có sẵn được ghi vào authority, không cần lặp lại --yes, và chỉ hỏi lại cho hành động ngoài phạm vi)."
+   },
+   {
+    "name": "--internal",
+    "kind": "flag",
+    "desc": "Ưu tiên định tuyến, không phải chế độ cứng: xem xét subagent trong phiên trước cho các job không pin runtime; job cần chọn model hoặc cô lập mạnh hơn vẫn có thể dùng CLI đã kiểm chứng; không ghi đè runtime/model/agent đã pin."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:orchestrate \"research three implementation options and compare them\"",
+    "note": "Nghiên cứu song song 3 phương án rồi arbiter so sánh."
+   },
+   {
+    "cmd": "/ak:orchestrate \"run the three scouts as pi sessions, then one arbiter\"",
+    "note": "Chạy scout bằng phiên Pi; Pi thiếu hoặc chưa auth thì onboard trước."
+   },
+   {
+    "cmd": "/ak:orchestrate \"compare the auth options\" --internal",
+    "note": "Ưu tiên subagent nội bộ cho job không pin runtime."
+   },
+   {
+    "cmd": "/ak:orchestrate plans/orchestrate-jobs.yaml --yes",
+    "note": "Chạy spec lặp lại được đã chấp thuận."
+   },
+   {
+    "cmd": "/ak:orchestrate --resume plans/reports/orchestrate-20260926-1030",
+    "note": "Tiếp tục run bị gián đoạn."
+   }
+  ],
+  "tips": [
+   "Đừng điền runtime/model/flag trong spec từ trí nhớ — catalog thay đổi, mọi route phải lấy từ bằng chứng live lúc chạy; không mang tên model hay flag từ runtime này sang runtime khác.",
+   "Worktree ngăn xung đột edit nhưng không phải sandbox hệ điều hành; lockfile, migration, config chung vẫn phải chạy tuần tự.",
+   "Process im lặng không có nghĩa là treo; request bị hủy không có nghĩa writer đã dừng — kiểm tra all_settled.",
+   "Job Pi khởi động với PI_OFFLINE=1 để không tự cài package giữa chừng; mặc định --no-approve và load đúng skill cần bằng --skill <path>.",
+   "Onboarding Pi không bao giờ gõ, chép hay lưu API key/token cho bạn và không khôi phục auth.json của máy khác — bước auth là việc của người dùng; onboarding dừng ở đó vẫn được báo là tiến triển.",
+   "Session Pi được continue mang theo context, không phải bằng chứng — acceptance vẫn kiểm artifact và checks trong spec.",
+   "Worktree thất bại được giữ lại để chẩn đoán; metric chỉ mang tính tham khảo, không tự động đổi chính sách định tuyến."
+  ],
+  "related": [
+   "ak-handoff",
+   "ak-team",
+   "ak-worktree",
+   "ak-context-engineering",
+   "ak-ak"
+  ],
+  "agents": [],
+  "artifacts": [
+   "plans/reports/orchestrate-<timestamp>/jobs.yaml",
+   "plans/reports/orchestrate-<timestamp>/report.md",
+   "<run-dir>/runtimes.json và capture của supervisor",
+   "<run-dir>/pi-sessions/ và <job-id>/session.json (handle phiên Pi)",
+   "Worktree theo job"
+  ]
+ },
+ "ak-team": {
+  "tagline": "Điều phối Agent Teams: nhiều phiên teammate độc lập làm việc song song qua lead, shared state và nhắn tin trực tiếp.",
+  "summary": "ak:team dựng một đội agent nhiều phiên theo 4 template research, cook, review, debug. Lead phân rã việc, đăng ký work item có acceptance/ownership, spawn teammate, điều phối qua message và shared state, tích hợp, xác minh rồi shutdown. Skill chỉ dùng collaboration surface live của runtime; nếu không có thì dừng, không âm thầm thay bằng subagent thường. Đầu ra là báo cáo/plan bền vững và journal kết thúc.",
+  "howItWorks": [
+   "Khám phá collaboration surface live: tạo/dọn team, shared work (dependency, ownership, status), delegation, message trực tiếp và toàn team, chờ cập nhật, plan approval, graceful shutdown. Thiếu năng lực cần thiết thì dừng và báo lỗi.",
+   "Decompose: tách yêu cầu thành các việc độc lập có output rõ ràng; chọn team nhỏ nhất.",
+   "Create team qua lifecycle live; register work với acceptance criteria, dependency, ownership, đích báo cáo.",
+   "Spawn teammate; mỗi teammate nhận đúng context: work context root, vị trí reports/plans, branch/worktree, plan đang dùng, file được giao, dependency, quy ước commit và chỉ dẫn đọc team-coordination-rules.md.",
+   "Theo template: research (một researcher mỗi góc nhìn), cook (dev theo nhóm file không chồng + việc verify phụ thuộc), review (mỗi reviewer một focus read-only), debug (mỗi debugger một giả thuyết, khuyến khích phản biện nhau).",
+   "Plan approval (khi bật): teammate read-only khi lập plan, phải nêu scope/ownership/validation/risk/rollback; chỉ được ghi sau khi lead duyệt.",
+   "Coordinate: idle là đang chờ, không phải xong; tích hợp chỉ khi việc tiên quyết hoàn tất; xác minh kết quả gộp (tin nhắn hoàn thành không phải bằng chứng).",
+   "Shutdown teammate êm, chờ xác nhận/handoff, gọi cleanup live; đóng lại bằng báo cáo và /ak:journal (trừ khi opt-out)."
+  ],
+  "useWhen": [
+   "Có từ 3 workstream độc lập trở lên.",
+   "Debug với nhiều giả thuyết cạnh tranh cần tranh luận.",
+   "Review đa chiều (security, performance, test coverage, architecture) song song.",
+   "Implementation xuyên tầng với ownership file tách bạch.",
+   "Nghiên cứu nhiều góc (phương án đã chứng minh, thay thế, rủi ro) rồi tổng hợp."
+  ],
+  "avoidWhen": [
+   "Một test, lint hoặc một lượt review đơn — dùng subagent thường.",
+   "Chuỗi tuần tự plan → code → test — dùng subagent thường hoặc ak:cook.",
+   "Ngân sách runtime eo hẹp — mỗi teammate có context riêng và tăng chi phí.",
+   "Cần điều phối nhiều runtime CLI khác nhau với arbiter — dùng ak:orchestrate."
+  ],
+  "params": [
+   {
+    "name": "<template>",
+    "kind": "arg",
+    "desc": "Một trong research, cook, review, debug."
+   },
+   {
+    "name": "<context>",
+    "kind": "arg",
+    "desc": "Mô tả việc hoặc đường dẫn plan cho team."
+   },
+   {
+    "name": "--devs N",
+    "kind": "flag",
+    "desc": "Số teammate developer (template cook)."
+   },
+   {
+    "name": "--researchers N",
+    "kind": "flag",
+    "desc": "Số teammate researcher (template research)."
+   },
+   {
+    "name": "--reviewers N",
+    "kind": "flag",
+    "desc": "Số teammate reviewer (template review)."
+   },
+   {
+    "name": "--debuggers N",
+    "kind": "flag",
+    "desc": "Số teammate debugger (template debug)."
+   },
+   {
+    "name": "--delegate",
+    "kind": "flag",
+    "desc": "Lead chỉ điều phối, duyệt, tổng hợp và báo cáo; không sửa file, không chạy lệnh implementation, test hay merge — giao hết cho teammate."
+   },
+   {
+    "name": "--plan-approval / --no-plan-approval",
+    "kind": "flag",
+    "desc": "Bật/tắt cổng duyệt plan implementation trước khi teammate được ghi."
+   },
+   {
+    "name": "--worktree",
+    "kind": "flag",
+    "desc": "Yêu cầu worktree cô lập cho các teammate implementation."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:team research \"so sánh 3 thư viện queue cho Node\" --researchers 3",
+    "note": "Mỗi researcher một thư viện, lead tổng hợp."
+   },
+   {
+    "cmd": "/ak:team cook plans/260926-auth/plan.md --devs 3 --worktree --plan-approval",
+    "note": "Implement song song theo plan với worktree và duyệt plan."
+   },
+   {
+    "cmd": "/ak:team review \"PR #214\" --reviewers 4",
+    "note": "Review đa chiều song song."
+   },
+   {
+    "cmd": "/ak:team debug \"request timeout ngẫu nhiên ở API gateway\" --debuggers 3 --delegate",
+    "note": "Nhiều giả thuyết, lead chỉ điều phối."
+   }
+  ],
+  "tips": [
+   "Chọn team nhỏ nhất tạo ra workstream thực sự độc lập; hãy so chi phí với baseline làm inline trên cùng workload.",
+   "Worktree không thay thế ownership — mỗi teammate vẫn phải sở hữu tập file riêng.",
+   "Teammate bị treo: nhắn hướng dẫn cụ thể; vẫn kẹt thì lưu handoff, shutdown và giao phạm vi đó cho teammate thay thế.",
+   "Không bao giờ xóa thư mục state đoán mò khi cleanup lỗi — báo lỗi live và theo hướng dẫn runtime."
+  ],
+  "related": [
+   "ak-orchestrate",
+   "ak-cook",
+   "ak-journal",
+   "ak-worktree",
+   "ak-code-review",
+   "ak-debug"
+  ],
+  "agents": [
+   "Teammate researcher",
+   "Teammate developer",
+   "Teammate reviewer",
+   "Teammate debugger"
+  ],
+  "artifacts": [
+   "Báo cáo/plan bền vững của từng work item",
+   "Báo cáo tổng hợp của lead",
+   "Branch/worktree của teammate implementation",
+   "Journal kết thúc (plans/journals/)"
+  ]
+ },
+ "ak-sumup": {
+  "tagline": "Tóm tắt công việc đã implement: kết quả, thất bại và cách xử lý, quyết định, cách hoạt động, cách dùng và việc còn lại.",
+  "summary": "ak:sumup giúp người đọc hiểu kết quả, bằng chứng, đánh đổi, cách vận hành và việc còn lại mà không phải xem lại cả phiên. Đầu vào là task, PR, branch hoặc công việc gần đây; đầu ra là bản recap ngắn theo các mục Outcome, Highlights, Failures and recovery, Decisions, How it works, How to use it, Follow-ups. Skill chỉ đọc và tóm tắt, không sửa file, không khẳng định đã deploy nếu không có bằng chứng. Dùng sau implementation.",
+  "howItWorks": [
+   "Thu thập bằng chứng mạnh nhất: hội thoại, quyết định đã chấp nhận, diff hiện tại, test, trạng thái issue/plan liên quan.",
+   "Tách phần đã implement và xác minh khỏi phần đề xuất, suy luận, chưa test, chưa ship hoặc chưa giải quyết.",
+   "Nêu bật: kết quả giá trị nhất; các thất bại và cách xử lý kèm kết quả; lý do, đánh đổi, quyết định; cách hoạt động (user flow, architecture, database, UI/UX khi phù hợp); cách dùng, follow-up, bước tiếp theo.",
+   "Thêm bảng, biểu đồ, Mermaid hoặc ASCII flow khi giúp làm rõ; bỏ khi không cần, không trang trí.",
+   "Viết ngắn gọn bằng ngôn ngữ của người dùng, bỏ mục rỗng, để việc chưa giải quyết ở cuối."
+  ],
+  "useWhen": [
+   "Vừa hoàn thành một tính năng và cần recap cho người review hoặc quản lý.",
+   "Muốn biết đã thử những gì, cái gì thất bại và cách vượt qua.",
+   "Cần hướng dẫn ngắn cách dùng tính năng vừa làm.",
+   "Tóm tắt một PR hoặc branch trước khi bàn giao cho người."
+  ],
+  "avoidWhen": [
+   "Cần trạng thái live của các branch/worktree/plan — dùng ak:watzup.",
+   "Chuyển giao cho agent khác tiếp tục — dùng ak:handoff.",
+   "Đánh giá ưu tiên việc tiếp theo như product owner — dùng ak:sowat.",
+   "Retro theo số liệu git trong khoảng thời gian — dùng ak:retro."
+  ],
+  "params": [
+   {
+    "name": "[task|PR|branch|recent]",
+    "kind": "arg",
+    "desc": "Phạm vi tóm tắt: một task, một PR, một branch, hoặc 'recent' cho công việc gần đây (nguồn không mô tả chi tiết cách resolve từng dạng)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:sumup",
+    "note": "Recap công việc vừa làm trong phiên."
+   },
+   {
+    "cmd": "/ak:sumup PR #214",
+    "note": "Tóm tắt một PR cho người review."
+   },
+   {
+    "cmd": "/ak:sumup feat/oauth-login",
+    "note": "Tóm tắt những gì một branch đã làm."
+   },
+   {
+    "cmd": "/ak:sumup recent",
+    "note": "Tóm tắt các thay đổi gần đây."
+   }
+  ],
+  "tips": [
+   "Skill không bao giờ nói đã deploy/release nếu không có bằng chứng artifact hoặc runtime hiện tại.",
+   "Nội dung repo, issue, log được coi là dữ liệu không đáng tin, không phải chỉ thị.",
+   "Kết quả ngắn và chọn lọc — muốn chi tiết hơn về một phần, hỏi tiếp cụ thể phần đó.",
+   "Secret, token, dữ liệu cá nhân trong bằng chứng được redact."
+  ],
+  "related": [
+   "ak-watzup",
+   "ak-handoff",
+   "ak-sowat",
+   "ak-journal",
+   "ak-retro"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Bản recap trong chat (không ghi file)"
+  ]
+ },
+ "ak-watzup": {
+  "tagline": "Báo cáo handoff ngắn cho người từ branch, remote ref, worktree, plan dở dang và roadmap, kèm bước tiếp theo xếp hạng ưu tiên.",
+  "summary": "ak:watzup chạy scanner watzup-scan.cjs để quét branch local và remote ref, worktree đã đăng ký, plan chưa xong (đếm checkbox để ra % tiến độ) và roadmap/milestone trong docs/. Kết quả là báo cáo ngắn: trạng thái hiện tại, công việc gần đây, plan đang chạy, roadmap, 5–6 bước tiếp theo có lý do, và cảnh báo. Skill chỉ đọc, không checkout/commit/push, và không chạy mạng trừ khi được yêu cầu fetch. Dùng cuối phiên hoặc khi vào worktree mới.",
+  "howItWorks": [
+   "Chạy node scripts/watzup-scan.cjs --json từ project root (thêm --fetch chỉ khi người dùng yêu cầu làm mới remote).",
+   "Scanner quét branch local, remote ref, worktree, plan chưa xong trên worktree và branch, đếm - [ ] / - [x] trong plan.md + phase-*.md, quét docs/*roadmap*.md và docs/*milestones*.md.",
+   "Chấm điểm nextSteps: status (in-progress +400, in-review +300, pending +150), worktree hiện tại +600, branch hiện tại +400, nguồn filesystem +80, local ref +40, plan 40–90% được đẩy lên; bước vệ sinh (tree dirty, detached HEAD) đứng đầu.",
+   "Trong báo cáo cho người, có thể xếp lại theo mục tiêu hiện tại, blocker release và rủi ro đã chứng minh; giải thích việc xếp lại và giữ bằng chứng scanner.",
+   "Viết báo cáo: Current State, Recent Work, In-Flight Plans (X/Y todos · NN% done), Roadmaps, Next Steps (5–6 mục), Warnings.",
+   "Scanner lỗi: báo lỗi, dùng lệnh fallback read-only (git status --short --branch, git worktree list --porcelain, git for-each-ref, find plans/docs) và nói rõ là fallback."
+  ],
+  "useWhen": [
+   "Cuối phiên cần báo cáo đang làm gì và việc tiếp theo.",
+   "Vừa mở một worktree mới hoặc checkout detached và muốn biết bối cảnh.",
+   "Muốn xem tất cả plan dở dang trên các branch/worktree cùng % hoàn thành.",
+   "Cần danh sách việc tiếp theo được xếp hạng ưu tiên."
+  ],
+  "avoidWhen": [
+   "Cần continuation contract cho AI agent tiếp tục đúng task — dùng ak:handoff.",
+   "Tóm tắt chi tiết những gì vừa implement — dùng ak:sumup.",
+   "Cập nhật trạng thái plan hoặc sync checkbox — dùng ak:project-management.",
+   "Retro số liệu git theo khoảng thời gian — dùng ak:retro."
+  ],
+  "params": [
+   {
+    "name": "[branch|worktree|status]",
+    "kind": "arg",
+    "desc": "Trọng tâm báo cáo: một branch, worktree, hoặc status tổng quát (nguồn không mô tả chi tiết cách xử lý từng giá trị)."
+   },
+   {
+    "name": "--fetch",
+    "kind": "flag",
+    "desc": "Flag của scanner watzup-scan.cjs: làm mới remote ref trước khi báo cáo. Chỉ dùng khi người dùng yêu cầu; mặc định không chạy mạng."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:watzup",
+    "note": "Báo cáo trạng thái và bước tiếp theo của project."
+   },
+   {
+    "cmd": "/ak:watzup worktree",
+    "note": "Tập trung vào worktree hiện tại."
+   },
+   {
+    "cmd": "/ak:watzup status",
+    "note": "Xem nhanh trạng thái tổng quát cuối phiên."
+   },
+   {
+    "cmd": "/ak:watzup làm mới remote trước rồi báo cáo",
+    "note": "Yêu cầu tường minh để scanner chạy --fetch."
+   }
+  ],
+  "tips": [
+   "Không fetch thì remote ref có thể cũ — báo cáo sẽ có cảnh báo stale remote-ref.",
+   "Tree dirty chỉ là bước vệ sinh, không phải blocker và không phải lý do để bỏ thay đổi.",
+   "Xếp hạng của scanner là heuristic; báo cáo cho người có thể xếp lại nhưng phải giải thích.",
+   "Tiến độ plan dựa trên checkbox — plan không cập nhật checkbox sẽ bị báo thấp hơn thực tế."
+  ],
+  "related": [
+   "ak-handoff",
+   "ak-sumup",
+   "ak-project-management",
+   "ak-plans-kanban",
+   "ak-worktree"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Báo cáo trạng thái trong chat (không ghi file)"
+  ]
+ },
+ "ak-retro": {
+  "tagline": "Retrospective sprint dựa trên số liệu git: velocity, code health, hotspot, tiến độ plan, không bịa số.",
+  "summary": "ak:retro thu thập metric khách quan từ lịch sử git trong một khoảng thời gian, tính các chỉ số như tần suất commit, tỉ lệ test/code, churn, tỉ lệ ngày hoạt động, và kiểm tra tiến độ plan trong plans/. Đầu ra là báo cáo Markdown (hoặc HTML tự chứa) tại plans/reports/retro-{YYMMDD}-{slug}.md với 3–5 khuyến nghị cụ thể. Skill chỉ đọc, dùng được cho repo cá nhân lẫn team; dữ liệu thiếu luôn là N/A.",
+  "howItWorks": [
+   "Parse timeframe thành SINCE/UNTIL (7d, 2w, 1m, sprint — hỏi ngày bắt đầu nếu không suy từ tag được, hoặc YYYY-MM-DD:YYYY-MM-DD); với --compare tính thêm kỳ trước cùng độ dài.",
+   "Chạy python scripts/collect-git-metrics.py --repo <repo> --since <iso> --until <iso> một lần mỗi kỳ; giữ HEAD đã pin, cờ shallow history và chính sách ngày/diff/path.",
+   "Tính metric kèm công thức: commit frequency, test-to-code ratio (heuristic theo tên path, không phải coverage), churn rate, active day ratio, issue activity (tùy chọn từ GitHub).",
+   "Quét plans/ tìm plan bị thay đổi trong kỳ, đếm - [x] so với - [ ].",
+   "Điền references/report-template.md với dữ liệu thật, N/A khi thiếu; thêm Highlights và 3–5 Recommendations; --compare thêm cột delta; --team chia theo tác giả.",
+   "--format html: kích hoạt ak:frontend-design rồi ak:diagram (nếu có, không thì SVG inline), lớp editorial visual (AntV, diagram-design) bật mặc định trừ khi bị tắt bằng flag hoặc config; lưu .html tự chứa.",
+   "Giữ báo cáo dưới 200 dòng; không commit, push hay sửa file nguồn."
+  ],
+  "useWhen": [
+   "Họp retro cuối sprint cần số liệu khách quan.",
+   "Review kỹ thuật hàng quý về velocity và code health.",
+   "Tìm file hotspot có churn cao để lên kế hoạch refactor.",
+   "So sánh kỳ này với kỳ trước (--compare) hoặc phân tích theo từng thành viên (--team)."
+  ],
+  "avoidWhen": [
+   "Đánh giá năng suất hoặc chất lượng từng cá nhân — commit/LOC chỉ là tín hiệu mô tả.",
+   "Tóm tắt một tính năng vừa làm — dùng ak:sumup.",
+   "Báo cáo trạng thái hiện tại và việc tiếp theo — dùng ak:watzup.",
+   "Báo cáo công việc Eve từ GitHub cho quản lý — dùng skill eve-report."
+  ],
+  "params": [
+   {
+    "name": "[timeframe]",
+    "kind": "arg",
+    "desc": "Khoảng phân tích, mặc định 7d. Nhận 7d, 2w, 1m, sprint hoặc YYYY-MM-DD:YYYY-MM-DD."
+   },
+   {
+    "name": "--compare",
+    "kind": "flag",
+    "desc": "So sánh với kỳ liền trước cùng độ dài; thêm cột delta (+/-) vào bảng Velocity và Code Health. Mặc định tắt."
+   },
+   {
+    "name": "--team",
+    "kind": "flag",
+    "desc": "Chia metric theo từng tác giả. Mặc định tắt."
+   },
+   {
+    "name": "--format html|md",
+    "kind": "flag",
+    "desc": "md (mặc định) hoặc html: tạo trang HTML tự chứa, CSS inline, lưu plans/reports/retro-{YYMMDD}-{slug}.html."
+   },
+   {
+    "name": "--no-antv",
+    "kind": "flag",
+    "desc": "Tắt AntV Infographic trong bản HTML cho lần gọi này."
+   },
+   {
+    "name": "--no-diagram-design",
+    "kind": "flag",
+    "desc": "Tắt lớp diagram-design trong bản HTML cho lần gọi này."
+   },
+   {
+    "name": "--no-editorial-visuals",
+    "kind": "flag",
+    "desc": "Tắt toàn bộ lớp editorial visual; ưu tiên cao nhất, thắng config project/user."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:retro",
+    "note": "Retro 7 ngày gần nhất dạng Markdown."
+   },
+   {
+    "cmd": "/ak:retro 2w --compare",
+    "note": "Sprint 2 tuần, so với 2 tuần trước."
+   },
+   {
+    "cmd": "/ak:retro 2026-07-01:2026-09-30 --team --format html",
+    "note": "Review quý theo từng thành viên, xuất HTML."
+   },
+   {
+    "cmd": "/ak:retro 1m --format html --no-antv",
+    "note": "HTML dùng offline, không dùng AntV."
+   }
+  ],
+  "tips": [
+   "Clone shallow có thể thiếu lịch sử — báo cáo sẽ nêu giới hạn này; hãy fetch đầy đủ nếu cần chính xác.",
+   "Git lọc theo committer date; lệnh git lỗi là 'không có bằng chứng', không phải 0 hoạt động.",
+   "Tỉ lệ test/code dựa trên tên path, không phải coverage thực thi.",
+   "Thay đổi file nhị phân không có LOC và được tách riêng."
+  ],
+  "related": [
+   "ak-sumup",
+   "ak-watzup",
+   "ak-journal",
+   "ak-preview",
+   "ak-frontend-design"
+  ],
+  "agents": [],
+  "artifacts": [
+   "plans/reports/retro-{YYMMDD}-{slug}.md",
+   "plans/reports/retro-{YYMMDD}-{slug}.html (với --format html)"
+  ]
+ },
+ "ak-plans-kanban": {
+  "tagline": "Launcher mỏng mở dashboard plans (kanban, timeline, tiến độ) của AgentKit CLI trên trình duyệt.",
+  "summary": "ak:plans-kanban chạy scripts/open-dashboard.cjs để mở route /plans của dashboard tích hợp trong AgentKit CLI (mặc định http://127.0.0.1:8766/plans). Nếu dashboard chưa chạy, launcher khởi động ak config start --port 8766 --no-open --no-interactive; nếu đang chạy ở port khác thì theo URL từ ak config status --json. Dashboard cho xem kanban/grid nhiều plan, timeline, tiến độ và mở plan.md/phase-*.md. Mọi thao tác thay đổi plan thuộc về ak plan, launcher chỉ mở giao diện.",
+  "howItWorks": [
+   "Kiểm tra CLI ak có sẵn (ak --version, hoặc biến AGENTKIT_CLI).",
+   "Đọc ak config status --json để tìm dashboard đang chạy và URL thực tế.",
+   "Nếu chưa chạy: ak config start --port 8766 --no-open --no-interactive.",
+   "Probe năng lực: /api/health có 'plans-dashboard' trong features, hoặc /api/plans trả 2xx; không đạt thì in thông báo nâng cấp và thoát mã 1.",
+   "Mở route /plans trên trình duyệt (trừ khi --no-open).",
+   "Flag cũ của server standalone được nhận chỉ để cảnh báo/bỏ qua."
+  ],
+  "useWhen": [
+   "Muốn nhìn tổng quan nhiều plan dạng kanban hoặc grid.",
+   "Kiểm tra timeline và tiến độ plan đang active so với đã xong.",
+   "Điều hướng nhanh vào plan.md và phase-*.md từ giao diện.",
+   "Demo tiến độ cho người khác bằng giao diện trực quan."
+  ],
+  "avoidWhen": [
+   "Cần cập nhật trạng thái plan, check/uncheck hạng mục — dùng ak plan hoặc ak:project-management.",
+   "Muốn báo cáo trạng thái dạng văn bản kèm bước tiếp theo — dùng ak:watzup.",
+   "Cần host/port tùy biến — chạy trực tiếp ak config start với flag mong muốn."
+  ],
+  "params": [
+   {
+    "name": "--stop",
+    "kind": "flag",
+    "desc": "Dừng dashboard do launcher đã khởi động (tương đương ak config stop); chỉ dừng dashboard mà task này sở hữu."
+   },
+   {
+    "name": "--no-open",
+    "kind": "flag",
+    "desc": "Không mở trình duyệt; chỉ đảm bảo dashboard đang chạy."
+   },
+   {
+    "name": "--open",
+    "kind": "flag",
+    "desc": "Mở trình duyệt (mặc định)."
+   },
+   {
+    "name": "--dir | --plans | --port | --host",
+    "kind": "flag",
+    "desc": "Flag cũ đã deprecated: bị bỏ qua kèm cảnh báo vì dashboard AgentKit tự quản phạm vi plan. Cần port/host khác thì dùng ak config start trực tiếp."
+   },
+   {
+    "name": "--background | --foreground",
+    "kind": "flag",
+    "desc": "Flag cũ đã deprecated: bị bỏ qua kèm cảnh báo vì process dashboard do ak config quản lý."
+   },
+   {
+    "name": "[path]",
+    "kind": "arg",
+    "desc": "Đường dẫn positional kiểu cũ: bị bỏ qua kèm cảnh báo, vẫn mở /plans."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:plans-kanban",
+    "note": "Mở dashboard plans, tự khởi động nếu chưa chạy."
+   },
+   {
+    "cmd": "/ak:plans-kanban --no-open",
+    "note": "Chỉ khởi động dashboard, không mở trình duyệt."
+   },
+   {
+    "cmd": "/ak:plans-kanban --stop",
+    "note": "Dừng dashboard do launcher đã bật."
+   }
+  ],
+  "tips": [
+   "Báo 'ak not found' thì cài AgentKit CLI hoặc đặt AGENTKIT_CLI trỏ tới binary.",
+   "Dashboard không mở: chạy ak config start --port 8766 rồi mở /plans trên port được báo.",
+   "Dashboard project chỉ hiện plan của project, dashboard global chỉ hiện plan global.",
+   "Đừng dừng dashboard của phiên khác — chỉ dừng cái mà task này đã khởi động."
+  ],
+  "related": [
+   "ak-project-management",
+   "ak-plan",
+   "ak-watzup",
+   "ak-ak"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Process dashboard ak config trên port 8766 (nếu launcher khởi động)"
+  ]
+ },
+ "ak-project-management": {
+  "tagline": "Theo dõi tiến độ, cập nhật trạng thái plan, đồng bộ task runtime với plan file và tạo báo cáo xuyên phiên.",
+  "summary": "ak:project-management coi plan file là nguồn sự thật bền vững và dùng task-management surface live (nếu runtime có) làm lớp theo dõi tạm thời. Skill hỗ trợ xem status, hydrate task từ các mục chưa check, sync-back checkbox và YAML frontmatter khi hoàn thành hoặc bàn giao, tạo báo cáo pm-{date}-{time}-{slug}.md và kích hoạt cập nhật docs khi cần. Đây là bước finalize mà ak:cook gọi tới (qua project-manager) và là cầu nối để tiếp tục công việc nhiều phase qua các phiên.",
+  "howItWorks": [
+   "Định tuyến yêu cầu: status (đọc trạng thái bền vững và bằng chứng), update (sửa hạng mục bị ảnh hưởng), hydrate (dựng lại view live), close/handoff (sync-back toàn plan); chỉ load reference tương ứng.",
+   "Khám phá task-management surface live; không có thì cập nhật trực tiếp plan đang active.",
+   "Hydrate: đọc các mục - [ ] chưa check và mirror vào surface live kèm đủ context để map ngược về nguồn.",
+   "Progress tracking: quét ./plans/*/plan.md, đọc YAML frontmatter (status, priority, effort), đếm [x]/[ ] trong phase file, đối chiếu acceptance criteria trước khi đánh dấu xong.",
+   "Sync-back bắt buộc khi hoàn thành/bàn giao: quét mọi phase-XX-*.md, map từng task hoàn thành về checklist nguồn, backfill checkbox cũ ở phase trước, cập nhật plan.md từ số checkbox thật; task không map được thì báo và không khẳng định hoàn tất.",
+   "Tạo báo cáo {reports-path}/pm-{date}-{time}-{slug}.md, dẫn đầu bằng kết quả, câu hỏi mở ở cuối.",
+   "Khi hành vi người dùng, lệnh, cấu hình, API, kiến trúc, bảo mật thay đổi thì delegate cập nhật docs cho subagent docs-manager."
+  ],
+  "useWhen": [
+   "Kiểm tra tiến độ tổng thể của các plan đang chạy.",
+   "Cập nhật checkbox và status plan sau khi xong một phase/tính năng.",
+   "Tiếp tục công việc nhiều phase ở phiên mới (hydrate lại từ mục chưa check).",
+   "Cần báo cáo trạng thái dự án/plan dạng file.",
+   "Xác minh task đã đáp ứng acceptance criteria trước khi đóng plan."
+  ],
+  "avoidWhen": [
+   "Tạo plan mới — dùng ak:plan.",
+   "Implement plan — dùng ak:cook.",
+   "Chỉ muốn xem kanban trực quan — dùng ak:plans-kanban.",
+   "Báo cáo nhanh trạng thái branch/worktree và việc tiếp theo — dùng ak:watzup."
+  ],
+  "params": [
+   {
+    "name": "status",
+    "kind": "subcommand",
+    "desc": "Đọc trạng thái bền vững của plan và bằng chứng, báo cáo tiến độ (đếm checkbox, frontmatter)."
+   },
+   {
+    "name": "hydrate",
+    "kind": "subcommand",
+    "desc": "Dựng lại view task live từ các mục chưa check trong plan khi surface live đang trống."
+   },
+   {
+    "name": "sync",
+    "kind": "subcommand",
+    "desc": "Sync-back: đối chiếu task đã xong với toàn bộ phase file, cập nhật [ ] → [x], backfill phase trước và cập nhật YAML frontmatter status."
+   },
+   {
+    "name": "report",
+    "kind": "subcommand",
+    "desc": "Tạo báo cáo trạng thái {reports-path}/pm-{date}-{time}-{slug}.md (session summary, plan completion, tổng quan nhiều plan)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:project-management status",
+    "note": "Xem tiến độ các plan đang active."
+   },
+   {
+    "cmd": "/ak:project-management hydrate",
+    "note": "Đầu phiên mới, dựng lại danh sách task từ plan."
+   },
+   {
+    "cmd": "/ak:project-management sync",
+    "note": "Sau khi hoàn tất phase, đồng bộ checkbox và status."
+   },
+   {
+    "cmd": "/ak:project-management report",
+    "note": "Xuất báo cáo tiến độ dạng file."
+   }
+  ],
+  "tips": [
+   "Mất task list live không làm mất tiến độ — plan file mới là nguồn sự thật.",
+   "Trong lúc làm, chỉ cập nhật hạng mục thay đổi; sweep toàn bộ phase chỉ khi hoàn thành hoặc bàn giao.",
+   "Checkbox cũ không được backfill ở phase trước sẽ khiến báo cáo sai % hoàn thành.",
+   "Frontmatter status chỉ nhận pending | in-progress | completed."
+  ],
+  "related": [
+   "ak-plan",
+   "ak-cook",
+   "ak-plans-kanban",
+   "ak-watzup",
+   "ak-docs"
+  ],
+  "agents": [
+   "docs-manager",
+   "project-manager"
+  ],
+  "artifacts": [
+   "Checkbox và YAML frontmatter cập nhật trong plans/*/plan.md, phase-XX-*.md",
+   "{reports-path}/pm-{date}-{time}-{slug}.md"
+  ]
+ },
+ "ak-project-organization": {
+  "tagline": "Chuẩn hóa vị trí file, quy tắc đặt tên, cấu trúc thư mục và template Markdown cho mọi loại project.",
+  "summary": "ak:project-organization cung cấp công thức dự phòng về nơi đặt và cách đặt tên file khi quy ước sẵn có của repo chưa trả lời được. Skill có hai chế độ: Advisory (skill/agent khác hỏi đường dẫn và tên đúng) và Organize (người dùng gọi trực tiếp với thư mục/file để quét, đề xuất và thực hiện di chuyển sau khi xác nhận). Đầu ra là cấu trúc thư mục đã sắp xếp hoặc đường dẫn/tên khuyến nghị. Quy ước của repo, ngôn ngữ và contract sinh mã luôn được ưu tiên.",
+  "howItWorks": [
+   "Đọc hướng dẫn repo và file lân cận trước; chỉ dùng danh mục dự phòng khi không có layout nào sở hữu artifact.",
+   "Rule 1 — danh mục thư mục: src/, docs/ (decisions/ cho ADR), plans/ ({date-slug}/, reports/, journals/, templates/, visuals/), tests/, scripts/, assets/{type}/, config, guides/.",
+   "Rule 2 — đặt tên: Timestamped {YYMMDD-HHmm}-{slug} cho plan/report/journal; Evergreen {slug} cho docs ổn định; Variant {slug}-{variant}.{ext}; slug chữ thường, gạch nối, tối đa 50 ký tự.",
+   "Rule 3 — lồng thư mục: một file thì phẳng; nhiều file thì thư mục con tự chứa; thuộc parent thì lồng dưới parent; thư mục rỗng thêm .gitkeep.",
+   "Rule 4 — template Markdown theo loại (Plan, Phase, Report, Journal, ADR, README...) trong markdown-body-templates.md.",
+   "Rule 5 — cây quyết định đường dẫn: source → test → plan/agent output → docs → asset → script → config.",
+   "Organize mode: Scan → Analyze (vi phạm tên, file đặt sai) → Propose bảng from → to → Check effects (xin duyệt với ghi đè, mất state chưa commit, quyết định cấu trúc chưa rõ) → Execute di chuyển/đổi tên → Verify cấu trúc cuối.",
+   "An toàn: không ghi đè file có sẵn, không đụng .git/, node_modules/, .env, tôn trọng .gitignore."
+  ],
+  "useWhen": [
+   "Dọn lại một thư mục lộn xộn (tên file không thống nhất, file đặt sai chỗ).",
+   "Thiết kế cấu trúc cho project mới khi repo chưa có quy ước.",
+   "Không chắc nên lưu plan, report, asset, test ở đâu và đặt tên thế nào.",
+   "Chuẩn hóa template Markdown cho plan, journal, report, ADR."
+  ],
+  "avoidWhen": [
+   "Tạo file thông thường khi repo đã có quy ước rõ — cứ theo quy ước.",
+   "Viết hoặc cập nhật tài liệu dự án — dùng ak:docs.",
+   "Tạo CLAUDE.md cho thư mục con — dùng ak:folder-context."
+  ],
+  "params": [
+   {
+    "name": "[directories or files to organize]",
+    "kind": "arg",
+    "desc": "Thư mục hoặc file cần sắp xếp; truyền vào thì chạy Organize mode (quét → đề xuất → thực hiện sau xác nhận). Khi skill khác tham chiếu thì chạy Advisory mode."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:project-organization docs/",
+    "note": "Chuẩn hóa tên và vị trí tài liệu."
+   },
+   {
+    "cmd": "/ak:project-organization assets/ plans/",
+    "note": "Sắp xếp asset và plan theo danh mục."
+   },
+   {
+    "cmd": "/ak:project-organization nên lưu báo cáo scout ở đâu?",
+    "note": "Hỏi kiểu Advisory về đường dẫn và tên."
+   }
+  ],
+  "tips": [
+   "Git không tự bảo vệ nội dung untracked hoặc chưa commit — xem kỹ bảng đề xuất trước khi đồng ý di chuyển.",
+   "Định dạng ngày lấy từ $CK_PLAN_DATE_FORMAT, mặc định YYMMDD-HHmm.",
+   "Tên file code theo hook descriptive-name: kebab-case cho JS/TS/Python/Shell, PascalCase cho C#/Java/Swift, snake_case cho Go/Rust.",
+   "Skill là công thức dự phòng — quy ước repo và generator contract luôn thắng."
+  ],
+  "related": [
+   "ak-docs",
+   "ak-folder-context",
+   "ak-plan",
+   "ak-journal"
+  ],
+  "agents": [],
+  "artifacts": [
+   "File/thư mục được di chuyển hoặc đổi tên",
+   "Thư mục mới theo danh mục, .gitkeep cho thư mục rỗng"
+  ]
+ },
+ "ak-ak": {
+  "tagline": "Vận hành an toàn CLI ak — binary cài đặt, kiểm tra, cập nhật, khôi phục và gỡ kit/skill của AgentKit.",
+  "summary": "ak:ak dạy agent cách dùng CLI ak mà không làm hỏng trạng thái của người dùng. Skill phân loại hiệu ứng lệnh (read-only, mutating, diagnostic), xác định scope project hay user/global, ưu tiên kiểm tra trước khi thay đổi, và snapshot trước lệnh khôi phục/gỡ. Đầu vào là mục tiêu hoặc subcommand; đầu ra là lệnh chính xác đã chạy, scope và kết quả (kèm envelope --json khi phù hợp). ak --help và --json luôn là nguồn chuẩn, references/command-reference.md chỉ là chỉ mục khởi đầu.",
+  "howItWorks": [
+   "Triage mục tiêu vào read-only, mutating hoặc diagnostic (TUI, GUI, watch, daemon).",
+   "Chạy ak <cmd> --help; với việc read-only có script thì thêm --json --no-interactive để nhận envelope có schema_version, kind, data.",
+   "Xác nhận scope: project (working tree) hay user/global (~/.claude, ~/.agents, ~/.codex), nguồn cài kit (embedded, registry, local path), adapter/delivery mode.",
+   "Ưu tiên lệnh kiểm tra trước lệnh thay đổi: ak doctor, ak kit list-kits, ak kit validate, ak skill verify, ak plan status, ak backups list...",
+   "Snapshot trước khi mutate nguy hiểm: ak backups create trước ak recover, ak backups restore, ak uninstall hoặc lệnh có --fresh.",
+   "Giữ nguyên file lạ; không bao giờ kết hợp --force với --fresh; báo xung đột thay vì ghi đè.",
+   "Smoke test installer/refresh/recovery chạy trên home tạm với AGENTKIT_HOME, AGENTKIT_CLAUDE_HOME, CODEX_HOME..., không chạy trên state thật.",
+   "Báo cáo lệnh chính xác, scope, kết quả và ràng buộc chưa giải quyết."
+  ],
+  "useWhen": [
+   "Cài, refresh, validate hoặc gỡ một kit AgentKit.",
+   "Liệt kê, tìm, cài hoặc xác minh skill (ak skills / ak skill).",
+   "Chẩn đoán cài đặt bằng ak doctor, ak diagnostics export.",
+   "Khôi phục sau cài đặt hỏng (ak recover, ak backups restore) một cách an toàn.",
+   "Đọc và diễn giải output ak <cmd> --json."
+  ],
+  "avoidWhen": [
+   "Viết hoặc chỉnh một skill — dùng ak:skill-creator.",
+   "Chọn skill nào phù hợp cho task — dùng ak:agentkit.",
+   "Viết plan hoặc thực thi plan — dùng ak:plan, ak:cook.",
+   "Viết journal — dùng ak:journal."
+  ],
+  "params": [
+   {
+    "name": "[goal or subcommand]",
+    "kind": "arg",
+    "desc": "Mục tiêu (vd 'cài engineer kit cho project') hoặc subcommand ak cụ thể. Flag chính xác luôn lấy từ ak <cmd> --help."
+   },
+   {
+    "name": "init | new | setup | onboard",
+    "kind": "subcommand",
+    "desc": "Nhóm bootstrap/setup, đều mutating. ak setup chỉ ghi config user; ak onboard chạy setup, login rồi cài kit."
+   },
+   {
+    "name": "kit",
+    "kind": "subcommand",
+    "desc": "init|install|refresh|validate|uninstall|list-kits|repair-install-mode. list-kits và validate là read-only, còn lại mutating."
+   },
+   {
+    "name": "skills / skill",
+    "kind": "subcommand",
+    "desc": "ak skills list|show|search|install|remove|graph cho inventory; ak skill install|remove|repair|upgrade|verify cho từng skill."
+   },
+   {
+    "name": "plan / journal",
+    "kind": "subcommand",
+    "desc": "plan list|show|status|search|validate|resolve|parse là read-only; create|check|uncheck|add-phase|update|use|archive|close|reindex|migrate là mutating; plan kanban là TUI diagnostic. journal list|show|validate đọc, journal create ghi."
+   },
+   {
+    "name": "doctor / diagnostics / backups",
+    "kind": "subcommand",
+    "desc": "Chẩn đoán gần như read-only (doctor, activity, audit, sessions, analytics, versions, changelog, diagnostics export); backups create/list phục vụ snapshot trước khi mutate."
+   },
+   {
+    "name": "recover",
+    "kind": "subcommand",
+    "desc": "Khôi phục, mutating và không đảo ngược nếu không có ak backups create trước; luôn xác nhận scope và preview."
+   },
+   {
+    "name": "self-update",
+    "kind": "subcommand",
+    "desc": "Cập nhật binary; chạy ak versions và xem ak changelog trước. Binary có thể mới hơn bản skill đã cài cho tới lần ak update kế tiếp."
+   },
+   {
+    "name": "login",
+    "kind": "subcommand",
+    "desc": "Lệnh auth cấp cao nhất (cùng logout, whoami, licenses), không nằm dưới ak auth; ghi vào state user."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:ak kiểm tra cài đặt AgentKit có lỗi gì không",
+    "note": "Chạy ak doctor và diễn giải kết quả."
+   },
+   {
+    "cmd": "/ak:ak cài engineer kit cho project này",
+    "note": "Xác nhận scope project trước khi mutate."
+   },
+   {
+    "cmd": "/ak:ak recover",
+    "note": "Snapshot bằng ak backups create rồi mới khôi phục."
+   },
+   {
+    "cmd": "/ak:ak self-update",
+    "note": "Kiểm tra versions/changelog trước khi cập nhật binary."
+   }
+  ],
+  "tips": [
+   "Không bịa flag: nếu không có trong ak <cmd> --help thì flag đó chưa được phát hành.",
+   "Báo 'đã cài kit' là chưa đủ — luôn nêu scope project hay global, adapter và xung đột bị bỏ qua.",
+   "--quiet thắng --verbose; --verbose không đổi envelope JSON.",
+   "Không chạy lại lệnh mutating chỉ để lấy thêm chi tiết chẩn đoán; dùng --verbose trên bản tái hiện read-only."
+  ],
+  "related": [
+   "ak-agentkit",
+   "ak-skill-creator",
+   "ak-plan",
+   "ak-journal",
+   "ak-plans-kanban",
+   "ak-orchestrate"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Thay đổi do lệnh ak gây ra (kit/skill trong scope project hoặc user)",
+   "Backup từ ak backups create",
+   "Envelope JSON từ --json"
+  ]
+ },
+ "ak-find-skills": {
+  "tagline": "Tìm và cài agent skill từ hệ sinh thái mở khi người dùng thực sự muốn thêm năng lực mới.",
+  "summary": "ak:find-skills giúp khám phá, so sánh và cài skill qua Skills CLI (npx skills) và skills.sh. Skill chỉ dùng khi người dùng hỏi rõ về tìm/cài skill hoặc khi thiếu năng lực đã được xác minh; yêu cầu bình thường như viết component hay review PR thì làm trực tiếp bằng workflow sẵn có. Với lựa chọn giữa các skill AgentKit đã cài, skill ưu tiên catalog live và domain-routing.md trước khi tìm bên ngoài. Đầu ra là danh sách gợi ý kèm lệnh cài, hoặc skill đã cài kèm nguồn gốc và scope.",
+  "howItWorks": [
+   "Xác định nhu cầu: domain, task cụ thể và khả năng đã có skill.",
+   "Nếu đang chọn giữa các skill AgentKit đã cài: load references/domain-routing.md, không dùng Skills CLI.",
+   "Tìm bên ngoài: npx skills find [query] với từ khóa cụ thể.",
+   "Trình bày lựa chọn: tên skill, công dụng, lệnh cài, link skills.sh.",
+   "Nếu người dùng đồng ý: npx skills add <owner/repo@skill>; xác định scope từ yêu cầu, xem help của CLI cho scope và flag noninteractive; -g chỉ khi người dùng chọn cài toàn user.",
+   "Báo nguồn gốc package, runtime, scope đích và kết quả quan sát được.",
+   "Không tìm thấy: nói rõ, tiếp tục task bằng năng lực sẵn có, gợi ý tự tạo bằng npx skills init."
+  ],
+  "useWhen": [
+   "Người dùng hỏi 'có skill nào cho X không?'.",
+   "Muốn so sánh vài skill cộng đồng trước khi cài.",
+   "Một năng lực bị thiếu đã được xác minh đang chặn task.",
+   "Muốn kiểm tra/cập nhật skill đã cài (npx skills check, npx skills update)."
+  ],
+  "avoidWhen": [
+   "Yêu cầu bình thường đã có workflow cài sẵn — làm trực tiếp.",
+   "Chọn skill AgentKit phù hợp cho task — dùng ak:agentkit.",
+   "Tự viết skill mới — dùng ak:skill-creator.",
+   "Cài/gỡ kit AgentKit — dùng ak:ak."
+  ],
+  "params": [
+   {
+    "name": "[capability or task description]",
+    "kind": "arg",
+    "desc": "Năng lực hoặc task cần tìm skill; dùng làm query cho npx skills find."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:find-skills react performance",
+    "note": "Tìm skill tối ưu hiệu năng React."
+   },
+   {
+    "cmd": "/ak:find-skills changelog",
+    "note": "Tìm skill sinh changelog."
+   },
+   {
+    "cmd": "/ak:find-skills skill nào đã cài phù hợp để làm SEO?",
+    "note": "Chọn trong catalog đã cài qua domain-routing.md."
+   }
+  ],
+  "tips": [
+   "Dùng từ khóa cụ thể ('react testing' tốt hơn 'testing'); thử từ đồng nghĩa như deploy/deployment/ci-cd.",
+   "Nguồn phổ biến: vercel-labs/agent-skills, ComposioHQ/awesome-claude-skills.",
+   "Chỉ dùng -g khi người dùng chọn cài cho toàn user; mặc định theo scope project hiện tại.",
+   "Skill bên ngoài là mã/prompt của bên thứ ba — kiểm tra nguồn gốc trước khi cài."
+  ],
+  "related": [
+   "ak-agentkit",
+   "ak-skill-creator",
+   "ak-ak",
+   "ak-help"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Skill được cài qua npx skills add (thư mục skill trong scope project hoặc user)"
+  ]
+ },
+ "ak-skill-creator": {
+  "tagline": "Tạo, cập nhật, audit, tối ưu và đóng gói agent skill, có validate cấu trúc, lint prompt và đánh giá bằng consumer.",
+  "summary": "ak:skill-creator có 4 workflow: create (tạo skill mới), update (sửa skill có sẵn và tăng metadata.version), audit (chỉ báo cáo cruft, provenance, lint) và optimize (đề xuất diff, chỉ áp dụng khi --apply). Skill xác định scope (mặc định project, kit chỉ trong repo AgentKit, user khi được yêu cầu), viết hướng dẫn cho consumer mới trên runtime mục tiêu và yêu cầu bằng chứng tương xứng với loại thay đổi trước khi coi là xong. Đầu ra là thư mục skill mới/đã sửa, báo cáo audit hoặc diff đề xuất.",
+  "howItWorks": [
+   "Chọn workflow theo subcommand: create → skill-creation-workflow.md; update → writing-effective-instructions.md + testing-and-iteration.md; audit/optimize → prompt-cruft-patterns.md.",
+   "Resolve scope qua agentkit-kit-skill-contract.md: kit skill ở kits/<kit>/skills/ak-<slug>/, project skill ở .claude/skills/<slug>/ hoặc .agents/skills/<slug>/, user skill ở thư mục skill của runtime.",
+   "Tạo skeleton khi cần: scripts/init_skill.py <name> --path <dir> [--kit <kit>].",
+   "Viết outcome, context, ràng buộc, xác minh; routing ngắn gọn và cụ thể theo metadata-quality-criteria.md; nêu ranh giới quyền và dữ liệu nhạy cảm.",
+   "Validate: uv run scripts/quick_validate.py <skill-dir> và uv run --with PyYAML==6.0.3 scripts/lint_cruft.py <skill-dir> --routing; xử lý finding High bằng cách viết lại hoặc ghi ngoại lệ có phạm vi.",
+   "Thu bằng chứng theo loại thay đổi: metadata → trace routing thật (positive và negative lân cận); instructions/scripts → so artifact consumer gốc và ứng viên (create so thêm với không skill); packaging → kiểm tra nội dung package.",
+   "--advice: gọi kongming tại các checkpoint; --long-horizon: theo long-horizon-repository-architecture.md, chỉ tạo target mới.",
+   "Audit kết thúc bằng finding, ràng buộc giữ lại, thay đổi đề xuất; optimize kết thúc bằng diff hoặc bản áp dụng (--apply) kèm kết quả so sánh."
+  ],
+  "useWhen": [
+   "Tạo skill mới cho một workflow lặp lại của team.",
+   "Skill không được kích hoạt đúng lúc và cần chẩn đoán routing.",
+   "Audit một skill hoặc cả kit để tìm hướng dẫn lỗi thời/thừa.",
+   "Tối ưu một skill dựa trên báo cáo audit có sẵn.",
+   "Đóng gói skill để phân phối lên marketplace."
+  ],
+  "avoidWhen": [
+   "Xây CLI hoặc MCP server — dùng ak:agentize hoặc ak:mcp-builder.",
+   "Tìm/cài skill có sẵn — dùng ak:find-skills.",
+   "Cài/gỡ kit hoặc skill bằng CLI — dùng ak:ak.",
+   "Chỉ cần viết lại câu chữ theo lối mệnh lệnh cho rule file — dùng imperative-writing."
+  ],
+  "params": [
+   {
+    "name": "create <name or description>",
+    "kind": "subcommand",
+    "desc": "Tạo skill mới: resolve target, nắm intent, viết và đánh giá. Ghi skill mới."
+   },
+   {
+    "name": "update <path> <change>",
+    "kind": "subcommand",
+    "desc": "Sửa skill có sẵn và tài nguyên liên quan, giữ hành vi đã chấp nhận, tăng metadata.version."
+   },
+   {
+    "name": "audit [path|kit|--all]",
+    "kind": "subcommand",
+    "desc": "Kiểm kê, provenance, lint và review ngữ nghĩa kèm hunk đề xuất. Chỉ báo cáo, không sửa. Có thể thêm --target-model <model>."
+   },
+   {
+    "name": "optimize <path>",
+    "kind": "subcommand",
+    "desc": "Phân loại finding, so bản gốc với ứng viên scratch, giữ ràng buộc có lý do; mặc định chỉ đề xuất diff."
+   },
+   {
+    "name": "[skill-name|path|kit|--all]",
+    "kind": "arg",
+    "desc": "Đối tượng: tên skill, đường dẫn, tên kit, hoặc --all cho mọi skill (dùng với audit)."
+   },
+   {
+    "name": "--kit <kit>",
+    "kind": "flag",
+    "desc": "Tạo skill trong kit AgentKit (kits/<kit>/skills/ak-<slug>/, namespace ak:<slug>); chỉ hợp lệ khi làm việc trong repo AgentKit."
+   },
+   {
+    "name": "--project",
+    "kind": "flag",
+    "desc": "Tạo skill ở scope project (.claude/skills/<slug>/ hoặc .agents/skills/<slug>/). Đây là scope mặc định."
+   },
+   {
+    "name": "--user",
+    "kind": "flag",
+    "desc": "Tạo skill ở thư mục skill cấp user của runtime; chỉ khi người dùng yêu cầu."
+   },
+   {
+    "name": "--long-horizon",
+    "kind": "flag",
+    "desc": "Theo kiến trúc repository long-horizon cùng scaffold template và building loop; chỉ tạo target mới, bảo vệ target có sẵn và config host toàn cục."
+   },
+   {
+    "name": "--apply",
+    "kind": "flag",
+    "desc": "Với optimize: áp dụng diff đề xuất thay vì chỉ trình bày."
+   },
+   {
+    "name": "--from-audit <report>",
+    "kind": "flag",
+    "desc": "Với optimize: dùng báo cáo audit có sẵn làm đầu vào."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "Giám sát tư vấn bởi kongming tại các checkpoint (advisory-supervision.md); không bao giờ bỏ qua validation hay authorization."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:skill-creator create \"tạo release notes từ git log\" --project",
+    "note": "Tạo skill project mới."
+   },
+   {
+    "cmd": "/ak:skill-creator update .claude/skills/deploy-staging \"thêm bước smoke test\"",
+    "note": "Sửa skill có sẵn và tăng version."
+   },
+   {
+    "cmd": "/ak:skill-creator audit --all",
+    "note": "Audit mọi skill, chỉ báo cáo."
+   },
+   {
+    "cmd": "/ak:skill-creator optimize .claude/skills/deploy-staging --from-audit plans/reports/audit.md --apply",
+    "note": "Áp dụng tối ưu từ báo cáo audit."
+   }
+  ],
+  "tips": [
+   "Mô tả dài hay từ ngữ nhấn mạnh không làm skill được kích hoạt tốt hơn; cần trace routing thật với positive và negative lân cận.",
+   "Finding của lint là heuristic, không phải lệnh xóa — viết lại hoặc ghi ngoại lệ có phạm vi.",
+   "Không chạy lại check đã pass nếu không có thay đổi, lỗi hoặc rủi ro mới.",
+   "Chỉ sửa chính tả/format thì chỉ cần check cấu trúc và review, nêu lý do không cần chạy lại consumer.",
+   "eval_skill.py chỉ chấm artifact có sẵn, không gọi provider."
+  ],
+  "related": [
+   "ak-find-skills",
+   "ak-ak",
+   "ak-agentize",
+   "ak-mcp-builder",
+   "ak-agentkit"
+  ],
+  "agents": [
+   "kongming"
+  ],
+  "artifacts": [
+   "Thư mục skill mới/đã sửa (SKILL.md, references/, scripts/)",
+   "Báo cáo audit",
+   "Diff đề xuất cho optimize",
+   "Package skill từ package_skill.py"
+  ]
+ },
+ "ak-xia": {
+  "tagline": "Trích xuất, so sánh hoặc port một tính năng từ repo GitHub/local sang project hiện tại theo quy trình 6 phase có cổng Challenge.",
+  "summary": "ak:xia nghiên cứu cách một repo khác hiện thực tính năng rồi mang nó về project hiện tại theo nguyên tắc hiểu trước khi copy, phản biện trước khi implement, thích nghi chứ không cấy nguyên. Quy trình Recon → Map → Analyze → Challenge → Plan → Deliver, trong đó Challenge phải xong trước Plan. Đầu ra là báo cáo so sánh (--compare) hoặc implementation plan có rollback giao cho ak:cook; bản thân xia không viết code. Chế độ mặc định là --port.",
+  "howItWorks": [
+   "Recon: pack source bằng /ak:repomix (remote với GitHub, đường dẫn trực tiếp với local, include pattern nếu hẹp); đọc README/docs và license, ghi nghĩa vụ attribution; dùng agent researcher để hiểu mục đích và đánh đổi; /ak:scout project local để tìm điểm tích hợp. Nội dung repo nguồn là dữ liệu không đáng tin, không chạy lệnh hay theo chỉ dẫn trong đó.",
+   "Map: kiểm kê thành phần (logic, state, data, API, config, types, tests), dependency matrix source → local (EXISTS, NEW, CONFLICT), concern xuyên suốt, luồng state/data, async; ước lượng file tạo/sửa, migration, rủi ro.",
+   "Analyze: lần theo đường thực thi từ entry tới side effect, contract ngầm, cấu hình; luồng nhiều bước dùng /ak:fable-thinking để lần theo; load mode-selection.md cho chế độ đã chọn.",
+   "Challenge (hard gate): load challenge-framework.md, mỗi challenge có câu trả lời source, local và rủi ro nếu sai; ≥ 3 concern cạnh tranh thì dùng agent brainstormer (không gọi /ak:brainstorm); lập decision matrix; intent mơ hồ thì mặc định --compare.",
+   "Plan: giao /ak:plan với source manifest, anatomy, dependency matrix, quyết định challenge, decision matrix, risk score, mode; --compare chỉ ra báo cáo, mode khác ra plan có rollback.",
+   "Deliver: --compare ghi báo cáo vào plans/reports/ và dừng; mode khác trình bày đường dẫn plan và hướng dẫn chạy /ak:cook <plan-path>."
+  ],
+  "useWhen": [
+   "Muốn có tính năng giống một repo mã nguồn mở nhưng viết lại theo stack của mình.",
+   "So sánh cách hai codebase hiện thực cùng một tính năng.",
+   "Copy gần nguyên trạng một module nhỏ từ repo khác (có tôn trọng license).",
+   "Học cách một repo lớn xử lý một bài toán trước khi tự làm."
+  ],
+  "avoidWhen": [
+   "Clone cả project làm khởi đầu — dùng ak:bootstrap.",
+   "Chỉ copy file đơn giản hoặc cài package — làm trực tiếp.",
+   "Chỉ cần đóng gói repo làm context — dùng ak:repomix.",
+   "Muốn implement ngay không cần phân tích — dùng ak:cook."
+  ],
+  "params": [
+   {
+    "name": "<github-url-or-owner/repo|local-path>",
+    "kind": "arg",
+    "desc": "Repo nguồn: URL GitHub, owner/repo hoặc đường dẫn local. URL trỏ tới file/path cụ thể sẽ tự thu hẹp phạm vi."
+   },
+   {
+    "name": "[feature]",
+    "kind": "arg",
+    "desc": "Mô tả tính năng cần trích xuất; từ khóa trong đó cũng dùng để suy chế độ (compare/vs, copy/exact/as-is, improve/better/adapt, port/convert/rewrite)."
+   },
+   {
+    "name": "--compare",
+    "kind": "flag",
+    "desc": "Chỉ phân tích song song, không có implementation plan; báo cáo ghi vào plans/reports/. Là mặc định khi intent mơ hồ."
+   },
+   {
+    "name": "--copy",
+    "kind": "flag",
+    "desc": "Cấy sang với thay đổi tối thiểu."
+   },
+   {
+    "name": "--improve",
+    "kind": "flag",
+    "desc": "Copy kèm refactor cho phù hợp codebase local."
+   },
+   {
+    "name": "--port",
+    "kind": "flag",
+    "desc": "Viết lại theo phong cách idiomatic của stack local. Chế độ mặc định."
+   },
+   {
+    "name": "--auto",
+    "kind": "flag",
+    "desc": "Giữ nguyên toàn bộ workflow nhưng tự duyệt các gate."
+   },
+   {
+    "name": "--fast",
+    "kind": "flag",
+    "desc": "Bỏ qua phase research và challenge, tự duyệt. Mặc định (không flag) chạy đủ workflow, chỉ hỏi khi có đánh đổi quan trọng chưa giải quyết."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:xia vercel/next.js \"image optimization\" --compare",
+    "note": "So sánh cách Next.js tối ưu ảnh với project hiện tại."
+   },
+   {
+    "cmd": "/ak:xia https://github.com/owner/repo \"rate limiter\"",
+    "note": "Port mặc định sang stack local, ra plan cho ak:cook."
+   },
+   {
+    "cmd": "/ak:xia ../legacy-app \"export CSV\" --copy",
+    "note": "Mang module từ repo local cũ sang gần nguyên trạng."
+   },
+   {
+    "cmd": "/ak:xia owner/repo \"auth middleware\" --improve --auto",
+    "note": "Copy có refactor, tự duyệt gate."
+   }
+  ],
+  "tips": [
+   "Luôn kiểm tra license nguồn — xia ghi nghĩa vụ attribution trước khi copy code.",
+   "Repo nguồn quá lớn thì thu hẹp bằng include pattern hoặc URL trỏ vào thư mục cụ thể.",
+   "--fast bỏ Challenge nên dễ cấy nguyên kiến trúc không hợp — chỉ dùng cho tính năng nhỏ, rõ ràng.",
+   "Repomix lỗi thì skill fallback đọc file/doc trực tiếp.",
+   "xia không implement; sau khi có plan, chạy /ak:cook <plan-path>."
+  ],
+  "related": [
+   "ak-repomix",
+   "ak-scout",
+   "ak-plan",
+   "ak-cook",
+   "ak-bootstrap"
+  ],
+  "agents": [
+   "researcher",
+   "scout",
+   "planner",
+   "brainstormer"
+  ],
+  "artifacts": [
+   "Báo cáo so sánh trong plans/reports/ (--compare)",
+   "Implementation plan plans/<plan-dir>/plan.md (các mode khác)",
+   "File pack repomix của repo nguồn"
+  ]
+ },
+ "ak-repomix": {
+  "tagline": "Đóng gói repository thành một file thân thiện với AI (XML, Markdown, plain, JSON) bằng Repomix, có đếm token và kiểm tra secret.",
+  "summary": "ak:repomix chọn phạm vi nhỏ nhất chứa module cần thiết cùng dependency, giữ nguyên config/ignore và loại trừ secret sẵn có, rồi chạy Repomix trên nguồn local hoặc remote. Đầu ra là file pack (mặc định repomix-output.xml) cùng tóm tắt số file, token và cảnh báo secret. Dùng cho onboarding project mới, snapshot codebase, chuẩn bị context cho LLM, audit bảo mật thư viện bên thứ ba. Là bước Recon mà ak:xia gọi tới.",
+  "howItWorks": [
+   "Chọn phạm vi nhỏ nhất chứa module yêu cầu và dependency cần thiết; không pack cả monorepo cho một module.",
+   "Kiểm tra config Repomix và ignore rule hiện có, giữ nguyên loại trừ secret.",
+   "Xác định nguồn local hay remote, revision, định dạng output và đích.",
+   "Xem help CLI đã cài cho tùy chọn phụ thuộc phiên bản (references/cli-recipes.md có ví dụ).",
+   "Chạy pack có phạm vi (vd repomix --include \"src/**/*.ts\" --style markdown -o out.md, hoặc npx repomix --remote owner/repo).",
+   "Kiểm tra danh sách file, tóm tắt token và cảnh báo secret; xác minh không thiếu dependency cần thiết và không lẫn nội dung nhạy cảm.",
+   "Tái sử dụng pack cũ chỉ khi hash file đầu vào, revision và config không đổi.",
+   "Báo cáo nguồn/revision, phạm vi, đường dẫn output, số lượng và giới hạn."
+  ],
+  "useWhen": [
+   "Onboard một codebase lạ và muốn đưa toàn bộ module vào context LLM.",
+   "Phân tích hoặc audit một thư viện bên thứ ba từ GitHub mà không cần clone.",
+   "Chuẩn bị file context cho review bằng AI.",
+   "Tạo snapshot codebase tại một revision cụ thể."
+  ],
+  "avoidWhen": [
+   "Chỉ cần tìm vài file liên quan — dùng ak:scout.",
+   "Cần truy vấn quan hệ lặp lại nhiều lần — dùng ak:graphify.",
+   "Cần go-to-definition/find-usages chính xác — dùng ak:gkg.",
+   "Muốn port tính năng từ repo khác — dùng ak:xia (xia tự gọi repomix)."
+  ],
+  "params": [
+   {
+    "name": "[path]",
+    "kind": "arg",
+    "desc": "Đường dẫn local cần pack (mặc định thư mục hiện tại); với nguồn remote dùng dạng owner/repo hoặc URL qua --remote của Repomix."
+   },
+   {
+    "name": "--style xml|markdown|plain|json",
+    "kind": "flag",
+    "desc": "Định dạng output; mặc định của Repomix là XML (repomix-output.xml)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:repomix",
+    "note": "Pack thư mục hiện tại thành XML."
+   },
+   {
+    "cmd": "/ak:repomix src/payments --style markdown",
+    "note": "Chỉ pack module thanh toán dạng Markdown để review."
+   },
+   {
+    "cmd": "/ak:repomix yamadashy/repomix --style xml",
+    "note": "Pack repo remote để phân tích mà không clone."
+   },
+   {
+    "cmd": "/ak:repomix vendor/library --style json",
+    "note": "Snapshot thư viện bên thứ ba cho audit."
+   }
+  ],
+  "tips": [
+   "Không bao giờ tắt kiểm tra secret chỉ để có output.",
+   "Xem tóm tắt token trước khi đưa file vào context — pack quá lớn sẽ tốn ngân sách.",
+   "--remove-comments của Repomix giúp giảm token khi chỉ cần cấu trúc code.",
+   "Pack remote có thể chỉ định commit qua URL .../commit/<hash> để cố định revision."
+  ],
+  "related": [
+   "ak-xia",
+   "ak-scout",
+   "ak-graphify",
+   "ak-gkg",
+   "ak-security"
+  ],
+  "agents": [],
+  "artifacts": [
+   "File pack repomix-output.xml (hoặc .md/.txt/.json theo --style và -o)"
+  ]
+ },
+ "ak-graphify": {
+  "tagline": "Dựng knowledge graph truy vấn được từ code, docs, paper và ảnh để hỏi quan hệ kiến trúc lặp lại nhiều lần.",
+  "summary": "ak:graphify biến một thư mục code/tài liệu/ảnh thành knowledge graph qua 3 pass: AST tree-sitter cho code (20 ngôn ngữ, chạy local), Whisper cho audio/video (local) và subagent LLM cho docs/paper/ảnh (gửi tới provider). Đầu ra nằm trong graphify-out/: graph.html tương tác, GRAPH_REPORT.md (god node, liên kết bất ngờ, câu hỏi gợi ý), graph.json và cache tăng dần. Graph có thể phục vụ như MCP server. Chỉ đáng dùng khi truy vấn quan hệ lặp lại bù được chi phí dựng.",
+  "howItWorks": [
+   "Cân chi phí: tra một hàm hay file nhỏ thì dùng search native; kiểm tra graph/cache có sẵn và revision nguồn, chỉ làm mới đầu vào đã cũ.",
+   "Trước khi xử lý bằng LLM, xem tài liệu/ảnh nào sẽ rời máy và xác nhận nằm trong phạm vi người dùng cho phép.",
+   "Cài đặt nếu cần: pip install graphifyy (hai chữ y; [mcp] hoặc [all] cho tính năng thêm); không chạy graphify install trong AgentKit.",
+   "Pass 1: tree-sitter trích AST (import, call, kế thừa) → cạnh EXTRACTED.",
+   "Pass 2: Whisper phiên âm media local.",
+   "Pass 3: subagent LLM trích ngữ nghĩa từ docs/paper/ảnh song song → cạnh INFERRED (có confidence) hoặc AMBIGUOUS.",
+   "Ghi graphify-out/graph.html, GRAPH_REPORT.md, graph.json, cache/ (SHA256, chỉ xử lý lại file đổi).",
+   "Tùy chọn phục vụ MCP: python -m graphify.serve graphify-out/graph.json với các tool query_graph, get_node, get_neighbors, shortest_path.",
+   "Xác minh các cạnh suy luận quan trọng với source; ghi thời gian dựng/chi phí nếu quan sát được, không thì unknown."
+  ],
+  "useWhen": [
+   "Hỏi đi hỏi lại về kiến trúc và chuỗi phụ thuộc của một codebase lớn.",
+   "Tìm god node (khái niệm kết nối nhiều nhất) trước khi refactor.",
+   "Khám phá liên kết xuyên file giữa code và tài liệu thiết kế.",
+   "Chuẩn bị hiểu kiến trúc trước khi chạy ak:plan.",
+   "Muốn Claude truy vấn graph trực tiếp qua MCP."
+  ],
+  "avoidWhen": [
+   "Tra một hàm hoặc file nhỏ — dùng search native hoặc ak:scout.",
+   "Cần dump toàn bộ context một lần — dùng ak:repomix.",
+   "Cần go-to-definition/find-usages chính xác theo ngôn ngữ — dùng ak:gkg.",
+   "Tài liệu nhạy cảm không được gửi tới provider — pass ngữ nghĩa sẽ gửi docs/ảnh ra ngoài."
+  ],
+  "params": [
+   {
+    "name": "[path]",
+    "kind": "arg",
+    "desc": "Thư mục cần dựng graph; mặc định thư mục hiện tại (graphify .)."
+   },
+   {
+    "name": "--mcp",
+    "kind": "flag",
+    "desc": "(nguồn không mô tả chi tiết flag này) Tương ứng chế độ MCP server: phục vụ graph.json qua python -m graphify.serve để Claude gọi query_graph, get_node, get_neighbors, shortest_path; cần graphifyy[mcp]."
+   },
+   {
+    "name": "--report",
+    "kind": "flag",
+    "desc": "(nguồn không mô tả chi tiết flag này) Liên quan tới GRAPH_REPORT.md: god node, liên kết bất ngờ, câu hỏi gợi ý."
+   },
+   {
+    "name": "--watch",
+    "kind": "flag",
+    "desc": "Chế độ watch: tự dựng lại graph khi file thay đổi (graphify . --watch), tăng dần nhờ cache."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:graphify",
+    "note": "Dựng graph cho thư mục hiện tại."
+   },
+   {
+    "cmd": "/ak:graphify services/billing --report",
+    "note": "Dựng graph một service và đọc GRAPH_REPORT.md."
+   },
+   {
+    "cmd": "/ak:graphify . --watch",
+    "note": "Giữ graph luôn cập nhật khi đang sửa code."
+   },
+   {
+    "cmd": "/ak:graphify . --mcp",
+    "note": "Phục vụ graph qua MCP để truy vấn trực tiếp."
+   }
+  ],
+  "tips": [
+   "Package PyPI là graphifyy (hai chữ y) — các package graphify* khác không liên quan.",
+   "Lần dựng đầu trên codebase lớn có thể chậm; các lần sau chỉ xử lý file đã đổi.",
+   "Cạnh INFERRED/AMBIGUOUS do LLM suy ra — xác minh với source trước khi dựa vào cho quyết định quan trọng.",
+   "Code được xử lý local; chỉ docs/ảnh được gửi tới provider cho pass ngữ nghĩa.",
+   "Neo4j và Leiden community detection cần cài extra riêng ([neo4j], [leiden])."
+  ],
+  "related": [
+   "ak-repomix",
+   "ak-scout",
+   "ak-gkg",
+   "ak-plan",
+   "ak-diagram"
+  ],
+  "agents": [
+   "Subagent LLM trích xuất ngữ nghĩa (pass 3)"
+  ],
+  "artifacts": [
+   "graphify-out/graph.html",
+   "graphify-out/GRAPH_REPORT.md",
+   "graphify-out/graph.json",
+   "graphify-out/cache/"
+  ]
+ },
+ "ak-gkg": {
+  "tagline": "Phân tích code ngữ nghĩa bằng GitLab Knowledge Graph: go-to-definition, find-usages, impact analysis.",
+  "summary": "ak:gkg dùng GitLab Knowledge Graph (AST + KuzuDB) để cho AI khả năng điều hướng code như IDE: tìm định nghĩa, tìm mọi chỗ dùng, phân tích tác động trước khi refactor và vẽ sơ đồ kiến trúc. Đầu vào là symbol hoặc câu truy vấn; skill kiểm tra index/server có sẵn trước, chỉ index lại phần thiếu/cũ, rồi truy vấn qua HTTP API (localhost:27495) hoặc MCP. Hỗ trợ đầy đủ tham chiếu xuyên file cho Ruby, Java, Kotlin; Python/TypeScript/JavaScript còn đang hoàn thiện. Yêu cầu git repo; dữ liệu lưu ở ~/.gkg/.",
+  "howItWorks": [
+   "Kiểm tra cài đặt: gkg --version (cài qua script install.sh/install.ps1 nếu thiếu).",
+   "Kiểm tra index và server đang chạy; nếu còn mới thì truy vấn luôn.",
+   "Chỉ index lại phần thiếu/cũ: gkg index [path] [--stats]; nếu cần dừng server để reindex thì chỉ dừng server do task này sở hữu, server của phiên khác thì dùng search native hoặc phối hợp.",
+   "Khởi động server khi cần: gkg server start (thêm --register-mcp để có endpoint MCP).",
+   "Truy vấn qua HTTP API hoặc MCP tool: list_projects, search_codebase_definitions, index_project, get_references, read_definitions, get_definition, repo_map.",
+   "Impact analysis: truy vấn get_references cho symbol thay đổi và review mọi call site trước khi refactor.",
+   "Với ngôn ngữ hỗ trợ chưa đủ, kết quả rỗng không chứng minh không có caller — đối chiếu bằng search native."
+  ],
+  "useWhen": [
+   "Tìm mọi chỗ gọi một hàm/class trước khi đổi signature.",
+   "Go-to-definition cho symbol trong codebase lớn.",
+   "Phân tích tác động trước khi refactor ở repo Ruby/Java/Kotlin.",
+   "Sinh repo map hoặc sơ đồ kiến trúc từ graph."
+  ],
+  "avoidWhen": [
+   "Cần dump context nhanh, hỗ trợ mọi ngôn ngữ, repo remote hoặc đếm token — dùng ak:repomix.",
+   "Không phải git repo — gkg yêu cầu repo đã khởi tạo.",
+   "Repo Python/TS/JS cần độ phủ tham chiếu tuyệt đối — kết hợp search native hoặc ak:scout.",
+   "Cần graph gồm cả docs/ảnh — dùng ak:graphify."
+  ],
+  "params": [
+   {
+    "name": "[symbol or query]",
+    "kind": "arg",
+    "desc": "Tên symbol (hàm, class, method) hoặc câu truy vấn: tìm định nghĩa, tìm usages, phân tích tác động."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:gkg UserService#authenticate",
+    "note": "Tìm định nghĩa và mọi chỗ gọi trước khi đổi logic."
+   },
+   {
+    "cmd": "/ak:gkg impact của việc đổi tên OrderRepository.findByStatus",
+    "note": "Liệt kê call site bị ảnh hưởng."
+   },
+   {
+    "cmd": "/ak:gkg repo map của module billing",
+    "note": "Xem cấu trúc module qua repo_map."
+   }
+  ],
+  "tips": [
+   "Không bao giờ dừng server gkg của phiên khác; xác lập quyền sở hữu trước khi reindex.",
+   "Port mặc định 27495; bận thì gkg tự chọn port trống — kiểm tra gkg server status.",
+   "Kết quả rỗng trên TS/JS/Python chưa chắc là không có tham chiếu — luôn đối chiếu grep.",
+   "Dùng gkg clean --dry-run để xem dữ liệu mồ côi trước khi dọn."
+  ],
+  "related": [
+   "ak-repomix",
+   "ak-graphify",
+   "ak-scout",
+   "ak-debug"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Index và database trong ~/.gkg/",
+   "Process gkg server (HTTP localhost:27495)"
+  ]
+ }
+}

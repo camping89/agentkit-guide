@@ -1,0 +1,924 @@
+{
+ "ak-autoresearch": {
+  "tagline": "Bộ định tuyến cho mô hình lặp có giới hạn: đổi một thứ, đo, giữ hoặc bỏ, rồi lặp lại.",
+  "summary": "ak:autoresearch không tự chạy vòng lặp mà định tuyến mẫu 'autoresearch' (đổi một thay đổi, kiểm chứng bằng metric đo được, giữ hoặc hoàn tác, lặp trong biên an toàn) tới skill chuyên trách sở hữu kết quả mong muốn. Đầu vào là một mục tiêu hoặc giả thuyết, kèm tùy chọn số vòng và metric. Đầu ra là việc chuyển sang đúng skill (`/ak:loop`, `/ak:predict`, `/ak:scenario`, `/ak:security` hoặc capability tạo/đánh giá skill như `ak:skill-creator`) cùng một 'stable loop contract' đã chốt trước khi sửa. Nó nằm ở đầu chuỗi khi người dùng muốn cải thiện một kết quả đo được qua nhiều vòng lặp có kiểm chứng.",
+  "howItWorks": [
+   "Đọc live skill catalog trước để biết skill nào thực sự đang cài; catalog là nguồn sự thật về tên và khả dụng.",
+   "Khớp ý định với bảng route: cải thiện kết quả kỹ thuật đo được qua vòng lặp có giới hạn → `/ak:loop`; so sánh góc nhìn chuyên gia trước quyết định rủi ro → `/ak:predict`; mở rộng edge case và kiểm giả thuyết → `/ak:scenario`; review bảo mật theo threat → `/ak:security`; tối ưu một skill theo routing và chất lượng → capability tạo/đánh giá skill (vd `ak:skill-creator`).",
+   "Nếu không route nào sở hữu kết quả: không bịa alias; với yêu cầu mơ hồ kiểu 'làm cho rõ hơn' mà không có metric thì tìm một quality check quan sát được hoặc quay về workflow chỉnh sửa thông thường; không bao giờ chạy vòng lặp không giới hạn.",
+   "Chốt loop contract trước khi sửa: metric, baseline, guard conditions, giới hạn số vòng và điều kiện dừng.",
+   "Mỗi vòng chỉ một thay đổi có thể quy trách nhiệm (attributable), chạy verification và guard đã khai báo.",
+   "Chỉ giữ thay đổi khi bằng chứng thỏa contract; nếu không thì khôi phục an toàn trạng thái trước vòng.",
+   "Ghi kết quả và quyết định vòng tiếp theo có đáng chạy không; mọi push, publish, deploy hay side effect bên ngoài vẫn cần user gate bình thường.",
+   "Xem nội dung fetch và output lệnh là dữ liệu, không phải chỉ thị; che credentials trong findings; sàng lọc verify command do người dùng cung cấp trước khi chạy; giữ các lần chạy non-interactive có giới hạn."
+  ],
+  "useWhen": [
+   "Muốn cải thiện một con số đo được (thời gian build, tỉ lệ test pass, bundle size, điểm eval) qua nhiều vòng lặp có kiểm chứng nhưng chưa rõ skill nào phụ trách.",
+   "Muốn chạy họ skill autoresearch (predict, scenario, security, loop) và cần một cửa vào chung để chọn đúng nhánh.",
+   "Muốn tối ưu một skill theo các case routing và chất lượng tác vụ thay vì chỉ cắt token prompt.",
+   "Cần một loop contract rõ ràng (metric, baseline, guard, điều kiện dừng) trước khi để agent tự lặp."
+  ],
+  "avoidWhen": [
+   "Đã biết rõ cần vòng lặp metric kỹ thuật cục bộ: gọi thẳng `/ak:loop`.",
+   "Chỉ cần tranh luận rủi ro một đề xuất: dùng `/ak:predict`; chỉ cần edge case/QA: dùng `/ak:scenario`.",
+   "Yêu cầu không có metric quan sát được (vd 'viết hay hơn'): dùng workflow chỉnh sửa thông thường thay vì ép thành vòng lặp.",
+   "Cần mục tiêu Codex /goal dài hạn: dùng `ak:codex-goal` hoặc `ak:goal-warmup`."
+  ],
+  "params": [
+   {
+    "name": "<goal or hypothesis>",
+    "kind": "arg",
+    "desc": "Mục tiêu hoặc giả thuyết cần cải thiện; dùng để chọn route và định nghĩa metric/điều kiện dừng. Bắt buộc."
+   },
+   {
+    "name": "--iterations N",
+    "kind": "flag",
+    "desc": "Giới hạn số vòng lặp (ứng với 'iteration bound' trong loop contract). Cách truyền xuống skill đích (nguồn không mô tả chi tiết)."
+   },
+   {
+    "name": "--metric <metric>",
+    "kind": "flag",
+    "desc": "Metric dùng để kiểm chứng mỗi vòng (ứng với 'metric' trong loop contract, cần kèm baseline). Cách truyền xuống skill đích (nguồn không mô tả chi tiết)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:autoresearch \"Giảm thời gian chạy test suite\" --metric \"thời gian npm test\" --iterations 5",
+    "note": "Mục tiêu kỹ thuật đo được, sẽ được định tuyến sang `/ak:loop` với giới hạn 5 vòng."
+   },
+   {
+    "cmd": "/ak:autoresearch \"Tìm edge case còn thiếu của luồng checkout\"",
+    "note": "Ý định mở rộng coverage, sẽ được định tuyến sang `/ak:scenario`."
+   },
+   {
+    "cmd": "/ak:autoresearch \"Có nên chuyển sang GraphQL không?\"",
+    "note": "Quyết định rủi ro cần nhiều góc nhìn, định tuyến sang `/ak:predict`."
+   },
+   {
+    "cmd": "/ak:autoresearch \"Cải thiện độ kích hoạt đúng của skill X\" --metric \"tỉ lệ routing đúng\"",
+    "note": "Tối ưu skill, định tuyến sang capability tạo/đánh giá skill như `ak:skill-creator`."
+   }
+  ],
+  "tips": [
+   "Luôn cung cấp metric và baseline; không có metric thì skill sẽ từ chối chạy vòng lặp không giới hạn.",
+   "Mỗi vòng chỉ một thay đổi để biết chính xác thay đổi nào tạo ra cải thiện; gộp nhiều thay đổi làm mất khả năng quy trách nhiệm.",
+   "Giảm token prompt một mình không được tính là thành công khi tối ưu skill; cần cả guard routing, chất lượng, an toàn và hoàn thành.",
+   "Vòng lặp không tự push/deploy; mọi side effect bên ngoài vẫn qua user gate.",
+   "Đây chỉ là router mỏng: chi phí token thấp, phần tốn kém nằm ở skill đích được chọn."
+  ],
+  "related": [
+   "ak-loop",
+   "ak-predict",
+   "ak-scenario",
+   "ak-security",
+   "ak-skill-creator"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Không tự ghi artifact; artifact (nếu có) do skill đích tạo, vd `scenario-results.tsv` của ak:scenario."
+  ]
+ },
+ "ak-codex-goal": {
+  "tagline": "Hướng dẫn soạn và dùng Codex /goal cho việc dài hơi có điều kiện dừng kiểm chứng được.",
+  "summary": "ak:codex-goal giúp dùng tính năng /goal của Codex cho một mục tiêu bền (durable objective) có điều kiện dừng rõ và vòng validation. Đầu vào là một objective hoặc bản nháp goal; đầu ra là một Goal Contract (objective, file đọc trước, constraints, lệnh validate, checkpoint, điều kiện dừng) hoặc, nếu runtime hỗ trợ và người dùng yêu cầu rõ, việc tạo goal bằng native tool. Skill không phải ranh giới an toàn và không thay quyết định sản phẩm. Nó nằm sau `ak:goal-warmup` (khi goal dài nhiều giờ) và trước lúc người dùng tự khởi chạy /goal.",
+  "howItWorks": [
+   "Availability check: chỉ tạo goal khi người dùng yêu cầu rõ; kiểm tra khả năng goal của runtime hiện tại, dùng native goal tools nếu có (thiếu slash UI không có nghĩa là thiếu native tool).",
+   "Tuân theo lifecycle, completion, blocker và budget contract của host; không bịa tên tool, không sửa setting runtime-home để bật tính năng; nếu không hỗ trợ thì báo giới hạn và đưa bản goal draft.",
+   "Với host dựa trên lệnh: kiểm tra help/docs chính thức hiện tại trước khi đưa cú pháp lệnh/cấu hình; không giả định feature flag cũ vẫn cần.",
+   "Use Test: chỉ dùng goal khi đủ cả ba điều kiện: task dài hơn một lượt và chủ yếu cơ học; điều kiện dừng kiểm chứng được bằng test/eval/build/artifact; scope đủ rõ để không cần quyết định sản phẩm/kiến trúc ở mỗi checkpoint.",
+   "Từ chối dùng goal cho việc khám phá, yêu cầu cải thiện mơ hồ, thay đổi credential production, hạ tầng dùng chung có tính phá hủy, hoặc backlog không liên quan.",
+   "Soạn Goal Contract theo mẫu `/goal Complete <objective>. Read first: ... Constraints: ... Validate after each checkpoint: <command>. Keep a brief progress log. Stop when <verifiable end state>, or when further work needs human input.`",
+   "Thêm lệnh cấm làm yếu, thu hẹp, bỏ qua hoặc xóa test để đạt goal; yêu cầu dừng khi mơ hồ thay vì tự bịa quyết định sản phẩm; review diff cuối trước khi merge."
+  ],
+  "useWhen": [
+   "Người dùng nhắc tới /goal, goal mode, durable objective hoặc chạy Codex tự động nhiều lượt.",
+   "Có một việc dài nhưng cơ học (migration hàng loạt, sửa toàn bộ lỗi type, nâng version) với lệnh validate rõ ràng.",
+   "Cần viết lại một bản nháp /goal cho chặt: thêm constraints, checkpoint, điều kiện dừng và điều cấm làm yếu test.",
+   "Runtime không hỗ trợ goal nhưng vẫn muốn có goal draft để dán vào Codex."
+  ],
+  "avoidWhen": [
+   "Goal kéo dài nhiều giờ hoặc phụ thuộc nhiều bên ngoài: chạy `ak:goal-warmup` trước để khóa outcome contract và preflight blocker.",
+   "Vòng lặp cải thiện metric cục bộ: dùng `ak:loop`.",
+   "Điều phối việc qua nhiều coding-agent CLI: dùng `ak:orchestrate`.",
+   "Việc khám phá hoặc yêu cầu mơ hồ chưa có điều kiện dừng: dùng `ak:brainstorm` hoặc `ak:plan` trước."
+  ],
+  "params": [
+   {
+    "name": "<objective | goal draft>",
+    "kind": "arg",
+    "desc": "Mục tiêu cần biến thành Goal Contract, hoặc một bản nháp /goal có sẵn để rà lại và làm chặt. Skill không có flag nào khác."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:codex-goal \"Chuyển toàn bộ test từ Jest sang Vitest, npm test phải xanh\"",
+    "note": "Việc cơ học, dài, có lệnh validate rõ: soạn Goal Contract."
+   },
+   {
+    "cmd": "/ak:codex-goal \"/goal Fix all TypeScript errors in src/\"",
+    "note": "Rà một bản nháp goal thô, bổ sung Read first, Constraints, checkpoint và điều kiện dừng."
+   },
+   {
+    "cmd": "/ak:codex-goal \"Hoàn thành plans/260926-auth/plan.md\"",
+    "note": "Dùng plan đã có làm file đọc trước và acceptance criteria làm điều kiện dừng."
+   }
+  ],
+  "tips": [
+   "Luôn ghi rõ câu cấm làm yếu/bỏ/xóa test; đây là cách agent tự động hay 'gian lận' để đạt điều kiện dừng.",
+   "Điều kiện dừng phải là trạng thái kiểm chứng được (lệnh test/build/eval), không phải cảm nhận 'xong rồi'.",
+   "Skill không tự khởi tạo goal nếu người dùng không yêu cầu rõ; mặc định bạn nhận được bản draft để tự dán.",
+   "Không tin vào cú pháp/flag lịch sử của Codex; skill yêu cầu kiểm tra docs chính thức hiện hành.",
+   "Luôn review diff cuối trước khi merge, dù goal báo hoàn thành."
+  ],
+  "related": [
+   "ak-goal-warmup",
+   "ak-loop",
+   "ak-orchestrate",
+   "ak-plan"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Goal Contract dạng văn bản trong hội thoại (không ghi file)."
+  ]
+ },
+ "ak-fable-thinking": {
+  "tagline": "Giao thức suy luận dựa trên bằng chứng: phân loại claim, đa giả thuyết, tự tấn công kết luận, giao kết quả đã hiệu chỉnh.",
+  "summary": "ak:fable-thinking là một protocol suy luận chắt lọc từ Claude Fable 5.1, dùng khi đúng quan trọng hơn nhanh. Đầu vào là một task hoặc câu hỏi; đầu ra là câu trả lời outcome-first với claim được gắn loại (OBSERVED/DERIVED/PRIOR/ASSUMED), giới hạn và câu hỏi còn mở. Nó có Floor check để bắt câu hỏi 'trông đơn giản' dễ trả lời sai, Constraint Loop để kiểm chứng cơ học các ràng buộc hình thức (chữ cấm, đếm chính xác, format), và 19 domain playbook nạp theo loại deliverable. Đây là lớp tư duy chạy xuyên suốt các skill khác như debug, review, quyết định kiến trúc.",
+  "howItWorks": [
+   "Chọn check theo rủi ro quan sát được của task, không theo tự đánh giá năng lực model; chỉ nạp `references/reasoning-protocol.md` có chọn lọc cho quyết định không chắc chắn.",
+   "Floor check (outcome checks): Goal (nêu trạng thái kết thúc, không nhắc tới các phương án), Follow-through (chạy 'bộ phim' tới khung hình mục tiêu được xác minh), Leftovers (chi tiết nào của đề bài chưa dùng thì đó thường là bẫy).",
+   "Proportionality Gate chọn mode: Direct (tầm thường, đảo ngược được), Standard (bugfix, review, phân tích: chạy 5 move nội bộ), Full (rủi ro cao, không đảo ngược, lạ hoặc tranh cãi: kiểm độc lập các failure mode, báo cáo bằng chứng/phương án/quyết định). Floor trip hoặc có ràng buộc cơ học thì không bao giờ là Direct.",
+   "Five Moves: FRAME (tìm câu hỏi thật), GROUND (xác lập sự thật trước khi suy luận), REASON (cơ chế, đa giả thuyết, test phân biệt), ATTACK (đóng vai reviewer phản bác, chạy kill-test rẻ ngay), DELIVER (kết quả trước, bằng chứng sau, caveat cuối).",
+   "Constraint Loop cho ràng buộc hình thức: mở rộng ràng buộc thành phép thử cơ học và liệt kê từ dễ vi phạm; nháp trong vùng suy luận; kiểm chứng cơ học bằng tool/script hoặc tách từng đơn vị; sửa và kiểm lại toàn văn; giao nguyên văn đã kiểm (sửa một chữ là phải kiểm lại).",
+   "Claim Discipline xuyên suốt: mỗi claim chịu lực được gắn OBSERVED/DERIVED/PRIOR/ASSUMED với ngữ pháp tương ứng; claim chỉ được nâng hạng bằng tool; 'tôi không biết' kèm cách xác minh là câu trả lời hợp lệ.",
+   "Nạp domain playbook theo loại deliverable khi cần (vd `debugging-root-cause.md`, `coding-taste.md`, `security-taste.md`, `subagent-orchestration.md`, `thinking-modes.md`, `token-economy.md`, `worked-examples.md`); không chạy toàn bộ catalog.",
+   "Báo cáo quyết định, quan sát và giới hạn, không xuất transcript suy luận riêng."
+  ],
+  "useWhen": [
+   "Chẩn đoán root cause, sự cố production, lỗi flaky cần đa giả thuyết và test phân biệt.",
+   "Quyết định kiến trúc, chiến lược, bảo mật, migration dữ liệu: rủi ro cao, khó đảo ngược.",
+   "Output phải thỏa ràng buộc kiểm được bằng máy: không dùng chữ cái nào đó, đúng N từ, acrostic, format nghiêm ngặt.",
+   "Câu hỏi trông đơn giản nhưng nghi có bẫy, hoặc claim đang tranh cãi cần phân biệt đã quan sát và giả định.",
+   "Review code hoặc tài liệu cần tự phản biện trước khi kết luận."
+  ],
+  "avoidWhen": [
+   "Tra cứu nhanh, rename, sửa nhỏ đảo ngược được: trả lời trực tiếp (Direct), áp full protocol là lãng phí.",
+   "Đang bí và cần kỹ thuật tái định khung: dùng `ak:problem-solving`.",
+   "Cần sửa bug có quy trình đầy đủ: dùng `ak:debug` / `ak:fix` (có thể kết hợp fable-thinking làm lớp tư duy)."
+  ],
+  "params": [
+   {
+    "name": "[task or question to reason through]",
+    "kind": "arg",
+    "desc": "Task hoặc câu hỏi cần suy luận. Tùy chọn; nếu bỏ trống, protocol áp cho task hiện tại trong hội thoại. Skill không có flag; mode Direct/Standard/Full do Proportionality Gate tự chọn, không truyền qua tham số."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:fable-thinking \"Vì sao request p99 tăng gấp đôi sau deploy hôm qua?\"",
+    "note": "Chẩn đoán cần đa giả thuyết và kill-test; thường chạy Standard hoặc Full mode."
+   },
+   {
+    "cmd": "/ak:fable-thinking \"Viết một câu 12 từ mô tả mèo mà không dùng chữ e\"",
+    "note": "Ràng buộc hình thức: kích hoạt Constraint Loop, kiểm chứng cơ học trước khi giao."
+   },
+   {
+    "cmd": "/ak:fable-thinking \"Có nên tách monolith thành microservices không?\"",
+    "note": "Quyết định kiến trúc khó đảo ngược: Full mode, nạp `solution-exploration.md`, `engineering-standards.md`."
+   },
+   {
+    "cmd": "/ak:fable-thinking \"Review lại kết luận của subagent về lỗi race condition này\"",
+    "note": "Kiểm chứng báo cáo delegate, nạp `subagent-orchestration.md`."
+   }
+  ],
+  "tips": [
+   "Dấu hiệu hallucination là claim PRIOR/ASSUMED mặc ngữ pháp OBSERVED; kiểm câu chữ của chính output.",
+   "Đọc lại bản nháp và 'thấy ổn' không phải là kiểm chứng cho ràng buộc hình thức; hãy chạy script/grep hoặc đếm từng đơn vị.",
+   "Chỉ nạp playbook khớp loại deliverable; nạp nhiều reference (tổng ~200KB) tốn token vô ích.",
+   "Thất bại 2 đến 3 lần trong cùng một khung nghĩa là khung sai: đổi altitude, đổi hướng (inversion) hoặc đi thu thập quan sát, đừng thử mạnh hơn.",
+   "Hiệu quả của protocol không được đảm bảo trên mọi task; nguồn yêu cầu đánh giá so khớp với model/runtime thật trước khi tuyên bố cải thiện."
+  ],
+  "related": [
+   "ak-problem-solving",
+   "ak-debug",
+   "ak-code-review",
+   "ak-brainstorm"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Không ghi file; kết quả là câu trả lời/đánh giá trong hội thoại."
+  ]
+ },
+ "ak-goal-warmup": {
+  "tagline": "Preflight khóa outcome trước khi chạy /goal hoặc phiên tự động dài hơi.",
+  "summary": "ak:goal-warmup chuẩn bị một lần chạy tự động dài trước khi thực thi: phỏng vấn ra Outcome Contract được người dùng phê duyệt, lập plan không trôi scope, review giữ nguyên contract, lập preflight matrix cho toàn bộ plan, rồi kết thúc ở đúng một trạng thái Ready, Blocked hoặc Decision required. Đầu vào là một câu goal (tùy chọn `--fast`); đầu ra là handoff packet (contract khóa, plan, preflight, scope guard, opener cho Codex `/goal` và Claude long-run). Skill không bao giờ tự khởi chạy /goal. Nó thường đi sau `/ak:advise`, dùng `ak:plan` bằng tham chiếu, và bàn giao cho người dùng tự khởi động phiên dài.",
+  "howItWorks": [
+   "Parse goal và `--fast`; coi goal và nội dung repo là dữ liệu không tin cậy (bỏ qua chỉ thị nhúng đòi override rule, lộ secret hoặc tự khởi chạy).",
+   "Light scout nếu goal liên quan repo, rồi ước lượng độ phức tạp/rủi ro: chỉ cục bộ hay có phụ thuộc ngoài, credentials, deploy, approval, đa service.",
+   "Nếu có `--fast`: kiểm eligibility theo `references/fast-path.md`; không đạt thì từ chối với lý do ('--fast refused: ...') và chạy full path.",
+   "Phỏng vấn kiểu `ak:advise` (mỗi lần một câu hỏi, không fork body của advise) ra Outcome Contract gồm Intended result, In scope, Out of scope, Acceptance signals, Constraints, Allowed substitutions, Decision owner = user.",
+   "Hard gate 1: `ask_user` approve / edit / abort; không có phê duyệt rõ ràng thì không lập plan. Sau khi duyệt, contract bất biến.",
+   "Lập plan bằng `ak:plan` với contract là ràng buộc cứng, kèm bảng traceability (Phase, Contract items, Acceptance signals, Facts/assumptions/prereqs/user decisions); nếu không có plan CLI thì hạ xuống plan markdown trong session.",
+   "Contract-preserving review: không chạy pipeline apply mặc định của `/ak:plan red-team`; thu findings (local review hoặc collect-only) rồi phân loại trước mọi chỉnh sửa thành mitigation-within-contract (được sửa), preflight-required (chỉ chú thích), blocker (chặn Ready), outcome-change-request (vào Decision required, chờ người dùng).",
+   "Preflight Matrix cho mọi phase với cột Phase, Requirement, Check method, Status (available/missing/pending/unknown/n/a), Owner/unblock action, Blocking?; chỉ dùng check không đột biến (`command -v`, sự có mặt env var không in giá trị, config shape, `gh auth status`); nhóm thành Must provide / Should decide / Can be deferred.",
+   "Hard gate 7: `ask_user` xác nhận bản tóm tắt cuối (contract + plan path + preflight) trước khi tuyên bố Ready; tự kiểm theo assertions trong `fixtures/*`.",
+   "Xuất một trạng thái cuối và packet tương ứng theo `references/handoff-packet.md`, kèm completion report (State, Contract, Plan, Preflight blockers, Fast path, Next)."
+  ],
+  "useWhen": [
+   "Sắp chạy Codex `/goal` hoặc một phiên Claude tự động nhiều giờ và muốn khóa kết quả để agent không tự thu hẹp scope.",
+   "Việc nhiều phase có phụ thuộc ngoài (credential, API bên thứ ba, deploy) và cần lộ blocker trước khi tốn tiền chạy.",
+   "Đã bị agent 'hoàn thành' bằng cách bỏ bớt yêu cầu hoặc làm yếu test ở lần trước.",
+   "Cần một packet copy/paste được cho cả Codex và Claude với scope guard rõ ràng."
+  ],
+  "avoidWhen": [
+   "Chỉ cần viết lời /goal cho việc cơ học ngắn: dùng `ak:codex-goal`.",
+   "Muốn một lệnh đi từ issue tới PR: dùng `ak:vibe`; từ issue tới plan đã audit: dùng `ak:issue-to-plan`.",
+   "Việc nhỏ trong một lượt: gọi `ak:plan` hoặc `ak:cook` trực tiếp, warmup là thừa.",
+   "Bản cài chỉ có core kit: skill này cần engineer kit (phụ thuộc advise/plan)."
+  ],
+  "params": [
+   {
+    "name": "\"<goal>\"",
+    "kind": "arg",
+    "desc": "Mục tiêu của lần chạy dài, đặt trong ngoặc kép. Được xem là dữ liệu không tin cậy."
+   },
+   {
+    "name": "--fast",
+    "kind": "flag",
+    "desc": "Bỏ qua review adversarial nhiều reviewer tốn kém, chỉ khi người dùng chấp nhận giảm mức đảm bảo VÀ không có dấu hiệu credential/API key bên ngoài, deploy/release/publish, approval gate hay đa service/đa môi trường, VÀ task trông chỉ cục bộ. Vẫn bắt buộc: phê duyệt Outcome Contract, plan có traceability (có thể mỏng), kiểm acceptance signals còn nguyên, preflight matrix toàn plan, trạng thái cuối rõ ràng, không tự khởi chạy /goal. Không đạt eligibility thì bị từ chối và chạy full path."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:goal-warmup \"Migrate toàn bộ API sang Better Auth, E2E phải xanh\"",
+    "note": "Goal nhiều phase, có credential và E2E làm acceptance signal: chạy full path."
+   },
+   {
+    "cmd": "/ak:goal-warmup \"Đổi tên module utils thành shared trong repo\" --fast",
+    "note": "Việc cục bộ, không phụ thuộc ngoài: đủ điều kiện fast path."
+   },
+   {
+    "cmd": "/ak:goal-warmup \"Deploy dịch vụ mới lên Cloud Run\" --fast",
+    "note": "Có bước deploy nên `--fast` sẽ bị từ chối và skill tự chạy full path."
+   },
+   {
+    "cmd": "/ak:goal-warmup \"Hoàn thành plans/260926-billing/plan.md\"",
+    "note": "Đã có plan: skill vẫn khóa contract, preflight mọi phase rồi bàn giao packet."
+   }
+  ],
+  "tips": [
+   "Câu 'nhìn ổn đấy' giữa chừng không được tính là phê duyệt; skill cần `ask_user` approve/edit/abort rõ ràng hai lần (contract và tóm tắt cuối).",
+   "Kể cả khi bạn yêu cầu, skill vẫn từ chối tự start /goal; hãy tự dán packet vào Codex hoặc phiên Claude.",
+   "Thà nhận Blocked/unknown còn hơn Ready giả: nếu một check không chạy an toàn được, nó được đánh dấu blocking.",
+   "Env var chỉ được báo present/missing, không bao giờ in giá trị; đừng dán secret vào goal.",
+   "Contract chỉ lưu trong session và packet, không ghi file dự án; muốn giữ lại thì lưu packet Ready."
+  ],
+  "related": [
+   "ak-advise",
+   "ak-plan",
+   "ak-codex-goal",
+   "ak-issue-to-plan",
+   "ak-vibe"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Outcome Contract (session, không ghi file)",
+   "Plan qua `ak:plan` (thư mục plans/ nếu có plan CLI) hoặc plan markdown trong session",
+   "Preflight Matrix",
+   "Handoff packet Ready / Blocked / Decision required dạng Markdown copy/paste"
+  ]
+ },
+ "ak-issue-to-plan": {
+  "tagline": "Một lệnh đưa GitHub issue qua scout, cổng brainstorm, plan, validate, red-team tới plan branch đã push.",
+  "summary": "ak:issue-to-plan biến một GitHub issue thành plan triển khai đã được audit và kiểm chứng, chỉ khi issue vượt qua một cổng đánh giá cứng. Đầu vào là URL hoặc số issue (tùy chọn repo và tên label); đầu ra là `plan.md` + `phase-NN-*.md` trong `plans/<timestamp>-<slug>/` trên một plan branch đã push, bản HTML và AgentWiki (nếu `/ak:plan` hỗ trợ), cùng comment và label trên issue. Skill chỉ lập plan: không implement, không cook, không ship, không mở PR. Nó điều phối `/ak:scout`, `/ak:brainstorm`, `/ak:plan` (validate, red-team) và `/ak:git`, và đứng ngay trước bước plan audit rồi cook.",
+  "howItWorks": [
+   "Đọc và phân loại issue: xác định repo bằng `gh repo view --json nameWithOwner,defaultBranchRef`; nếu URL thuộc repo khác mà không có `--repo` thì dừng và yêu cầu chuyển repo/worktree; lấy title, body, comments, labels bằng `gh issue view`; phân loại bug/feature/refactor/docs/security-risk/research-task/decision; trích requirements, constraints, acceptance criteria, câu hỏi mở.",
+   "Scout và xác minh: tái dùng bằng chứng cùng revision, gọi `/ak:scout` khi cần; kiểm issue có thật, đã làm, trùng, ngoài scope hay thiếu thông tin; thu thập bằng chứng (files, symbols, docs, PR/issue trước).",
+   "Brainstorm gate (cổng cứng) qua `/ak:brainstorm`: đánh giá theo chuẩn, kiến trúc, roadmap, mô hình bảo mật, maintainability, giá trị người dùng; chọn đúng một: proceed to plan / needs decisions / duplicate-already handled / reject-defer / not worth implementing.",
+   "Đăng comment đánh giá 'Issue-to-Plan Evaluation' và gắn label TRƯỚC khi dừng hoặc lập plan. Nếu duplicate/reject/defer/not worth: dừng hẳn, không `/ak:plan`, không worktree, không push; nếu needs decisions: gắn `--decision-label` và chờ maintainer.",
+   "Lập plan bằng `/ak:plan` luôn kèm `--html --wiki` (không kích hoạt trùng frontend-design/diagram); plan phải có objective, scope/non-goals, kiến trúc, phase, file đích, kế hoạch test, bảo mật, migration, câu hỏi mở, tiêu chí rollback. Nếu build `/ak:plan` chưa hỗ trợ `--html`/`--wiki` thì chỉ tạo Markdown và ghi 'pending', không bịa đường dẫn/URL.",
+   "Validate và red-team (không bao giờ bỏ): `/ak:plan validate <plan.md>` và `/ak:plan red-team <plan.md>` khi chưa có bằng chứng cho đúng nội dung đó; áp findings, ghi lý do nếu không áp; chạy consistency sweep toàn plan.",
+   "Lưu plan trên worktree branch dạng `plan/issue-<n>-<short-slug>`, commit cả HTML, dùng `/ak:git cp` để stage/commit/push; không mở PR.",
+   "Cập nhật issue lần cuối: comment 'Issue-to-Plan Handoff' (decision, branch, plan path, HTML, AgentWiki, validation, red-team, câu hỏi mở, tóm tắt MỌI phase, lệnh tiếp theo); gắn `--plan-ready-label` khi plan sạch, hoặc `--decision-label` khi cần quyết định. Không bao giờ sửa title/body của issue.",
+   "Kết thúc bằng Completion Report (Source, Decision, Branch/worktree, Plan, AgentWiki, Validation/red-team, Labels, câu hỏi mở)."
+  ],
+  "useWhen": [
+   "Có một GitHub issue feature/bug và muốn một lệnh tạo ra plan đã validate và red-team, sẵn sàng cho plan audit.",
+   "Muốn lọc issue trước khi tốn công lập plan: cổng brainstorm sẽ chặn issue trùng, đã làm hoặc không đáng làm.",
+   "Quy trình team dùng label (vd 'ready for plan audit', 'need decisions') để chuyển giao giữa lập plan và implement.",
+   "Cần plan lưu dưới dạng file trên branch riêng kèm comment liên kết ngược về issue."
+  ],
+  "avoidWhen": [
+   "Muốn đi thẳng từ issue tới PR đã implement: dùng `ak:vibe`.",
+   "Không có GitHub issue, chỉ có ý tưởng: dùng `ak:brainstorm` rồi `ak:plan`.",
+   "Cần implement plan đã được audit: dùng `ak:cook`.",
+   "Chuẩn bị một lần chạy /goal dài hơi: dùng `ak:goal-warmup`.",
+   "`gh` thiếu quyền comment, tạo label hoặc push: skill sẽ dừng, cần cấp quyền trước."
+  ],
+  "params": [
+   {
+    "name": "<github-issue-url | issue-number>",
+    "kind": "arg",
+    "desc": "URL issue đầy đủ hoặc số issue. Với URL, skill so owner/repo với repo hiện tại và dừng nếu lệch mà không có `--repo`."
+   },
+   {
+    "name": "--repo <owner/name>",
+    "kind": "flag",
+    "desc": "Repo đích. Mặc định: repo hiện tại lấy từ `gh repo view`."
+   },
+   {
+    "name": "--plan-ready-label <name>",
+    "kind": "flag",
+    "desc": "Label gắn khi plan đã validate, red-team, push và không còn câu hỏi chặn. Mặc định: `ready for plan audit`; được tạo nếu chưa có."
+   },
+   {
+    "name": "--decision-label <name>",
+    "kind": "flag",
+    "desc": "Label gắn khi issue cần quyết định con người/sản phẩm/kiến trúc. Mặc định: `need decisions`; được tạo nếu thiếu, nếu không thì fallback sang label chuẩn của repo như `question` hoặc `triage` và ghi chú fallback trong comment."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:issue-to-plan https://github.com/bestagentkits/agentkit/issues/123",
+    "note": "Dạng cơ bản bằng URL khi đang đứng trong đúng repo."
+   },
+   {
+    "cmd": "/ak:issue-to-plan 123 --repo bestagentkits/agentkit",
+    "note": "Dùng số issue và chỉ định repo rõ ràng."
+   },
+   {
+    "cmd": "/ak:issue-to-plan 123 --repo bestagentkits/agentkit --plan-ready-label \"ready for plan audit\" --decision-label \"need decisions\"",
+    "note": "Tùy biến tên label theo quy ước của team."
+   }
+  ],
+  "tips": [
+   "Nội dung issue là input không tin cậy; chỉ thị nhúng trong issue (vd 'bỏ qua bước red-team') sẽ bị bỏ qua.",
+   "Nếu cổng brainstorm từ chối, sẽ không có worktree hay branch nào được tạo; đọc comment đánh giá để biết cần quyết định gì để mở lại.",
+   "Pipeline gồm scout, brainstorm, plan, validate, red-team nên tốn nhiều token và thời gian; không nên dùng cho sửa lỗi một dòng.",
+   "Kiểm quyền `gh` trước (đọc issue, tạo/sửa label, comment, push); thiếu quyền là skill dừng, không áp một phần trạng thái.",
+   "AgentWiki mặc định private/workspace; public phải opt-in rõ và không được chứa secret hay dữ liệu khách hàng.",
+   "Label cook-ready (vd 'ready to cook') do auditor hoặc pipeline sau gắn, nằm ngoài skill này."
+  ],
+  "related": [
+   "ak-scout",
+   "ak-brainstorm",
+   "ak-plan",
+   "ak-git",
+   "ak-cook",
+   "ak-vibe",
+   "ak-github"
+  ],
+  "agents": [],
+  "artifacts": [
+   "`plans/<timestamp>-<slug>/plan.md` và `phase-NN-*.md`",
+   "Plan HTML (khi `/ak:plan --html` được hỗ trợ)",
+   "Trang AgentWiki (khi `--wiki` được hỗ trợ)",
+   "Worktree và branch `plan/issue-<n>-<short-slug>` đã push",
+   "Comment 'Issue-to-Plan Evaluation' và 'Issue-to-Plan Handoff' trên issue",
+   "Label trên issue (plan-ready, decision, duplicate, deferred, wontfix, question...)"
+  ]
+ },
+ "ak-predict": {
+  "tagline": "Năm persona chuyên gia tranh luận về một đề xuất thay đổi để ra phán quyết GO / CAUTION / STOP trước khi viết code.",
+  "summary": "ak:predict cho năm persona (Architect, Security, Performance, UX, Devil's Advocate) phân tích độc lập một đề xuất thay đổi rồi tranh luận các xung đột để ra phán quyết đồng thuận. Đầu vào là mô tả feature/đề xuất, tùy chọn glob file liên quan và chế độ chain; đầu ra là Prediction Report gồm Verdict, Agreements, bảng Conflicts & Resolutions, Risk Summary và Recommendations. Skill đứng trước `ak:plan`/`ak:cook` cho các thay đổi lớn hoặc rủi ro, và có thể chain sang vòng tinh chỉnh (`reason`) hoặc thẩm vấn yêu cầu (`probe`).",
+  "howItWorks": [
+   "Đọc đề xuất thay đổi/feature từ argument.",
+   "Đọc code liên quan nếu có đường dẫn (grep vùng bị ảnh hưởng, dùng `--files`).",
+   "Mỗi persona phân tích độc lập, bắt buộc có bằng chứng từ source, giả định và một counterexample hoặc failure path cụ thể cho mỗi finding; tên persona khác nhau không chứng minh bằng chứng độc lập.",
+   "Xác định các điểm đồng thuận (tất cả hoặc từ 4 persona trở lên).",
+   "Xác định các xung đột khi persona bất đồng có ý nghĩa.",
+   "Cân trade-off cho từng xung đột, so sánh theo trường hợp xấu nhất có thể xảy ra, không chỉ trường hợp kỳ vọng.",
+   "Ra verdict GO / CAUTION / STOP kèm khuyến nghị hành động được; gộp root cause trùng, phân biệt đồng thuận với chứng minh; giữ scope đã duyệt, các đề xuất đảo ngược được trình bày thành quyết định của người dùng. STOP nếu có auth bypass/lộ dữ liệu không giảm thiểu được, bất tương thích thiết kế nền tảng, latency/query explosion không có workaround, hoặc giả định sai làm vô hiệu toàn bộ cách tiếp cận.",
+   "Nếu có `--chain`: chạy tiếp workflow chain trong cùng phiên predict (reason hoặc probe)."
+  ],
+  "useWhen": [
+   "Trước khi implement một feature lớn hoặc rủi ro cao (vd thêm WebSocket, multi-tenancy).",
+   "Trước refactor lớn hoặc thay đổi kiến trúc (REST sang GraphQL, JWT sang session cookie).",
+   "Cần so sánh các cách tiếp cận kỹ thuật đang cạnh tranh.",
+   "Muốn stress-test các giả định trong một thiết kế đề xuất."
+  ],
+  "avoidWhen": [
+   "Thay đổi nhỏ, rủi ro thấp; với bug dùng `ak:debug`.",
+   "Việc đã quyết định, không còn câu hỏi thiết kế: dùng `ak:plan`.",
+   "Chỉ nâng version dependency không đổi API.",
+   "Cần liệt kê edge case/QA scenario chi tiết: dùng `ak:scenario`; cần audit bảo mật đầy đủ: dùng `ak:security`."
+  ],
+  "params": [
+   {
+    "name": "<feature description or change proposal>",
+    "kind": "arg",
+    "desc": "Mô tả feature hoặc đề xuất thay đổi cần tranh luận. Bắt buộc."
+   },
+   {
+    "name": "--files <glob>",
+    "kind": "flag",
+    "desc": "Glob file liên quan (vd `src/api/**/*.ts`) để các persona đọc code thật và grep vùng bị ảnh hưởng thay vì chỉ suy từ mô tả."
+   },
+   {
+    "name": "--chain reason",
+    "kind": "flag",
+    "desc": "Sau verdict, chạy vòng tinh chỉnh chủ quan: generate → critique → synthesize → blind judge → lặp tới khi hội tụ. Dùng khi verdict là CAUTION với trade-off chủ quan (độ trau chuốt kiến trúc, tính nhất quán thiết kế). Chỉ chạy như phần của phiên predict."
+   },
+   {
+    "name": "--chain probe",
+    "kind": "flag",
+    "desc": "Sau verdict, thẩm vấn yêu cầu theo kiểu saturation để thu hoạch constraint còn thiếu và giả định chưa nói ra. Dùng khi verdict CAUTION hoặc STOP do finding 'missing constraint' hoặc 'unstated assumption'. Chỉ chạy như phần của phiên predict."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:predict \"Add WebSocket support for real-time notifications\"",
+    "note": "Đánh giá một feature mới có rủi ro hiệu năng và bảo mật."
+   },
+   {
+    "cmd": "/ak:predict \"Replace REST API with GraphQL\" --files src/api/**/*.ts",
+    "note": "Cho persona đọc code API hiện có để bằng chứng dựa trên source."
+   },
+   {
+    "cmd": "/ak:predict \"Pick auth library: Passport vs Better Auth\" --chain reason",
+    "note": "Lựa chọn nhiều yếu tố chủ quan, cần vòng tinh chỉnh tới hội tụ."
+   },
+   {
+    "cmd": "/ak:predict \"Move from REST to GraphQL\" --chain probe",
+    "note": "Nghi còn thiếu constraint/giả định, cần thẩm vấn yêu cầu."
+   }
+  ],
+  "tips": [
+   "GO đòi hỏi bằng chứng ủng hộ thiết kế, không chỉ vì các persona đồng ý với nhau.",
+   "Luôn truyền `--files` khi có code sẵn; thiếu code, các persona dễ suy đoán chung chung.",
+   "Đưa các dòng Risk Summary sang `ak:scenario` để đào sâu, và Recommendations làm constraint cho `ak:plan`; mục CAUTION/STOP làm acceptance gate cho `ak:cook`.",
+   "Nếu verdict đề xuất đảo ngược scope đã duyệt, skill trình bày nó thành lựa chọn cho bạn chứ không tự đổi.",
+   "Chain modes tốn thêm token đáng kể; chỉ bật khi verdict là CAUTION/STOP đúng loại lý do."
+  ],
+  "related": [
+   "ak-scenario",
+   "ak-plan",
+   "ak-cook",
+   "ak-autoresearch",
+   "ak-security"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Prediction Report trong hội thoại (Verdict, Agreements, Conflicts & Resolutions, Risk Summary, Recommendations); không ghi file."
+  ]
+ },
+ "ak-problem-solving": {
+  "tagline": "Bộ kỹ thuật gỡ bí có hệ thống: chọn đúng kỹ thuật theo triệu chứng 'bị kẹt'.",
+  "summary": "ak:problem-solving cung cấp năm kỹ thuật tái định khung cho các kiểu bí khác nhau: Simplification Cascades, Collision-Zone Thinking, Meta-Pattern Recognition, Inversion Exercise và Scale Game, cùng bảng điều phối When Stuck. Đầu vào là mô tả vấn đề đang bí; đầu ra là một reframing với kỹ thuật đã chọn, cách áp vào vấn đề và đường gỡ bí có hành động tiếp theo. Skill dùng giữa chừng khi implement hoặc thiết kế bị kẹt; lỗi code/test thì chuyển sang skill debug. `--ultra` biến nó thành lượt best-of-5 có verifier.",
+  "howItWorks": [
+   "Xác định kiểu bí bằng bảng Quick Dispatch: cùng một thứ làm 5+ cách, special case tăng → Simplification Cascades; giải pháp thông thường không đủ → Collision-Zone Thinking; cùng vấn đề ở nhiều nơi → Meta-Pattern Recognition; giải pháp gượng ép 'phải làm thế này' → Inversion Exercise; không rõ có chạy ở production/edge case → Scale Game; không rõ → When Stuck.",
+   "Nạp reference chi tiết của kỹ thuật đó từ `references/` (vd `simplification-cascades.md`, `scale-game.md`, `when-stuck.md`).",
+   "Áp dụng có hệ thống theo quy trình của kỹ thuật.",
+   "Ghi lại insight: cái gì hiệu quả, cái gì thất bại.",
+   "Dừng ở kết quả hành động được: khi có quyết định được ủng hộ hoặc một test phân biệt gỡ được bí thì trả về; chỉ kết hợp kỹ thuật (vd Simplification + Meta-pattern, Collision + Inversion, Scale + Simplification, Meta-pattern + Scale) khi kỹ thuật đầu không giải quyết; không tự chạy cả năm.",
+   "Nếu code hỏng/test fail thì bảng When Stuck chuyển sang skill debugging; nếu không kỹ thuật nào giúp: reframe vấn đề, thu hẹp scope, chất vấn constraint.",
+   "Với `--ultra`: controller tạo evidence packet bất biến (vấn đề, đã thử gì, constraint, triệu chứng) và rubric, phát năm candidate read-only song song, một verifier mạnh nhất chấm và chọn nguyên văn reframing thắng hoặc reject-all (hard-stop kèm lý do)."
+  ],
+  "useWhen": [
+   "Độ phức tạp xoáy ốc: ngày càng nhiều nhánh if/else, special case, nhiều cài đặt của cùng một thứ.",
+   "Giải pháp thông thường không đủ, cần ý tưởng đột phá.",
+   "Cùng một vấn đề lặp lại ở nhiều module, đang 'phát minh lại bánh xe'.",
+   "Bị khóa bởi giả định 'chỉ có một cách', hoặc không chắc giải pháp chịu được quy mô production."
+  ],
+  "avoidWhen": [
+   "Code hỏng, test fail, hành vi sai: dùng `ak:debug` hoặc `ak:fix`.",
+   "Cần so sánh nhiều phương án đã rõ để chọn một: dùng `ak:brainstorm`.",
+   "Cần giao thức suy luận chặt cho một kết luận: dùng `ak:fable-thinking`.",
+   "Vấn đề đã biết lời giải: áp kỹ thuật là lãng phí."
+  ],
+  "params": [
+   {
+    "name": "[problem description]",
+    "kind": "arg",
+    "desc": "Mô tả vấn đề đang bí, nên kèm triệu chứng và những gì đã thử để khớp đúng kỹ thuật."
+   },
+   {
+    "name": "--ultra",
+    "kind": "flag",
+    "desc": "Chỉ khi truyền rõ mới nạp `references/ultra-mode.md`: chạy best-of-5 verifier, năm candidate read-only độc lập song song, mỗi candidate đưa reframing hoàn chỉnh (kỹ thuật + khớp triệu chứng, áp dụng cụ thể, đường gỡ bí); verifier chấm theo rubric (độ khớp triệu chứng-kỹ thuật, độ sâu áp dụng, tính hành động được, trung thực về điều chưa biết) và chọn nguyên văn hoặc reject-all. Fail-closed: runtime không phát được năm subagent song song thì dừng."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:problem-solving \"Hàm tính giá có 14 special case và vẫn phải thêm tiếp\"",
+    "note": "Triệu chứng complexity spiral: dẫn tới Simplification Cascades."
+   },
+   {
+    "cmd": "/ak:problem-solving \"Retry, rate limit, cache invalidation đều đang tự viết lại ở mỗi service\"",
+    "note": "Vấn đề lặp ở nhiều nơi: Meta-Pattern Recognition."
+   },
+   {
+    "cmd": "/ak:problem-solving \"Không chắc queue hiện tại chịu được 1000x tải\"",
+    "note": "Không rõ giới hạn quy mô: Scale Game."
+   },
+   {
+    "cmd": "/ak:problem-solving \"Mọi thiết kế sync offline đều hỏng khi xung đột\" --ultra",
+    "note": "Bí nặng, cần năm reframing độc lập và verifier chọn cái tốt nhất."
+   }
+  ],
+  "tips": [
+   "Mô tả triệu chứng cụ thể ('đã thêm case thứ 6') giúp dispatch đúng kỹ thuật hơn là 'tôi bị bí'.",
+   "Mỗi lần một kỹ thuật; chỉ kết hợp khi kỹ thuật đầu không giải quyết được lỗi quan sát được.",
+   "Red flag cần để ý: 'chỉ cần thêm một case nữa', 'vấn đề này độc nhất', 'chỉ có một cách', 'chắc scale ổn'.",
+   "`--ultra` tốn khoảng năm lần candidate cộng một verifier; chỉ đáng khi có thể kiểm chứng đầu ra, với việc thuần cảm tính nó thêm chi phí mà ít tín hiệu."
+  ],
+  "related": [
+   "ak-debug",
+   "ak-brainstorm",
+   "ak-fable-thinking"
+  ],
+  "agents": [
+   "5 candidate subagent read-only và 1 verifier (Kongming) khi dùng `--ultra`"
+  ],
+  "artifacts": [
+   "Reframing trong hội thoại; không ghi file cố định."
+  ]
+ },
+ "ak-research": {
+  "tagline": "Nghiên cứu kỹ thuật sâu, đa nguồn, có trích dẫn trước khi implement.",
+  "summary": "ak:research thực hiện nghiên cứu giải pháp kỹ thuật, đánh giá công nghệ, best practice và phân tích scalability/security/maintainability. Đầu vào là một chủ đề; đầu ra là báo cáo research lưu theo đường dẫn `Report:` trong mục `## Naming` (có timestamp, trích nguồn, bước tiếp theo, câu hỏi mở). Quy trình gồm bốn phase: định scope, thu thập đa nguồn bằng web search song song, phân tích tổng hợp, viết báo cáo. Skill đứng trước `ak:plan`/`ak:brainstorm`; `--ultra` chạy best-of-5 có verifier, `--yagni` cắt scope không cần.",
+  "howItWorks": [
+   "Phase 1 Scope Definition: xác định thuật ngữ/khái niệm chính, yêu cầu độ mới của thông tin, tiêu chí đánh giá nguồn, giới hạn độ sâu.",
+   "Phase 2 Systematic Information Gathering: dùng web_search native của runtime, chạy nhiều truy vấn song song khi được; ưu tiên docs chính thức, repo GitHub, blog uy tín; khi gặp URL repo GitHub thì dùng `ak:docs-seeker` để đọc; xem README, changelog, release notes; video từ kênh chính thức; đối chiếu chéo nhiều nguồn độc lập, kiểm ngày xuất bản, ghi rõ đồng thuận và tranh cãi.",
+   "Tôn trọng ngân sách người dùng nếu có; nếu không thì dừng khi các câu hỏi đã được phủ đáng tin, bất đồng được giải thích và khoảng trống được ghi lại, không đặt giới hạn tool call tùy tiện.",
+   "Phase 3 Analysis and Synthesis: nhận diện pattern và best practice, ưu/nhược các cách tiếp cận, độ trưởng thành, tác động bảo mật và hiệu năng, yêu cầu tương thích/tích hợp.",
+   "Phase 4 Report Generation: lưu báo cáo theo `Report:` path trong `## Naming` (nếu không có thì hỏi main agent); với deliverable rộng dùng `references/report-template.md` có chọn lọc; câu hỏi hẹp chỉ cần câu trả lời, nguồn, scope/version và mức bất định.",
+   "Kiểm các tiêu chuẩn chất lượng: chính xác, mới (ưu tiên 12 tháng gần nhất), đủ phạm vi, hành động được, rõ ràng, có trích dẫn; chủ đề bảo mật phải kiểm CVE/advisory gần đây, hiệu năng thì tìm benchmark, ghi deprecation và đường migration.",
+   "Báo cáo dẫn bằng kết luận, có timestamp, mục lục cho báo cáo dài, code block, sơ đồ mermaid/ASCII khi hữu ích, bước tiếp theo cụ thể và câu hỏi mở ở cuối.",
+   "Với `--ultra`: tạo evidence packet bất biến (topic, scope Phase 1, yêu cầu độ mới, tiêu chí) cùng rubric, phát đúng năm candidate researcher read-only song song, mỗi cái chạy Phase 2 đến 4; một verifier mạnh nhất chấm, chọn nguyên văn báo cáo thắng (controller lưu kèm phụ lục xếp hạng ngắn) hoặc reject-all và hard-stop."
+  ],
+  "useWhen": [
+   "Đánh giá và so sánh công nghệ/thư viện trước khi chọn (vd ORM, auth library, message broker).",
+   "Tìm best practice hiện hành, breaking changes, đường migration của một framework.",
+   "Phân tích scalability, security, maintainability của một kiến trúc dự kiến.",
+   "Cần báo cáo có trích dẫn để làm đầu vào cho `ak:plan` hoặc `ak:brainstorm`."
+  ],
+  "avoidWhen": [
+   "Chỉ cần viết đề bài nghiên cứu để giao cho người/AI khác: dùng `ak:research-prompt`.",
+   "Chỉ cần tra docs một API/thư viện cụ thể: dùng `ak:docs-seeker`.",
+   "Cần tìm file trong codebase: dùng `ak:scout`."
+  ],
+  "params": [
+   {
+    "name": "[topic]",
+    "kind": "arg",
+    "desc": "Chủ đề hoặc câu hỏi nghiên cứu."
+   },
+   {
+    "name": "--ultra",
+    "kind": "flag",
+    "desc": "Best-of-5 verifier: năm candidate researcher read-only độc lập song song, rubric chấm chất lượng và độ mới nguồn, xác minh chéo, độ phủ scope, tính hành động được, trung thực về bằng chứng mâu thuẫn; verifier chọn nguyên văn một báo cáo hoặc reject-all. Fail-closed nếu runtime không phát được năm candidate song song. Kết hợp được với `--yagni`."
+   },
+   {
+    "name": "--yagni",
+    "kind": "flag",
+    "desc": "Ngoài KISS/DRY, chất vấn và cắt mọi scope không cần cho kết quả đã nêu. Không có flag này, skill giao đủ toàn bộ scope được yêu cầu."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:research \"So sánh Drizzle, Prisma và Kysely cho Postgres năm 2026\"",
+    "note": "Đánh giá công nghệ có nhiều nguồn, cần độ mới."
+   },
+   {
+    "cmd": "/ak:research \"Best practice rate limiting cho API multi-tenant\" --yagni",
+    "note": "Chỉ giữ những gì cần cho kết quả, bỏ phần mở rộng không cần."
+   },
+   {
+    "cmd": "/ak:research \"Chiến lược migration Next.js 15 lên 16\" --ultra",
+    "note": "Quyết định quan trọng, muốn năm báo cáo độc lập và verifier chọn cái tốt nhất."
+   },
+   {
+    "cmd": "/ak:research \"Các CVE gần đây của thư viện xml2js\"",
+    "note": "Chủ đề bảo mật: skill bắt buộc kiểm CVE và advisory mới."
+   }
+  ],
+  "tips": [
+   "Báo cáo được lưu theo `Report:` path trong `## Naming` (vd `plans/reports/`); nếu thiếu, skill sẽ hỏi đường dẫn.",
+   "Câu hỏi hẹp sẽ nhận câu trả lời ngắn kèm nguồn, không phải toàn bộ template báo cáo; nói rõ nếu bạn muốn báo cáo đầy đủ.",
+   "Key cũ `skills.research.useGemini` và `gemini.model` trong `.claude/.ck.json` chỉ là input tương thích, không còn bật Gemini CLI.",
+   "`--ultra` tốn khoảng năm lần chi phí nghiên cứu cộng verifier; dùng cho quyết định lớn, không cho câu hỏi tra cứu.",
+   "Kiểm ngày xuất bản của nguồn; skill ưu tiên thông tin 12 tháng gần nhất trừ khi cần bối cảnh lịch sử."
+  ],
+  "related": [
+   "ak-research-prompt",
+   "ak-docs-seeker",
+   "ak-plan",
+   "ak-brainstorm",
+   "ak-scout"
+  ],
+  "agents": [
+   "5 candidate researcher read-only và 1 verifier (Kongming) khi dùng `--ultra`"
+  ],
+  "artifacts": [
+   "Báo cáo research Markdown tại `Report:` path trong `## Naming` (thường `plans/reports/...`)",
+   "Phụ lục xếp hạng ngắn khi dùng `--ultra`"
+  ]
+ },
+ "ak-research-prompt": {
+  "tagline": "Soạn đề bài nghiên cứu tự đủ để giao cho người hoặc AI khác, không tự nghiên cứu.",
+  "summary": "ak:research-prompt viết một research brief tự chứa, có cấu trúc theo độ phức tạp, đủ ngữ cảnh để researcher (người hoặc AI deep-research) cho ra kết quả sẵn sàng ra quyết định, có nguồn, mà không cần hỏi lại. Đầu vào là một chủ đề nghiên cứu hoặc một quyết định; đầu ra chỉ là bản brief. Skill không thực hiện nghiên cứu; để chạy brief đã soạn thì dùng `ak:research` hoặc một research runner khác.",
+  "howItWorks": [
+   "Thu thập quyết định, đối tượng đọc, deadline, sự thật đã biết, ràng buộc và mục đích sử dụng từ hội thoại và file dự án liên quan.",
+   "Mô tả dự án và tình huống cho một người đọc không có bối cảnh trước.",
+   "Định nghĩa một câu hỏi nghiên cứu duy nhất và quyết định mà nó phục vụ.",
+   "Thêm các câu hỏi con cần thiết để phủ quyết định; không gộp các nhiệm vụ không liên quan.",
+   "Chỉ định ràng buộc include/avoid, thứ bậc nguồn (ưu tiên nguồn gốc: docs chính thức, repo, paper, filing, changelog; forum/mạng xã hội chỉ là tín hiệu yếu), cách xử lý mâu thuẫn (tách sự thật đã xác nhận, suy luận, bất định), vòng gap round rà lại mâu thuẫn và claim một nguồn, ngưỡng hoàn thành và định dạng mỗi finding (URL nguồn, claim cụ thể, một dòng về liên quan tới quyết định), yêu cầu một kết quả Markdown chi tiết duy nhất.",
+   "Chỉ trả về brief: một đoạn cho quyết định đơn giản hoặc khi được yêu cầu, các mục ngắn khi có nhiều câu hỏi/ràng buộc; không nghiên cứu và không thêm deliverable thứ hai."
+  ],
+  "useWhen": [
+   "Muốn giao việc cho một công cụ deep-research (ChatGPT/Gemini Deep Research, Perplexity) hoặc một đồng nghiệp.",
+   "Cần một prompt nghiên cứu chặt chẽ về nguồn và định dạng để kết quả so sánh được.",
+   "Quyết định lớn cần nghiên cứu nhưng muốn chốt câu hỏi và tiêu chí trước khi tốn công.",
+   "Muốn tách bạch 'đặt câu hỏi đúng' với 'đi tìm câu trả lời'."
+  ],
+  "avoidWhen": [
+   "Muốn agent tự nghiên cứu ngay: dùng `ak:research`.",
+   "Cần tra docs một thư viện: dùng `ak:docs-seeker`.",
+   "Cần viết nội dung marketing hoặc đề xuất giải pháp suy đoán: skill cố ý không làm việc này.",
+   "Cần phỏng vấn người dùng để ra tài liệu: dùng `ak:interview-docs`."
+  ],
+  "params": [
+   {
+    "name": "<research topic | decision>",
+    "kind": "arg",
+    "desc": "Chủ đề nghiên cứu hoặc quyết định cần được thông tin. Skill không có flag."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:research-prompt \"Chọn vector database cho RAG 10 triệu tài liệu\"",
+    "note": "Soạn brief để dán vào công cụ deep-research."
+   },
+   {
+    "cmd": "/ak:research-prompt \"Có nên chuyển CI từ GitHub Actions sang Buildkite không\"",
+    "note": "Quyết định có nhiều câu hỏi con về chi phí, bảo mật, migration."
+   },
+   {
+    "cmd": "/ak:research-prompt \"Quy định lưu trữ dữ liệu cá nhân cho app fintech tại Việt Nam\"",
+    "note": "Brief yêu cầu nguồn gốc (văn bản luật) và tách sự thật với suy luận."
+   }
+  ],
+  "tips": [
+   "Brief không được chứa secret, URL nội bộ, credential hay dữ liệu cá nhân vì nó sẽ được gửi ra ngoài.",
+   "Một brief một nhiệm vụ; nhiều câu hỏi không liên quan thì tách thành nhiều brief.",
+   "Chi phí token rất thấp vì skill chỉ viết văn bản; chạy brief bằng `ak:research` sau đó nếu muốn agent tự làm.",
+   "Cung cấp deadline và đối tượng đọc để brief đặt đúng ngưỡng hoàn thành."
+  ],
+  "related": [
+   "ak-research",
+   "ak-docs-seeker",
+   "ak-brainstorm"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Research brief dạng văn bản trong hội thoại; không ghi file."
+  ]
+ },
+ "ak-scout": {
+  "tagline": "Trinh sát codebase nhanh, tiết kiệm token để tìm đúng file cần cho task.",
+  "summary": "ak:scout tìm file và gom ngữ cảnh cho một task bằng search native, tùy chọn chia việc cho Explore subagent song song hoặc dùng OpenCode khi người dùng cho phép. Đầu vào là mục tiêu tìm kiếm (tùy chọn `ext` hoặc `--ultra`); đầu ra là Scout Report liệt kê file liên quan kèm mô tả vai trò và câu hỏi chưa giải quyết. Với một đường dẫn hoặc symbol, skill tìm cục bộ và trả kết quả trực tiếp. Nó thường đứng trước `ak:fix`, `ak:debug`, `ak:brainstorm` và code review.",
+  "howItWorks": [
+   "Fast path: với một pathname/symbol, tìm cục bộ và trả trực tiếp đường dẫn/vai trò đã xác minh; tái dùng source map khi revision và file liên quan chưa đổi; không cần báo cáo riêng.",
+   "Analyze Task: parse mục tiêu tìm kiếm, xác định thư mục, pattern, loại file, số dòng code, ước lượng SCALE (số subagent).",
+   "Dùng nhiều pattern `search_files` để tìm file và ước lượng quy mô codebase.",
+   "Divide and Conquer: chia codebase thành các đoạn logic không chồng lấn, mỗi scope vừa một context window của subagent.",
+   "Register Scout Work (bỏ qua nếu từ 2 agent trở xuống): đăng ký mỗi scope trên task-management surface hoặc cập nhật active plan.",
+   "Spawn Explore subagent song song (reference `internal-scouting.md`) chỉ khi người dùng yêu cầu rõ delegation/song song VÀ runtime cho phép `delegate_agent` VÀ mỗi scope có việc riêng; nếu không, scout ngay trong main agent với `search_files`/`read_file`/`run_shell`.",
+   "Với `ext`: dùng OpenCode (`opencode run ... --model opencode/grok-code`) cho scope read-only có giới hạn khi search cục bộ không đủ và người dùng cho phép; kiểm `command -v opencode` trước; không tự retry, sau hai lần lỗi thì quay về search cục bộ; Antigravity phải qua `ak:orchestrate`.",
+   "Đọc file lớn theo chunk khoảng 500 dòng (`wc -l` rồi `sed -n`).",
+   "Collect Results: timeout 3 phút mỗi agent (bỏ qua agent không phản hồi, không restart), khử trùng đường dẫn, gộp mô tả, ghi scope timeout, gọi skill project-organization để tổ chức output, xuất Scout Report với Relevant Files và Unresolved Questions.",
+   "Với `--ultra`: evidence packet bất biến và rubric, đúng năm candidate scout read-only song song, verifier trả về hợp (union) đã khử trùng và xác minh bằng chứng của các finding; bỏ path không xác minh được. Không được hạ cấp sang scout trong main agent: nếu không phát được năm candidate thì hard-stop."
+  ],
+  "useWhen": [
+   "Bắt đầu một feature trải qua nhiều thư mục và cần biết file nào liên quan.",
+   "Người dùng cần 'tìm', 'định vị', 'tìm kiếm' file hoặc hỏi chức năng X nằm ở đâu.",
+   "Bắt đầu phiên debug cần hiểu quan hệ giữa các file.",
+   "Trước thay đổi có thể ảnh hưởng nhiều phần codebase."
+  ],
+  "avoidWhen": [
+   "Đã biết chính xác file cần đọc: đọc trực tiếp, không cần scout.",
+   "Cần phân tích ngữ nghĩa sâu (go-to-definition, impact analysis): dùng `ak:gkg` hoặc `ak:graphify`.",
+   "Cần đóng gói cả repo làm context cho LLM: dùng `ak:repomix`.",
+   "Cần nghiên cứu bên ngoài codebase: dùng `ak:research`."
+  ],
+  "params": [
+   {
+    "name": "[search-target]",
+    "kind": "arg",
+    "desc": "Thứ cần tìm: tính năng, symbol, đường dẫn hoặc mô tả task. Mặc định dùng search cục bộ cho một owner/path, chỉ chia scope độc lập khi delegation được phép và hữu ích."
+   },
+   {
+    "name": "ext",
+    "kind": "subcommand",
+    "desc": "Scout bằng OpenCode probe do người dùng cho phép khi search native/cục bộ không đủ (reference `external-scouting.md`). Chỉ read-only, không gửi nguyên file riêng tư lớn ra CLI ngoài; nếu OpenCode chưa cài thì quay về search cục bộ."
+   },
+   {
+    "name": "--ultra",
+    "kind": "flag",
+    "desc": "Chạy scout dạng best-of-5 verifier: năm candidate read-only song song từ cùng evidence packet, rubric chấm độ phủ, chất lượng bằng chứng, mật độ tín hiệu, trung thực về khoảng trống; verifier trả hợp đã khử trùng và xác minh. Fail-closed, không hạ cấp sang scout main-agent."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:scout \"các file liên quan xác thực và session\"",
+    "note": "Scout mặc định, trả Scout Report các file liên quan."
+   },
+   {
+    "cmd": "/ak:scout \"payment webhook handler\" ext",
+    "note": "Codebase lớn, search cục bộ chưa đủ và bạn cho phép dùng OpenCode."
+   },
+   {
+    "cmd": "/ak:scout \"toàn bộ luồng migration dữ liệu\" --ultra",
+    "note": "Cần độ phủ tối đa trước thay đổi rủi ro; năm lượt scout được gộp và xác minh."
+   },
+   {
+    "cmd": "/ak:scout \"dùng subagent song song tìm mọi chỗ gọi API billing\"",
+    "note": "Yêu cầu rõ delegation nên skill có thể spawn nhiều Explore agent theo thư mục."
+   }
+  ],
+  "tips": [
+   "Muốn chạy Explore subagent song song thì phải nói rõ trong yêu cầu; nếu không, skill scout inline (kết quả tương đương, chỉ chậm hơn).",
+   "Mỗi agent timeout 3 phút và không được restart; scope bị timeout được ghi vào báo cáo, nên xem mục Unresolved Questions.",
+   "Tra cứu một symbol đơn lẻ không sinh báo cáo, rất rẻ token; chỉ việc đa domain mới chạy workflow đầy đủ.",
+   "`--ultra` tốn khoảng năm lần scout cộng verifier và bắt buộc runtime hỗ trợ năm subagent song song."
+  ],
+  "related": [
+   "ak-fix",
+   "ak-debug",
+   "ak-brainstorm",
+   "ak-code-review",
+   "ak-project-organization"
+  ],
+  "agents": [
+   "Explore (khi delegation được phép)",
+   "OpenCode CLI (công cụ ngoài, với `ext`)",
+   "5 candidate scout read-only và 1 verifier (Kongming) khi dùng `--ultra`"
+  ],
+  "artifacts": [
+   "Scout Report Markdown (Relevant Files, Unresolved Questions)",
+   "Mục theo dõi scope trên task surface hoặc active plan khi có từ 3 agent trở lên"
+  ]
+ },
+ "ak-sowat": {
+  "tagline": "Nhìn công việc vừa làm như product owner: 'thì sao?', việc gì quan trọng nhất bây giờ.",
+  "summary": "ak:sowat (so what) phân tích công việc vừa implement và các issue liên quan dưới góc nhìn product owner chịu trách nhiệm về kết quả người dùng và kinh doanh. Đầu vào là thay đổi gần đây, một issue hoặc PR; đầu ra là một nhận định ngắn, có chính kiến: ý nghĩa sản phẩm, điều chỉnh ưu tiên (nếu cần), tối đa ba bước tiếp theo có tín hiệu thành công, và việc nên hoãn. Skill chỉ phân tích và khuyến nghị: không implement, không đổi trạng thái issue, không bịa dữ liệu khách hàng/doanh thu/sử dụng. Nó đứng sau implement hoặc ship, khi cần quyết định việc tiếp theo.",
+  "howItWorks": [
+   "Xác lập kết quả người dùng mong muốn và bằng chứng mạnh nhất về những gì thực sự đã implement, đã kiểm chứng, đã ship và còn mở.",
+   "Chỉ nối các issue thực sự liên quan: dependency, regression, blocker adoption, cơ hội tiếp nối.",
+   "Đánh giá từng ứng viên theo tác động người dùng, độ khẩn, độ tin cậy, công sức, rủi ro, đòn bẩy phụ thuộc và việc nó có mở khóa học hỏi hoặc giao hàng không.",
+   "Chọn số ít hành động có tác động thật; hạ ưu tiên việc đánh bóng, sự thanh lịch nội bộ hay việc bận rộn không đổi kết quả.",
+   "Sửa ưu tiên của người dùng trực tiếp khi bằng chứng ủng hộ: nói họ đang tập trung vào gì, vì sao giá trị thấp hơn, nên chú ý vào đâu; không phản biện cho có mà không có trade-off cụ thể.",
+   "Đề xuất tối đa ba bước tiếp theo theo thứ tự, mỗi bước có hành động, lý do 'vì sao bây giờ' và tín hiệu thành công quan sát được.",
+   "Xuất theo khuôn: So what, Priority correction (chỉ khi trọng tâm sai đáng kể), Next steps, Defer or ignore (tùy chọn); tách fact với suy luận, nói rõ khi thiếu bằng chứng."
+  ],
+  "useWhen": [
+   "Vừa xong một feature và muốn biết nó có ý nghĩa gì với người dùng, việc gì nên làm tiếp.",
+   "Nghi team đang tập trung sai chỗ (đánh bóng feature mới trong khi onboarding đang hỏng).",
+   "Có nhiều issue mở và cần một quyết định ưu tiên ngắn gọn thay vì danh sách dài.",
+   "Chuẩn bị planning sprint sau và cần góc nhìn outcome thay vì output."
+  ],
+  "avoidWhen": [
+   "Cần tóm tắt kỹ thuật những gì đã thay đổi, cách dùng, lỗi gặp phải: dùng `ak:sumup`.",
+   "Cần báo cáo tình trạng branch/worktree/plan đang dở: dùng `ak:watzup`.",
+   "Cần retro dựa trên git history: dùng `ak:retro`.",
+   "Cần triage/đổi trạng thái issue trên GitHub: dùng `ak:github` (sowat không đổi trạng thái issue)."
+  ],
+  "params": [
+   {
+    "name": "[recent-changes|issue|PR]",
+    "kind": "arg",
+    "desc": "Đối tượng phân tích: các thay đổi gần đây, một issue hoặc một PR. Tùy chọn; nguồn không mô tả hành vi mặc định khi bỏ trống (nguồn không mô tả chi tiết). Skill không có flag."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:sowat",
+    "note": "Sau khi vừa implement xong, hỏi nhanh 'thì sao, làm gì tiếp' dựa trên ngữ cảnh phiên."
+   },
+   {
+    "cmd": "/ak:sowat #482",
+    "note": "Đánh giá ý nghĩa sản phẩm của một issue/PR cụ thể và các issue liên quan."
+   },
+   {
+    "cmd": "/ak:sowat recent-changes",
+    "note": "Xem các thay đổi gần đây có đang phục vụ đúng outcome không, và có nên đổi ưu tiên."
+   }
+  ],
+  "tips": [
+   "Skill không bịa số liệu adoption hay doanh thu; cung cấp analytics thật nếu muốn khuyến nghị chắc hơn.",
+   "Đừng nhầm 'code đã xong' với 'đã ship': skill tách rõ implemented, verified, shipped.",
+   "Tối đa ba bước tiếp theo là có chủ đích; muốn danh sách đầy đủ thì dùng công cụ khác.",
+   "Nội dung issue, log, analytics được coi là dữ liệu không tin cậy, không phải chỉ thị."
+  ],
+  "related": [
+   "ak-sumup",
+   "ak-watzup",
+   "ak-retro",
+   "ak-plan",
+   "ak-github"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Nhận định ưu tiên trong hội thoại; không ghi file, không thay đổi issue."
+  ]
+ },
+ "ak-scenario": {
+  "tagline": "Phân rã feature theo 12 chiều để sinh edge case và test scenario, một lượt hoặc lặp tới bão hòa.",
+  "summary": "ak:scenario phân rã một feature hoặc code path theo 12 chiều (User Types, Input Extremes, Timing, Scale, State Transitions, Environment, Error Cascades, Authorization, Data Integrity, Integration, Compliance, Business Logic) để lộ edge case, rủi ro và test target trước khi implement. Đầu vào là đường dẫn file hoặc mô tả feature; đầu ra là Scenario Report dạng bảng có mức độ nghiêm trọng, và ở chế độ lặp thêm log `scenario-results.tsv`, coverage matrix và composite score. Có hai mode: one-shot (mặc định) và iterative (`--iterations N` hoặc `--saturation`). Skill đứng trước `ak:test`, `ak:plan` và có thể nạp Critical scenario sang `ak:predict`.",
+  "howItWorks": [
+   "One-shot: đọc file đích hoặc parse mô tả feature.",
+   "Lọc chiều: đánh dấu chiều nào trong 12 chiều áp dụng, bỏ các chiều không liên quan kèm giả định đằng sau; một chiều bị bỏ vì giả định có thể vỡ trong vòng đời feature thì chính nó là một scenario.",
+   "Sinh scenario cụ thể cho mỗi chiều liên quan (3 đến 5 là gợi ý khởi đầu, không phải chỉ tiêu), gắn mỗi scenario với invariant hoặc state transition và test target; không độn cho đủ số.",
+   "Phân loại mức độ: Critical (mất dữ liệu, vi phạm bảo mật, auth bypass, hỏng ngầm), High, Medium, Low; xuất bảng và tổng hợp số scenario theo mức.",
+   "Iterative: dựng hiểu biết về actor, component, precondition; mỗi vòng chọn chiều hoặc tổ hợp ưu tiên cao chưa khám phá, sinh MỘT tình huống cụ thể, phân loại New / Variant (giữ) hoặc Duplicate / Out of scope (bỏ, ghi lý do), mở rộng edge case (what-if, biên, gián đoạn, thứ tự, thiếu/cũ dữ liệu), ghi một dòng vào `scenario-results.tsv`, in progress summary mỗi 5 vòng.",
+   "Ép xoay chiều sau 3 vòng liên tiếp cùng chiều theo thứ tự: Dimension walk → Combination → Negation → Amplification → Persona shift → Temporal shift.",
+   "Dừng: `--iterations N` sau đúng N vòng; `--saturation` khi 2 vòng liên tiếp không có New; luôn giữ ngân sách vòng/thời gian đã khai báo.",
+   "Final summary: bảng scenario đã giữ theo chiều, coverage matrix (chiều × mức độ), ánh xạ invariant/test, khoảng trống chưa giải, composite score (scenarios×10 + edge cases×15 + dimensions×30 + unique actors×5 + high severity×3) và lý do dừng; score đo hoạt động khám phá, không đo tính đúng hay độ phủ tuyệt đối."
+  ],
+  "useWhen": [
+   "Trước khi implement feature phức tạp hoặc có trạng thái (thanh toán, OAuth, multi-tenancy).",
+   "Trước khi viết test, cần danh sách test target có mức độ ưu tiên.",
+   "Đánh giá rủi ro khi lập plan hoặc review code; review thiết kế API để lộ edge case của contract sớm.",
+   "Audit độ phủ sâu trước release (`--saturation`)."
+  ],
+  "avoidWhen": [
+   "Sửa một dòng hoặc chỉnh UI thuần thẩm mỹ.",
+   "Code ổn định, đã test kỹ và không đổi gần đây.",
+   "Thay đổi cấu hình thuần không có nhánh logic.",
+   "Cần tranh luận go/no-go cho cả thiết kế: dùng `ak:predict`; cần chạy test thật: dùng `ak:test`."
+  ],
+  "params": [
+   {
+    "name": "<file path or feature description>",
+    "kind": "arg",
+    "desc": "Đường dẫn file cần phân tích hoặc mô tả feature. Bắt buộc."
+   },
+   {
+    "name": "--iterations N",
+    "kind": "flag",
+    "desc": "Vòng lặp có giới hạn: chạy đúng N vòng rồi dừng kèm tổng kết. Không có mặc định; không truyền cả `--iterations` lẫn `--saturation` thì chạy one-shot."
+   },
+   {
+    "name": "--saturation",
+    "kind": "flag",
+    "desc": "Mặc định tắt. Lặp tới khi 2 vòng liên tiếp không có scenario New (heuristic novelty, không phải chứng minh đã đủ); vẫn phải giữ ngân sách vòng/thời gian đã khai báo và báo cáo bất định còn lại."
+   },
+   {
+    "name": "--domain <type>",
+    "kind": "flag",
+    "desc": "Gợi ý domain để sắp thứ tự ưu tiên chiều: `software`, `product`, `business`, `security`, `marketing`. Mặc định: auto. (Có trong bảng Flags của SKILL.md, không nằm trong argument-hint.)"
+   },
+   {
+    "name": "--focus <dim>",
+    "kind": "flag",
+    "desc": "Ưu tiên một nhóm chiều: `edge-cases`, `failures`, `security`, `scale`. Mặc định: auto. (Có trong bảng Flags, không nằm trong argument-hint.)"
+   },
+   {
+    "name": "--format <type>",
+    "kind": "flag",
+    "desc": "Định dạng đầu ra: `table` (mặc định), `use-cases`, `test-scenarios`, `threat-scenarios`. (Có trong bảng Flags, không nằm trong argument-hint.)"
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:scenario src/api/payment.ts",
+    "note": "One-shot mặc định trên một file code."
+   },
+   {
+    "cmd": "/ak:scenario \"User registration with OAuth providers\"",
+    "note": "One-shot từ mô tả feature trước khi implement."
+   },
+   {
+    "cmd": "/ak:scenario src/api/payment.ts --iterations 25",
+    "note": "Lặp có giới hạn đúng 25 vòng, có log TSV và composite score."
+   },
+   {
+    "cmd": "/ak:scenario src/middleware/auth.ts --saturation --domain security",
+    "note": "Lặp tới bão hòa, ưu tiên các chiều bảo mật; phù hợp audit trước release."
+   },
+   {
+    "cmd": "/ak:scenario \"Checkout flow\" --format test-scenarios",
+    "note": "Xuất dưới dạng test scenario để đưa thẳng sang `ak:test`."
+   }
+  ],
+  "tips": [
+   "Composite score chỉ đo lượng khám phá, không chứng minh độ phủ đầy đủ; đừng dùng nó làm KPI chất lượng.",
+   "`--saturation` có thể chạy lâu và tốn token; luôn đặt ngân sách hoặc dùng `--iterations N` khi cần kiểm soát chi phí.",
+   "Đọc mục 'Dimensions skipped' kèm lý do: một giả định bỏ chiều có thể sai là rủi ro ẩn.",
+   "Dán các dòng Critical/High vào phần risk của `ak:plan`, hoặc đưa Critical scenario làm đề xuất cho `ak:predict`."
+  ],
+  "related": [
+   "ak-test",
+   "ak-plan",
+   "ak-predict",
+   "ak-autoresearch",
+   "ak-security"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Scenario Report Markdown trong hội thoại",
+   "`scenario-results.tsv` (chế độ iterative)"
+  ]
+ }
+}

@@ -1,0 +1,5 @@
+node_modules/
+# Dữ liệu thô chứa nguyên văn nội dung kit (có license) hoặc ngoài phạm vi Engineer; sinh lại bằng `npm run extract`.
+data/rules.json
+data/hooks.json
+data/detail/marketing.json

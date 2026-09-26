@@ -1,0 +1,1324 @@
+{
+ "ak-agentkit": {
+  "tagline": "Bộ định tuyến tác vụ: phân loại việc cần làm, chọn đúng skill đã cài, nối chúng thành workflow ngắn nhất và quyết định khi nào spawn subagent.",
+  "summary": "ak:agentkit là router của AgentKit: nhận một mô tả tác vụ, phân loại nó (một workflow class cùng ba modifier size, risk, domain count), rồi trả về MỘT lộ trình cụ thể tới skill chủ quản đã cài và để skill đó thực thi. Đầu vào là mô tả tác vụ; đầu ra là routing record (skill chính, chuỗi skill khi thật sự cần nhiều owner, thời điểm spawn subagent, mức verify theo risk). Skill đứng ở đầu các việc nhiều bước, đa lĩnh vực hoặc mơ hồ, trước brainstorm/plan/cook, và tái sử dụng outcome, constraints, non-goals, acceptance criteria cùng bằng chứng đã có. Bản mới bổ sung class discover-validate và chuỗi product discovery cho founder/product owner. Router luôn đối chiếu với catalog skill đang cài thực tế, không suy đoán từ kit khác hay danh sách nhớ sẵn.",
+  "howItWorks": [
+   "Proportionality gate: người dùng gọi tên skill cụ thể thì chuyển thẳng tới skill đó; chỉ một domain hiển nhiên thì chuyển thẳng tới owner của domain; hội thoại thuần thì không cần workflow.",
+   "Với việc mơ hồ hoặc đa domain: đối chiếu live installed catalog; không bao giờ suy ra skill hay agent từ kit khác hoặc roster nhớ sẵn.",
+   "Khi phân loại chưa rõ, nạp references/task-taxonomy.md: chọn một workflow class (build-feature, fix-defect, investigate-explain, review-audit, ship-release, create-content, discover-validate, plan-campaign, analyze-performance, design-visual, operate-infra, document, meta-capability) theo deliverable CUỐI, cộng ba modifier size (trivial/standard/epic), risk (low/elevated/high, lấy theo link rủi ro cao nhất) và domain count (1 hoặc 2+).",
+   "Các route shape chỉ bắt đầu sau outcome gate ngắn của primary-workflow; router không bỏ qua và không lặp lại contract mở đầu đó.",
+   "Khi cần hơn một owner, nạp references/chaining-patterns.md: dựng chuỗi theo khung understand → decide → execute → verify → deliver (chỉ chạy tiến), áp link contract (entry/exit criteria, một owner mỗi link), collapse rule để rút ngắn và insertion rule để thêm link theo modifier (epic thêm decide và tách execute theo phase; elevated thêm verify; high thêm verify, independent review và xác nhận trước bước không thể đảo ngược; 2+ domain thì mỗi domain một execute sub-link theo thứ tự phụ thuộc).",
+   "Chuỗi engineer (build-feature, fix-defect, investigate-explain, review-audit, ship-release trên codebase) dùng bảng sequence do ak-cook/references/workflow-routing.md sở hữu; domain mơ hồ thì dùng domain-routing của ak-find-skills nếu có cài, nếu không thì khớp mô tả skill đã cài.",
+   "Chọn một owner chính cho mỗi intent, truyền artifact sẵn có rồi dừng định tuyến; không lặp lại các gate outcome/inspection/plan/verify mà owner đã hoàn thành trên trạng thái hiện tại.",
+   "Risk quyết định mức verify: việc bounded, đảo ngược được dùng check liên quan và review trực tiếp; cross-module/public-contract/security cần check rộng hơn và independent review khi được yêu cầu. Tái dùng bằng chứng đúng revision, không coi điểm số là bằng chứng.",
+   "Chỉ delegate khi có sẵn, được phép, hữu ích và có scope rõ, theo references/subagent-timing.md: mỗi lần spawn mang đủ 7 mục delegation contract (task, files to read, files it may modify, acceptance criteria, constraints, report path, status line). Thiếu agent tùy chọn thì làm inline và nói rõ giới hạn.",
+   "Tác vụ headless cross-runtime chuyển cho capability orchestration đã cài; thiếu owner thì dùng native capability và báo khoảng trống thay vì bịa lệnh. Route thất bại thì đổi cách dựa trên bằng chứng và tiếp tục; chỉ hỏi khi thiếu quyết định hoặc quyền hạn quan trọng. Kết thúc bằng báo cáo outcome và verification."
+  ],
+  "useWhen": [
+   "Bắt đầu một việc nhiều bước hoặc đa lĩnh vực (ví dụ vừa backend vừa frontend vừa docs) và chưa rõ nên chạy skill nào trước.",
+   "Không chắc skill hay agent nào áp dụng cho yêu cầu hiện tại.",
+   "Cần sắp xếp nhiều skill thành một workflow có thứ tự (ví dụ research → plan → cook → test → review).",
+   "Founder hoặc product owner muốn thẩm định một ý tưởng/thị trường chưa có offer rõ ràng (class discover-validate).",
+   "Cần quyết định có nên và khi nào spawn subagent (tester, code-reviewer, researcher, kongming...)."
+  ],
+  "avoidWhen": [
+   "Đã biết chính xác skill cần dùng: gọi thẳng skill đó (ví dụ /ak:fix cho bug cụ thể, /ak:cook cho scope đã rõ).",
+   "Chỉ hỏi đáp hoặc giải thích: dùng /ak:ask hoặc /ak:explain.",
+   "Muốn tra danh sách skill/lệnh: dùng /ak:help.",
+   "Cần phối hợp nhiều runtime headless song song: dùng /ak:orchestrate."
+  ],
+  "params": [
+   {
+    "name": "[task to route]",
+    "kind": "arg",
+    "desc": "Mô tả tác vụ cần định tuyến. Router phân loại tác vụ (class + modifier) và trả về lộ trình tới skill chủ quản đã cài. argument-hint không có flag nào khác."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:agentkit thêm đăng nhập Google cho app Next.js, cập nhật docs và viết test e2e",
+    "note": "Đa domain (auth + frontend + docs + test): router chọn owner chính và mỗi domain một execute sub-link theo thứ tự phụ thuộc."
+   },
+   {
+    "cmd": "/ak:agentkit CI đỏ sau khi nâng cấp dependency",
+    "note": "Class fix-defect: chuyển thẳng sang /ak:fix; debugger role chỉ vào sau hai lần sửa thất bại."
+   },
+   {
+    "cmd": "/ak:agentkit lên chiến dịch ra mắt sản phẩm trên email và mạng xã hội",
+    "note": "Class plan-campaign: research → persona/funnel → campaign brief → sản xuất theo kênh → analytics, nếu các skill đó được cài."
+   },
+   {
+    "cmd": "/ak:agentkit tôi muốn hiểu vì sao service này chậm rồi quyết định có refactor không",
+    "note": "Class investigate-explain trước (không có link sửa đổi), sau đó mới brainstorm/plan nếu chuyển sang delivery."
+   }
+  ],
+  "tips": [
+   "Router chỉ định tuyến rồi dừng; nó không lặp lại các gate outcome/plan/verify mà skill chủ quản đã hoàn thành trên trạng thái hiện tại.",
+   "Khi hai class khớp ngang nhau, router ưu tiên class có route ngắn hơn (ambiguity rule) và ghi rõ trong routing record; nâng cấp route giữa chừng rẻ hơn gỡ bỏ nghi thức thừa.",
+   "Collapse rule: gộp/bỏ link khi owner làm dưới khoảng 5 phút, không tạo artifact cho link sau đọc lại và không làm mất verify theo risk. Link verify không được collapse ở risk elevated/high.",
+   "Chuỗi product discovery dừng ở decision record; nếu quyết định là build thì record đó làm đầu vào cho ak-brainstorm → ak-plan.",
+   "Chỉ spawn subagent khi nó mang lại context mới, ranh giới tool, song song thật hoặc system prompt chuyên biệt; giữ khoảng 3-4 spawn đồng thời và file ownership phải tách rời trước khi chạy song song.",
+   "Chuỗi dài nên truyền đường dẫn artifact (plans/reports/...) thay vì tóm tắt bằng lời để không mất thông tin khi nén context.",
+   "Link thất bại không bao giờ cho chuỗi tiến tiếp: đi đường vòng (fix/debug hoặc thu hẹp scope) rồi quay lại đúng link đó."
+  ],
+  "related": [
+   "ak-help",
+   "ak-brainstorm",
+   "ak-plan",
+   "ak-cook",
+   "ak-fix",
+   "ak-find-skills",
+   "ak-orchestrate"
+  ],
+  "agents": [
+   "Explore",
+   "scout",
+   "researcher",
+   "planner",
+   "brainstormer",
+   "fullstack-developer",
+   "content-creator",
+   "copywriter",
+   "email-wizard",
+   "social-media-manager",
+   "tester",
+   "code-reviewer",
+   "content-reviewer",
+   "debugger",
+   "campaign-debugger",
+   "kongming",
+   "docs-manager",
+   "journal-writer",
+   "analytics-analyst",
+   "database-admin"
+  ],
+  "artifacts": [
+   "Routing record trong hội thoại (class, modifier, chuỗi skill, lý do chọn class ngắn hơn khi mơ hồ)",
+   "Báo cáo của subagent trong plans/reports/ khi project có quy ước này"
+  ]
+ },
+ "ak-help": {
+  "tagline": "Mở chỉ mục trợ giúp AgentKit: skill nào đang cài, lệnh nào dùng, workflow nào hợp với việc của bạn.",
+  "summary": "ak:help trả lời các câu hỏi kiểu “dùng ak thế nào”, “có những skill nào”, “nên chạy workflow nào”. Đầu vào là chủ đề, tên skill hoặc tên lệnh (tùy chọn); đầu ra là bản tóm tắt các skill/lệnh phù hợp, lấy từ catalog đang cài thực tế và từ `ak --help`. Skill không dựa vào danh sách đóng gói sẵn hay số lượng skill nhớ sẵn. Đây là điểm vào tra cứu, thường dùng trước khi chọn skill thực thi.",
+  "howItWorks": [
+   "Dùng installed-skill catalog của runtime nếu có; nếu không, tự tìm các file SKILL.md hiện có trong project và user skill roots, chỉ đọc frontmatter của các ứng viên liên quan.",
+   "Không dựa vào catalog đóng gói, số lượng skill copy sẵn hay danh sách skill nhớ từ trước.",
+   "Chỉ tóm tắt các ứng viên khớp với yêu cầu; nếu tác vụ rõ ràng thì chỉ tới skill cụ thể nhất đã cài; nói thẳng khi skill được nhắc tới chưa được cài.",
+   "Khi người dùng cần lệnh: đọc `ak --help` hoặc help của lệnh liên quan tại thời điểm hỏi, giữ ví dụ trong phạm vi kit AgentKit đã cài. Văn bản help không phải command registry.",
+   "Khi alias trùng hoặc skill project che skill user, xác định owner và scope mà runtime thực sự resolve trước khi định tuyến; câu hỏi về help của một lệnh chỉ cần help của lệnh đó, không cần cả catalog."
+  ],
+  "useWhen": [
+   "Mới dùng AgentKit, muốn biết có những skill nào và dùng ra sao.",
+   "Muốn biết cú pháp hoặc subcommand của CLI `ak` (ví dụ `ak plan`, `ak config`).",
+   "Không chắc workflow nào hợp với tác vụ và muốn xem gợi ý trước khi chạy.",
+   "Nghi ngờ hai skill trùng tên (project vs user scope) và cần biết cái nào thực sự được dùng."
+  ],
+  "avoidWhen": [
+   "Muốn hệ thống tự phân loại và nối chuỗi skill cho một tác vụ cụ thể: dùng /ak:agentkit.",
+   "Cần tìm hoặc cài skill mới chưa có: dùng /ak:find-skills.",
+   "Cần thao tác cài/cập nhật/gỡ kit bằng CLI ak: dùng /ak:ak.",
+   "Cần giải thích một khái niệm kỹ thuật: dùng /ak:explain."
+  ],
+  "params": [
+   {
+    "name": "[topic|skill|command]",
+    "kind": "arg",
+    "desc": "Chủ đề, tên skill hoặc tên lệnh cần trợ giúp (tùy chọn). Có lệnh thì chỉ đọc help của lệnh đó; có skill thì chỉ đọc frontmatter liên quan; bỏ trống thì mở chỉ mục trợ giúp chung."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:help",
+    "note": "Mở chỉ mục trợ giúp chung, xem các nhóm skill đang cài."
+   },
+   {
+    "cmd": "/ak:help plan",
+    "note": "Hỏi về skill ak:plan hoặc lệnh `ak plan`; câu trả lời dựa trên SKILL.md và `ak plan --help` hiện tại."
+   },
+   {
+    "cmd": "/ak:help workflow sửa bug CI",
+    "note": "Hỏi workflow phù hợp; help chỉ ra skill cụ thể nhất đã cài (thường là /ak:fix)."
+   },
+   {
+    "cmd": "/ak:help ak config prefs",
+    "note": "Tra cú pháp một lệnh CLI; chỉ đọc help của lệnh đó."
+   }
+  ],
+  "tips": [
+   "Skill này có thể không hiện trong danh sách user-invocable (frontmatter không bật user-invocable), nhưng mô hình sẽ tự kích hoạt khi bạn hỏi cách dùng ak.",
+   "Câu trả lời phản ánh trạng thái cài đặt hiện tại; nếu vừa cài/gỡ kit, hãy hỏi lại để có danh sách mới.",
+   "Help nói rõ khi skill chưa được cài thay vì giả vờ gọi nó; khi đó dùng /ak:find-skills để tìm.",
+   "Hỏi hẹp (một lệnh cụ thể) tốn ít token hơn nhiều so với hỏi toàn bộ catalog."
+  ],
+  "related": [
+   "ak-agentkit",
+   "ak-find-skills",
+   "ak-ak"
+  ],
+  "agents": [],
+  "artifacts": []
+ },
+ "ak-coding-level": {
+  "tagline": "Đặt mức kinh nghiệm lập trình (0-5) để điều chỉnh độ sâu giải thích và cách trình bày câu trả lời.",
+  "summary": "ak:coding-level cho phép người dùng đặt mức kinh nghiệm từ 0 (ELI5) đến 5 (God Mode, mặc định). Mức này thay đổi độ sâu giải thích, từ vựng và ví dụ, nhưng không bao giờ làm giảm phạm vi triển khai, tính đúng đắn, test hay bảo mật. Skill áp dụng ngay cho phiên hiện tại và cố gắng lưu bền qua `ak config prefs` nếu runtime hỗ trợ. Skill chỉ do người dùng gọi (disable-model-invocation), không nằm trong chuỗi workflow nào.",
+  "howItWorks": [
+   "Nhận tham số mức 0-5 từ lệnh `/ak:coding-level [0-5]`.",
+   "Áp dụng ngay mức đã chọn cho độ sâu giải thích, từ vựng và ví dụ trong phiên; giữ nguyên scope triển khai, tính đúng, test và bảo mật ở mọi mức.",
+   "Để lưu bền: xem `ak config --help` và `ak config prefs --help`, resolve preference hiện hành bằng `ak config prefs resolve --json` khi được hỗ trợ.",
+   "Ghi qua đường cấu hình mà CLI đã cài hỗ trợ (đúng scope), sau đó kiểm tra lại giá trị `codingLevel` đã resolve.",
+   "Không tạo `.claude/.ck.json` trên Codex và không giả định hook của runtime này inject preference cho runtime khác; nếu runtime không có cơ chế lưu/inject thì chỉ áp dụng cho phiên hiện tại và báo rõ giới hạn.",
+   "Tùy chọn: chọn Output style tương ứng trong `/config` của Claude Code (coding-level-0-eli5 ... coding-level-5-god) để kiểm soát chi tiết hơn."
+  ],
+  "useWhen": [
+   "Người mới học lập trình muốn câu trả lời có ẩn dụ, không thuật ngữ, từng bước (mức 0 hoặc 1).",
+   "Muốn agent giải thích TẠI SAO chứ không chỉ LÀM THẾ NÀO khi review code của junior (mức 1).",
+   "Tech lead muốn câu trả lời tập trung vào rủi ro, tác động kinh doanh và chiến lược (mức 4).",
+   "Muốn quay lại chế độ mặc định, hiệu quả tối đa, ít giải thích (mức 5)."
+  ],
+  "avoidWhen": [
+   "Chỉ cần một lần giải thích đơn giản cho một chủ đề: dùng /ak:explain --eli5 thay vì đổi mức toàn phiên.",
+   "Chỉ muốn diễn đạt lại câu trả lời vừa rồi cho dễ hiểu: dùng /ak:bro.",
+   "Mong đợi mức thấp sẽ cắt bớt tính năng hoặc bỏ test: skill này không làm vậy; muốn cắt scope hãy dùng flag --yagni của skill tương ứng."
+  ],
+  "params": [
+   {
+    "name": "[0-5]",
+    "kind": "arg",
+    "desc": "Mức kinh nghiệm: 0 = ELI5 (không kinh nghiệm, ẩn dụ, không jargon, từng bước); 1 = Junior (0-2 năm, giải thích khái niệm và lý do); 2 = Mid-Level (3-5 năm, design pattern, tư duy hệ thống); 3 = Senior (5-8 năm, trade-off, bối cảnh kinh doanh, kiến trúc); 4 = Tech Lead (8-10 năm, đánh giá rủi ro, tác động kinh doanh, chiến lược); 5 = God Mode (chuyên gia, hành vi mặc định, hiệu quả tối đa). Mặc định là 5."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:coding-level 0",
+    "note": "Người không biết lập trình: câu trả lời dùng ẩn dụ đời thường và định nghĩa mọi thuật ngữ."
+   },
+   {
+    "cmd": "/ak:coding-level 1",
+    "note": "Junior: agent giải thích vì sao cách triển khai hoạt động, vẫn giao đầy đủ code production và bước verify."
+   },
+   {
+    "cmd": "/ak:coding-level 4",
+    "note": "Tech lead: tập trung vào risk assessment, business impact."
+   },
+   {
+    "cmd": "/ak:coding-level 5",
+    "note": "Quay về mặc định, câu trả lời ngắn gọn, hiệu quả nhất."
+   }
+  ],
+  "tips": [
+   "Mức thấp không có nghĩa là code ít hơn: scope, test và bảo mật giữ nguyên, chỉ phần giải thích thay đổi.",
+   "Sau khi đặt, kiểm tra `ak config prefs resolve --json` để chắc `codingLevel` đã lưu; nếu runtime không hỗ trợ lưu bền, mức chỉ có hiệu lực trong phiên hiện tại.",
+   "Trên Claude Code có thể chọn thêm Output style coding-level-N trong `/config`; style chỉ được emit không có nghĩa là đã tự inject vào mọi phiên, cần kiểm tra thực tế.",
+   "Mức thấp làm câu trả lời dài hơn, tốn thêm token; đặt lại mức 5 khi không cần giải thích sâu.",
+   "Một style trùng tên do bạn tự viết sẽ được giữ nguyên kèm cảnh báo; `ak update` thường không ghi đè nó."
+  ],
+  "related": [
+   "ak-explain",
+   "ak-bro",
+   "ak-advise"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Preference `codingLevel` trong cấu hình ak (khi runtime hỗ trợ lưu bền)"
+  ]
+ },
+ "ak-ask": {
+  "tagline": "Tư vấn kiến trúc và kỹ thuật một lượt: phân tích, so sánh giải pháp, khuyến nghị — không viết code.",
+  "summary": "ak:ask đóng vai Senior Systems Architect trả lời câu hỏi kỹ thuật hoặc kiến trúc: quyết định thiết kế, đánh giá best practice, so sánh giải pháp. Đầu vào là câu hỏi; đầu ra là phân tích thẳng thắn, ngắn gọn gồm các phần liên quan (phân tích kiến trúc, khuyến nghị thiết kế, hướng dẫn công nghệ, chiến lược triển khai, bước tiếp theo). Skill chỉ phân tích, tuyệt đối không bắt đầu triển khai. Khác ak:advise ở chỗ không phỏng vấn nhiều vòng; dùng trước khi thay đổi code.",
+  "howItWorks": [
+   "Khám phá ngữ cảnh trước khi tư vấn: đọc các file hướng dẫn repo và README gốc, đi theo điều hướng tài liệu có sẵn để tìm tài liệu workflow, kiến trúc, sản phẩm, vận hành liên quan.",
+   "Kiểm chứng tuyên bố trong tài liệu với source, test, cấu hình và bằng chứng runtime hiện tại; không giả định mọi project có cùng thư mục docs.",
+   "Problem Understanding: phân tích câu hỏi và thu thập ngữ cảnh kiến trúc; nếu thiếu thông tin thì dùng skill ak:scout để scout lại codebase.",
+   "Chọn các góc nhìn phân tích liên quan (không bắt buộc cả bốn): Systems Designer, Technology Strategist, Scalability Consultant, Risk Analyst (nêu cả điều kiện khiến khuyến nghị không còn đúng).",
+   "Architecture Synthesis: tổng hợp thành hướng dẫn kiến trúc; Strategic Validation: đối chiếu với mục tiêu kinh doanh và ràng buộc kỹ thuật.",
+   "Xuất kết quả trung thực, thẳng, ngắn gọn; câu hỏi nhỏ có thể chỉ cần một đoạn. Không triển khai gì."
+  ],
+  "useWhen": [
+   "Cần chọn giữa hai hoặc nhiều giải pháp (ví dụ Postgres vs MongoDB, REST vs gRPC) cho project hiện tại.",
+   "Muốn đánh giá một pattern hoặc best practice trước khi viết code.",
+   "Cần ý kiến kiến trúc nhanh về khả năng mở rộng, độ tin cậy hoặc rủi ro của một thiết kế.",
+   "Muốn một câu trả lời phân tích một lượt, không cần phỏng vấn qua lại."
+  ],
+  "avoidWhen": [
+   "Ý tưởng còn mơ hồ và cần được chất vấn để làm rõ yêu cầu: dùng /ak:advise (phỏng vấn từng câu).",
+   "Cần so sánh phương án rồi chốt hợp đồng outcome trước khi giao hàng: dùng /ak:brainstorm.",
+   "Muốn giải thích một khái niệm hoặc đoạn code có sẵn: dùng /ak:explain.",
+   "Cần nghiên cứu sâu công nghệ bên ngoài có trích dẫn: dùng /ak:research.",
+   "Muốn bắt tay vào triển khai: dùng /ak:plan hoặc /ak:cook."
+  ],
+  "params": [
+   {
+    "name": "[technical-question]",
+    "kind": "arg",
+    "desc": "Câu hỏi kỹ thuật hoặc thách thức kiến trúc, được đưa vào khối <questions> của prompt."
+   },
+   {
+    "name": "--yagni",
+    "kind": "flag",
+    "desc": "Bật YAGNI: ngoài KISS/DRY, chủ động chất vấn và cắt bỏ phạm vi không cần cho kết quả đã nêu. Mặc định (không có flag) tư vấn trên toàn bộ phạm vi được yêu cầu, không cắt, không thêm."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:ask Nên dùng queue (RabbitMQ) hay cron job cho việc gửi email hàng loạt trong service này?",
+    "note": "So sánh giải pháp có đối chiếu với codebase hiện tại."
+   },
+   {
+    "cmd": "/ak:ask Kiến trúc multi-tenant hiện tại có chịu được 10x tenant không?",
+    "note": "Đánh giá khả năng mở rộng và rủi ro, kèm điều kiện khuyến nghị hết đúng."
+   },
+   {
+    "cmd": "/ak:ask Thiết kế hệ thống phân quyền RBAC cho admin panel --yagni",
+    "note": "Muốn phương án tối giản, cắt phần không cần cho mục tiêu."
+   },
+   {
+    "cmd": "/ak:ask Có nên tách module billing thành microservice riêng?",
+    "note": "Quyết định kiến trúc chiến lược trước khi lập plan."
+   }
+  ],
+  "tips": [
+   "Skill chỉ do người dùng gọi (disable-model-invocation); agent sẽ không tự kích hoạt nó.",
+   "Câu hỏi càng cụ thể (kèm tên module, ràng buộc, quy mô) thì câu trả lời càng bám bằng chứng; nếu thiếu, skill sẽ scout codebase và tốn thêm token.",
+   "Output được thiết kế thẳng thắn, “brutal”; đừng ngạc nhiên nếu nó chỉ ra ý tưởng của bạn yếu.",
+   "Sau khi có khuyến nghị, chuyển sang /ak:plan để lập kế hoạch; ak:ask không tạo file plan hay report."
+  ],
+  "related": [
+   "ak-advise",
+   "ak-brainstorm",
+   "ak-scout",
+   "ak-research",
+   "ak-plan"
+  ],
+  "agents": [],
+  "artifacts": []
+ },
+ "ak-advise": {
+  "tagline": "Cố vấn kỹ thuật theo kiểu phỏng vấn: chất vấn từng câu một đến khi rõ yêu cầu, rồi đưa lời khuyên trung thực có bằng chứng.",
+  "summary": "ak:advise nhận một ý tưởng thô, mô tả vấn đề hoặc URL (GitHub issue/PR, spec, bài viết), phỏng vấn người dùng từng câu một để làm lộ yêu cầu và mục tiêu thật, xác nhận bản reframing, rồi đưa lời khuyên thẳng thắn. Đầu ra gồm verdict, nên làm/không nên làm, lựa chọn tốt hơn, lộ trình đề xuất, lợi ích, trade-off, work checklist và success metrics; tùy flag còn xuất HTML, Markdown, AgentWiki hoặc comment GitHub. Skill chỉ tư vấn, không sửa code hay file ngoài report của nó. Thường đứng trước ak:brainstorm hoặc ak:plan.",
+  "howItWorks": [
+   "Bước 1 — Phân tích đầu vào: prompt thô (tách vấn đề nêu ra, vấn đề ngầm, giả định ẩn); GitHub URL (lấy bằng `gh issue view <url> --comments` hoặc `gh pr view`, ghi lại số issue để --github trả lời); URL khác (fetch và tóm tắt). Nêu 2-3 gạch đầu dòng hiểu biết ban đầu.",
+   "Bước 2 — Scout codebase khi chủ đề chạm tới project: đọc hẹp phần source liên quan, chỉ dùng scout song song cho các vùng độc lập; bỏ qua với câu hỏi chiến lược thuần. Tóm tắt 3-6 gạch trước khi phỏng vấn.",
+   "Bước 3 — Phỏng vấn (HARD-GATE: đúng MỘT câu hỏi mỗi lần gọi ask_user): bắt đầu bằng lý do, thách thức bằng pros/cons, tìm giả định gánh trọng tải, khám phá 2-3 phương án thay thế (kể cả không làm/làm ít), kiểm tra ràng buộc, lặp đến khi hội tụ. Thường 4-8 câu; tái sử dụng câu trả lời đã có.",
+   "Bước 4 — Xác nhận reframing (Problem, Exact requirements, Goals, Non-goals, Constraints) bằng ask_user; không đưa lời khuyên trên reframing chưa được xác nhận.",
+   "Bước 5 — Đưa lời khuyên 8 phần: Verdict, What you should do, What you shouldn't do, What could be better, My take and how to get there, Benefits, Trade-offs (kèm điều kiện khuyến nghị hết đúng), Work checklist & success metrics.",
+   "Bước 6 — Xuất theo flag (nạp references/optional-modes.md): viết report advise chuẩn trước, sau đó spawn subagent: --html → ui-ux-designer, --md/--wiki → docs-manager, --github → git-manager; các subagent độc lập chạy song song, mỗi prompt có dòng “DO NOT COMMIT OR PUSH”.",
+   "--agent: phiên chính thành orchestrator, spawn subagent `advisor` (model fable) với state file; subagent trả `NEEDS_USER_INPUT` (chuyển nguyên văn câu hỏi cho người dùng rồi spawn lại kèm câu trả lời) hoặc `ADVICE_READY: <path>`; giới hạn 12 vòng relay.",
+   "--ultra: phỏng vấn và reframing chạy MỘT lần, chỉ phần sinh lời khuyên được fan ra 5 candidate read-only song song; một verifier mạnh nhất (kongming) chấm 1-20 theo rubric và chọn lời khuyên thắng nguyên vẹn, hoặc reject-all thì dừng cứng."
+  ],
+  "useWhen": [
+   "Có ý tưởng thô và muốn được chất vấn để biết yêu cầu thật trước khi lập plan.",
+   "Cần ý kiến thứ hai trung thực về một plan, thiết kế hoặc đề xuất đã có.",
+   "Muốn phân tích một GitHub issue/PR và trả lời lời khuyên thẳng lên issue đó (--github).",
+   "Cần báo cáo tư vấn dạng HTML trực quan hoặc Markdown để chia sẻ với người không có mặt trong hội thoại."
+  ],
+  "avoidWhen": [
+   "Chỉ cần câu trả lời phân tích một lượt không phỏng vấn: dùng /ak:ask.",
+   "Muốn so sánh phương án và chốt hợp đồng outcome để chuyển thẳng sang plan/cook: dùng /ak:brainstorm.",
+   "Cần triển khai: ak:advise không viết code; dùng /ak:plan rồi /ak:cook.",
+   "Chạy trong môi trường headless không có người trả lời: phỏng vấn từng câu sẽ không hiệu quả; cân nhắc /ak:brainstorm (có fallback headless với --ask)."
+  ],
+  "params": [
+   {
+    "name": "[prompt-or-url]",
+    "kind": "arg",
+    "desc": "Văn bản mô tả vấn đề/ý tưởng, hoặc URL: GitHub issue/PR/discussion, spec, tài liệu, blog post. Với GitHub URL, số issue và repo được ghi lại để --github trả lời vào đó."
+   },
+   {
+    "name": "--html",
+    "kind": "flag",
+    "desc": "Spawn subagent ui-ux-designer tạo report HTML tự chứa (inline CSS/JS, không asset mạng, responsive, hỗ trợ reduced-motion) cạnh report chuẩn; phải trực quan hóa verdict, requirements/goals, cột do vs don't, so sánh phương án, benefits/trade-offs. Kích hoạt ak:frontend-design rồi ak:diagram (fallback SVG inline nếu thiếu)."
+   },
+   {
+    "name": "--md",
+    "kind": "flag",
+    "desc": "Spawn subagent docs-manager tạo report Markdown độc lập cho người không xem hội thoại; nếu report chuẩn đã đạt chuẩn thì chỉ báo đường dẫn."
+   },
+   {
+    "name": "--wiki",
+    "kind": "flag",
+    "desc": "Spawn docs-manager đăng report HTML/MD lên AgentWiki khi khả dụng (kiểm tra `agentwiki whoami` hoặc MCP). Mặc định private-first: `agentwiki doc upload` rồi `doc share`; publish công khai chỉ khi người dùng yêu cầu rõ. Thiếu capability thì báo bỏ qua, không chặn. Chạy sau --html/--md khi kết hợp."
+   },
+   {
+    "name": "--github",
+    "kind": "flag",
+    "desc": "Spawn subagent git-manager: nếu đầu vào là GitHub issue/PR thì comment lời khuyên lên đó (`gh issue comment`), mở đầu bằng reframing và verdict, kèm link wiki nếu có; nếu không thì tạo issue mới trong repo hiện tại. `gh` lỗi thì báo nguyên lỗi, không giả thành công."
+   },
+   {
+    "name": "--agent",
+    "kind": "flag",
+    "desc": "Giao toàn bộ workflow cho subagent `advisor` (model fable, context riêng); phiên chính chỉ relay từng câu hỏi phỏng vấn cho người dùng. Chỉ trên Claude Code (runtime khác chạy inline). Giới hạn 12 vòng relay. Loại trừ lẫn nhau với --ultra."
+   },
+   {
+    "name": "--ultra",
+    "kind": "flag",
+    "desc": "Chế độ best-of-5 verifier: phỏng vấn + reframing chạy một lần, chỉ phần sinh lời khuyên được fan ra 5 candidate read-only; verifier chấm 1-20 theo rubric (bám yêu cầu, có bằng chứng, trade-off trung thực, checklist/metrics hành động được) và chọn lời khuyên thắng. Dừng cứng nếu runtime không dispatch song song được. Xung đột cứng với --agent; kết hợp được với --html, --md, --wiki, --github, --yagni."
+   },
+   {
+    "name": "--yagni",
+    "kind": "flag",
+    "desc": "Bật YAGNI: chất vấn và cắt phạm vi không cần cho kết quả đã nêu. Mặc định tư vấn trên toàn bộ phạm vi được yêu cầu; nếu cho rằng scope sai thì nêu như trade-off chứ không cắt."
+   },
+   {
+    "name": "--no-antv",
+    "kind": "flag",
+    "desc": "Tắt lớp AntV Infographic (ô KPI dạng CandyCardLite/CircularProgress) trong report HTML của lần gọi này. Chỉ có tác dụng với --html."
+   },
+   {
+    "name": "--no-diagram-design",
+    "kind": "flag",
+    "desc": "Tắt lớp diagram-design (ví dụ Quadrant 2×2 cho panel Do vs Don't và so sánh phương án) trong report HTML. Chỉ có tác dụng với --html."
+   },
+   {
+    "name": "--no-editorial-visuals",
+    "kind": "flag",
+    "desc": "Tắt toàn bộ editorial visual layer (cả AntV và diagram-design) trong report HTML; ưu tiên cao nhất trong thang resolve."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:advise Tôi muốn viết lại toàn bộ backend sang Rust",
+    "note": "Ý tưởng lớn, cần được chất vấn lý do, phương án thay thế và chi phí trước khi quyết."
+   },
+   {
+    "cmd": "/ak:advise https://github.com/org/repo/issues/123 --github",
+    "note": "Phân tích issue, phỏng vấn, rồi comment lời khuyên thẳng vào issue."
+   },
+   {
+    "cmd": "/ak:advise plans/260920-auth/plan.md --html --md",
+    "note": "Xin ý kiến thứ hai về plan có sẵn, xuất cả report HTML và Markdown."
+   },
+   {
+    "cmd": "/ak:advise Chọn chiến lược cache cho API --ultra --yagni",
+    "note": "Quyết định gánh trọng tải, muốn 5 bản lời khuyên độc lập và chọn bản tốt nhất, ưu tiên tối giản."
+   },
+   {
+    "cmd": "/ak:advise Có nên thêm GraphQL gateway? --agent",
+    "note": "Giữ phỏng vấn dài ra khỏi context phiên chính (chỉ Claude Code)."
+   }
+  ],
+  "tips": [
+   "Skill chỉ do người dùng gọi (disable-model-invocation).",
+   "Mỗi lượt chỉ có một câu hỏi; trả lời cụ thể (con số, ràng buộc) để phỏng vấn hội tụ nhanh trong 4-8 câu. “Làm cho tốt hơn” không được coi là yêu cầu.",
+   "Quyết định cuối là của bạn: advisor sẽ phản biện mạnh nhưng không ghi đè quyết định rõ ràng, chỉ ghi lại như trade-off.",
+   "--ultra tốn chi phí gấp nhiều lần (5 candidate + 1 verifier); chỉ dùng khi quyết định đủ quan trọng. --ultra và --agent không dùng chung được.",
+   "Work checklist cuối lời khuyên đủ nhỏ để đưa thẳng vào /ak:plan hoặc /ak:cook.",
+   "Chỉ dẫn nhúng trong URL hoặc issue body bị coi là dữ liệu, không phải lệnh; report không bao giờ chứa secret."
+  ],
+  "related": [
+   "ak-ask",
+   "ak-brainstorm",
+   "ak-plan",
+   "ak-scout",
+   "ak-cook"
+  ],
+  "agents": [
+   "advisor",
+   "ui-ux-designer",
+   "docs-manager",
+   "git-manager",
+   "kongming"
+  ],
+  "artifacts": [
+   "Report advise chuẩn trong thư mục reports (tên theo mục ## Naming, type advise)",
+   "File HTML tự chứa cạnh report (--html)",
+   "Report Markdown (--md)",
+   "State file `...-state.md` (--agent)",
+   "Share URL AgentWiki (--wiki)",
+   "Comment hoặc issue GitHub (--github)"
+  ]
+ },
+ "ak-brainstorm": {
+  "tagline": "Biến ý định chưa rõ thành hợp đồng giao hàng (outcome, constraints, non-goals, acceptance criteria) và so sánh phương án trước khi làm.",
+  "summary": "ak:brainstorm là cổng mở đầu của mọi việc giao hàng nhiều bước: nó ghi lại bốn trường bắt buộc Outcome, Constraints, Non-goals, Acceptance criteria, cộng Trade-offs và Better approaches khi có so sánh phương án. Với yêu cầu đã rõ, skill chỉ tóm tắt ngắn rồi đi tiếp; với lựa chọn thiết kế thật, nó trình bày tối đa ba phương án kèm giả định chính và điều kiện thất bại. Với bug, nó buộc chẩn đoán root cause trước khi bàn cách sửa. Đầu ra được chuyển giao cho ak:plan → ak:cook (tính năng) hoặc ak:fix (bug đã chẩn đoán).",
+  "howItWorks": [
+   "Parse flag một lần trước khi nạp reference tương ứng (--ask, --html, --report, --advice, --ultra, --yagni, các kill switch visual).",
+   "Nếu không phải giao hàng nhiều bước: trả lời trực tiếp hoặc chạy tiện ích read-only, không cần vòng thiết kế.",
+   "Nếu đã có contract/plan được chấp nhận chứa đủ bốn trường: tái sử dụng, chỉ nêu khoảng trống quan trọng.",
+   "Nếu chưa có: với --ask thì kiểm tra bằng chứng trước, rồi hỏi một vòng làm rõ (tối đa 4 quyết định, mỗi quyết định 2-4 lựa chọn, đánh dấu (Recommended)); không có --ask thì ghi contract ngắn gọn, chỉ hỏi khi câu trả lời thay đổi đáng kể kết quả, ranh giới an toàn hoặc public contract.",
+   "Nhánh bug: đóng khung hành vi mong đợi sau sửa → scout đường lỗi và ghi trạng thái lỗi → chẩn đoán và chứng minh root cause → mới so sánh các giải pháp bám nguyên nhân (hoặc ghi lý do sửa trực tiếp là đủ).",
+   "Nhánh thiết kế: đọc phần source/docs/test/plan nhỏ nhất liên quan, nêu ràng buộc và khoảng trống bằng chứng, trình bày tối đa 3 phương án (mỗi phương án nêu giả định gánh trọng tải và điều kiện thất bại đầu tiên, so sánh theo trường hợp xấu nhất), khuyến nghị phương án nhỏ nhất thỏa contract hoặc rẻ nhất để bỏ khi giả định chưa giải quyết được.",
+   "Chuyển giao: truyền các trường contract, hướng đã chọn, bằng chứng và rủi ro chưa giải quyết cho plan rồi /ak:cook (feature/docs), /ak:fix (bug), hoặc báo cáo và dừng (chỉ khám phá). --yagni và --advice được chuyển tiếp xuống; --ask thì không bao giờ.",
+   "Artifact tùy chọn: --html ghi brainstorm.html, --report ghi report Markdown; không có hai flag này thì chỉ ghi tóm tắt bền khi quyết định cần sống qua phiên hoặc làm đầu vào cho plan."
+  ],
+  "useWhen": [
+   "Mở đầu một tính năng mới nhiều bước khi outcome, ràng buộc hoặc tiêu chí nghiệm thu chưa được ghi lại.",
+   "Có nhiều cách triển khai khả thi và cần so sánh trade-off trước khi lập plan.",
+   "Bug đã được chẩn đoán nhưng còn nhiều cách sửa hoặc liên quan quyết định kiến trúc.",
+   "Muốn một brief HTML có sơ đồ workflow và mockup UI để duyệt trước khi lập plan (--html)."
+  ],
+  "avoidWhen": [
+   "Câu hỏi đơn thuần hoặc tiện ích read-only: trả lời trực tiếp hoặc dùng /ak:ask, /ak:explain.",
+   "Đã có plan được chấp nhận chứa đủ bốn trường: dùng thẳng /ak:cook <plan-path>.",
+   "Bug chưa chẩn đoán: dùng /ak:debug hoặc /ak:fix trước; brainstorm không thay thế root-cause analysis.",
+   "Muốn được phỏng vấn sâu từng câu và nhận lời khuyên độc lập (không chuyển thẳng sang plan): dùng /ak:advise."
+  ],
+  "params": [
+   {
+    "name": "[topic or problem]",
+    "kind": "arg",
+    "desc": "Chủ đề, yêu cầu hoặc vấn đề cần làm rõ và so sánh phương án."
+   },
+   {
+    "name": "--ask",
+    "kind": "flag",
+    "desc": "Interview mode: kiểm tra bằng chứng trước, rồi một vòng hỏi ask_user tối đa 4 quyết định (2-4 lựa chọn, có (Recommended)); vòng hai chỉ khi câu trả lời phá vỡ tiền đề. Không hỏi điều đã nêu, đã có trong plan, tự tìm được hoặc đã trả lời. Headless: áp dụng mặc định đề xuất cho quyết định đảo ngược được và ghi thành giả định; quyết định chạm ranh giới bảo mật thì dừng cứng. Không bao giờ chuyển tiếp xuống downstream."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "Chạy dưới giám sát tư vấn của `kongming`: spawn sau mỗi phase/vòng quyết định, khi bị kẹt, và trước quyết định rủi ro cao. Được chuyển tiếp cho plan/cook/fix; khi tới PR và CI xanh, kongming review toàn bộ và comment lên PR và issue nguồn. Kongming chỉ cho lời khuyên, không sửa code hay vượt gate."
+   },
+   {
+    "name": "--html",
+    "kind": "flag",
+    "desc": "Ghi thêm brainstorm.html tự chứa (inline CSS/JS, mở trực tiếp từ đĩa) trong thư mục report: chứa các trường contract, phương án và trade-off, khuyến nghị, rủi ro; bắt buộc có ít nhất một sơ đồ workflow triển khai, và mockup UI có chú thích khi chủ đề chạm UI/UX. Kích hoạt ak:frontend-design rồi ak:diagram. Bổ sung cho handoff, không thay thế."
+   },
+   {
+    "name": "--report",
+    "kind": "flag",
+    "desc": "Lưu brainstorm thành report Markdown bền: plans/{plan-dir}/reports/ khi có plan active, ngược lại plans/reports/ (hoặc đường Report: được inject), tên kiểu brainstorm-{YYMMDD-HHmm}-{slug}.md. Kết hợp được với mọi flag; với --ultra ghi candidate thắng kèm phụ lục xếp hạng."
+   },
+   {
+    "name": "--ultra",
+    "kind": "flag",
+    "desc": "Best-of-5 verifier: dựng một evidence packet bất biến, dispatch đúng 5 candidate brainstorm read-only song song, một verifier mạnh nhất chấm và chọn contract thắng (xuất nguyên vẹn, không trộn) hoặc reject-all thì dừng cứng. Dừng cứng nếu runtime không có dispatch song song. Kết hợp với --html, --report, --advice, --yagni; với --ask thì phỏng vấn một lần trước khi đóng băng packet."
+   },
+   {
+    "name": "--yagni",
+    "kind": "flag",
+    "desc": "Bật cắt phạm vi: chất vấn và bỏ phần không cần cho kết quả. Mặc định giao toàn bộ phạm vi được yêu cầu. Khi bật, flag nguyên văn được truyền vào mọi handoff skill/subagent downstream."
+   },
+   {
+    "name": "--no-antv",
+    "kind": "flag",
+    "desc": "Tắt ô KPI AntV Infographic (CandyCardLite/CompactCard cho điểm effort/impact) trong brainstorm.html; giữ nguyên trong route HTML."
+   },
+   {
+    "name": "--no-diagram-design",
+    "kind": "flag",
+    "desc": "Tắt Quadrant diagram-design cho so sánh phương án trong brainstorm.html (dùng bảng thường)."
+   },
+   {
+    "name": "--no-editorial-visuals",
+    "kind": "flag",
+    "desc": "Tắt toàn bộ editorial visual layer trong brainstorm.html."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:brainstorm Thêm thông báo realtime cho dashboard",
+    "note": "Tính năng mới: chốt contract, so sánh WebSocket vs SSE vs polling, rồi chuyển sang /ak:plan."
+   },
+   {
+    "cmd": "/ak:brainstorm Chuyển hệ thống upload sang S3 presigned URL --ask --report",
+    "note": "Có nhiều quyết định chưa rõ, muốn một vòng hỏi có lựa chọn đề xuất và lưu report bền."
+   },
+   {
+    "cmd": "/ak:brainstorm Thiết kế lại trang onboarding --html",
+    "note": "Chủ đề UI: brief HTML có mockup chú thích và sơ đồ workflow để duyệt trước."
+   },
+   {
+    "cmd": "/ak:brainstorm Kiến trúc đồng bộ offline cho app mobile --ultra --advice",
+    "note": "Quyết định gánh trọng tải: 5 candidate + verifier, có kongming giám sát xuyên suốt."
+   },
+   {
+    "cmd": "/ak:brainstorm Bộ lọc tìm kiếm nâng cao --yagni",
+    "note": "Muốn phương án tối giản; --yagni được mang xuống plan/cook."
+   }
+  ],
+  "tips": [
+   "Với yêu cầu đã cụ thể, brainstorm chỉ tóm tắt bốn trường và đi tiếp; không phải lúc nào cũng có vòng hỏi đáp.",
+   "Trade-offs chỉ xuất hiện khi có ít nhất 2 phương án được so sánh; nếu không tìm được phương án tốt hơn, contract ghi rõ “Better approaches: none — ...” kèm bằng chứng.",
+   "Không bao giờ dán secret vào câu trả lời; nếu lỡ dán, skill thay bằng [REDACTED] và khuyên xoay vòng credential.",
+   "--ultra tốn gấp nhiều lần và chỉ đáng khi kết quả kiểm chứng được; với việc thiên về cảm quan, đường mặc định là đủ.",
+   "Với bug, đừng mong brainstorm đề xuất sửa từ triệu chứng: nó sẽ đòi scout và chứng minh nguyên nhân trước."
+  ],
+  "related": [
+   "ak-plan",
+   "ak-cook",
+   "ak-fix",
+   "ak-debug",
+   "ak-advise",
+   "ak-ask"
+  ],
+  "agents": [
+   "kongming"
+  ],
+  "artifacts": [
+   "brainstorm.html trong thư mục report (--html)",
+   "plans/reports/brainstorm-{YYMMDD-HHmm}-{slug}.md hoặc plans/{plan-dir}/reports/... (--report)",
+   "Dòng receipt `ultra: picked=...` trong report (--ultra)"
+  ]
+ },
+ "ak-plan": {
+  "tagline": "Tạo, kiểm định và review kế hoạch triển khai có phase thực thi được và tiêu chí nghiệm thu.",
+  "summary": "ak:plan viết kế hoạch triển khai có cấu trúc dưới plans/<timestamp>-<slug>/ gồm plan.md (chỉ mục) và các phase-NN-<name>.md (chi tiết thực thi), kèm sơ đồ kiến trúc và chiến lược test. Skill có nhiều mode độ sâu (fast, hard, deep, parallel, two, debate, ultra, hoặc tự phát hiện) và ba subcommand: validate (phỏng vấn kiểm định), red-team (review đối kháng), archive (đóng/lưu trữ plan). Plan có thể xuất HTML, đăng GitHub issue hoặc AgentWiki, và được hydrate thành task. Plan đứng sau brainstorm và trước ak:cook — việc triển khai thuộc về cook.",
+  "howItWorks": [
+   "Resolve mode (loại trừ lẫn nhau) và modifier trước khi nạp reference; hai mode flag cùng lúc là dừng cứng. Tái sử dụng outcome, constraints, non-goals, acceptance criteria đã chấp nhận.",
+   "1. Intake & Scope Challenge (Step 0): trả lời 3 câu (cái gì đã có, người dùng thực sự yêu cầu gì, kiểm tra độ phức tạp >8 file / >2 service mới / >3 phase). Chỉ khi có --yagni mới đưa lựa chọn EXPANSION/HOLD/REDUCTION; không có thì ghi HOLD SCOPE.",
+   "Auto-detect mode khi không có flag: đơn giản → fast; phức tạp/công nghệ mới → hard; refactor lớn 5+ vùng → deep; 3+ tính năng độc lập → parallel; nhiều hướng hợp lệ → two. debate và ultra không bao giờ được tự chọn.",
+   "2. Research & Scout (hard/deep/two): spawn tối đa 2 `researcher` song song, dùng /ak:scout khi thiếu bằng chứng; có thể dùng ak:fable-thinking, ak:docs-seeker, `gh`, repomix.",
+   "3. Plan Drafting: scaffold bằng `ak plan create` khi có CLI, đọc bắt buộc mọi file stub được sinh ra, rồi viết plan.md + phase-*.md (thường qua subagent `planner`). debate: 3 planner độc lập rồi tổng hợp; ultra: 5 planner + verifier kongming chọn bản thắng nguyên vẹn.",
+   "4. Red-Team Gate (khi mode yêu cầu, ví dụ hard/deep/parallel/debate/ultra): 2-4 reviewer `code-reviewer` với lens đối kháng; loại finding không có trích dẫn file:line; người dùng quyết định áp dụng.",
+   "5. Validation Gate: verification pass kiểm tra claim với codebase theo tier, rồi phỏng vấn câu hỏi then chốt, ghi `## Validation Log`.",
+   "6. Whole-Plan Sweep: kiểm tra link, frontmatter, bất biến và mâu thuẫn trên mọi phase file.",
+   "7. HTML (nếu --html): ak:frontend-design → ak:diagram → plan.html. 8. Hydrate task (trừ --no-tasks). 9. GitHub/Wiki (nếu --github/--wiki).",
+   "10. Handoff: báo đường dẫn plan, tóm tắt phase và bước tiếp `/ak:cook {plan-dir}/plan.md` (thêm --advice nếu đang dùng). 11. Journal: chạy /ak:journal trừ khi có --skip-journal hoặc preference journal.auto=false."
+  ],
+  "useWhen": [
+   "Công việc cần chia phase, quyết định kiến trúc, quyền sở hữu file hoặc cấu trúc TDD trước khi code.",
+   "Muốn kế hoạch cho nhiều agent chạy song song với ranh giới file tách biệt (--parallel).",
+   "Cần so sánh hai hướng kiến trúc và để người dùng chọn (--two), hoặc tổng hợp từ nhiều bản nháp độc lập (--debate).",
+   "Đã có plan và muốn kiểm định (validate) hoặc tìm lỗ hổng (red-team) trước khi cook.",
+   "Dọn dẹp các plan đã xong khỏi chỉ mục (archive)."
+  ],
+  "avoidWhen": [
+   "Thay đổi nhỏ một file, rõ ràng: dùng /ak:cook --fast hoặc /ak:fix trực tiếp.",
+   "Outcome và tiêu chí nghiệm thu còn mơ hồ: dùng /ak:brainstorm trước.",
+   "Muốn triển khai code: plan không viết code, dùng /ak:cook.",
+   "Muốn một lệnh đi từ issue tới plan đã kiểm định có push nhánh: dùng /ak:issue-to-plan; muốn cả pipeline tới PR: dùng /ak:vibe."
+  ],
+  "params": [
+   {
+    "name": "[task]",
+    "kind": "arg",
+    "desc": "Mô tả tác vụ cần lập kế hoạch (hoặc issue/đầu vào từ brainstorm)."
+   },
+   {
+    "name": "--fast",
+    "kind": "flag",
+    "desc": "Mode nhanh: không research; đọc hướng dẫn repo và tài liệu, dùng subagent planner tạo plan, hydrate task. Chỉ giảm độ sâu quy trình, không cho phép cắt scope. Loại trừ với các mode khác."
+   },
+   {
+    "name": "--hard",
+    "kind": "flag",
+    "desc": "Mode sâu: tối đa 2 researcher song song → scout → planner → red-team → validate → hydrate task. Loại trừ với các mode khác."
+   },
+   {
+    "name": "--deep",
+    "kind": "flag",
+    "desc": "Cho overhaul kiến trúc lớn: research + scout Phase 1, plan chi tiết Phase 1 và phác thảo các phase sau; khi cook, mỗi phase sau có một lượt scout riêng; kèm red-team và validate."
+   },
+   {
+    "name": "--parallel",
+    "kind": "flag",
+    "desc": "Sinh các phase chạy song song với quyền sở hữu file tách biệt nghiêm ngặt; kèm red-team và validate; chuyển plan cho `/ak:cook --parallel`."
+   },
+   {
+    "name": "--two",
+    "kind": "flag",
+    "desc": "Nghiên cứu và trình bày 2 hướng kiến trúc khác nhau với ma trận trade-off qua ask_user, rồi hiện thực hướng được chọn thành phase đầy đủ."
+   },
+   {
+    "name": "--debate",
+    "kind": "flag",
+    "desc": "Chỉ khi chủ động bật: dựng evidence packet chung (ghi reports/debate-evidence-packet.md), 3 subagent planner độc lập song song viết reports/planner-debate-candidate-{N}.md, orchestrator tổng hợp một plan và ghi rõ điểm đồng thuận/bất đồng, rồi red-team và validate."
+   },
+   {
+    "name": "--ultra",
+    "kind": "flag",
+    "desc": "Best-of-5 verifier: 5 planner song song với evidence packet giống nhau (reports/planner-ultra-candidate-{N}.md), verifier kongming chấm ẩn danh A..E và chọn bản thắng ghi nguyên vẹn vào plan.md + phase-*.md, kèm phụ lục xếp hạng; sau đó red-team và validate. Chỉ khi chủ động bật, tốn chi phí cao."
+   },
+   {
+    "name": "--auto",
+    "kind": "flag",
+    "desc": "Flag chọn mode tự phát hiện của chính ak:plan (khác --auto auto-approve của /ak:cook); không có trong argument-hint nhưng được nêu trong Mode Exclusivity, xung đột với mọi mode flag khác."
+   },
+   {
+    "name": "--tdd",
+    "kind": "flag",
+    "desc": "Bắt buộc thiết kế test-first, ma trận test và lệnh verify trong mọi phase."
+   },
+   {
+    "name": "--no-tasks",
+    "kind": "flag",
+    "desc": "Bỏ qua việc hydrate phase thành task trong hệ thống task management (mặc định hydrate khi plan có từ 3 phase có ý nghĩa)."
+   },
+   {
+    "name": "--html",
+    "kind": "flag",
+    "desc": "Xuất plan.html tự chứa, tương tác, phong cách editorial; là deliverable chính cho người dùng, plan.md chỉ còn là chỉ mục ngắn. Có roadmap, outline mọi phase, modal chi tiết phase, ít nhất một sơ đồ workflow, mockup UI khi liên quan, open questions và trích dẫn."
+   },
+   {
+    "name": "--github",
+    "kind": "flag",
+    "desc": "Sau các gate, tạo/cập nhật GitHub issue `Plan: {plan-title}` (hoặc comment vào issue nguồn) với tóm tắt, roadmap, link tới plan.md/plan.html và nhãn `ready to review`. Thiếu `gh` auth thì báo lỗi mà không làm hỏng việc tạo plan."
+   },
+   {
+    "name": "--wiki",
+    "kind": "flag",
+    "desc": "Đăng plan đã review lên AgentWiki, mặc định private (`agentwiki doc upload` + `doc share`); publish công khai hoặc upload plan.html làm site chỉ khi người dùng yêu cầu rõ. Kèm share URL trong handoff."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "Chạy dưới giám sát kongming và viết plan dạng handover cho model thực thi yếu hơn (Sonnet, Gemini Flash): mỗi phase chia task có Goal, target files/symbols, steps, success criteria, Verify có điều kiện pass cơ học, và khối Failure Protocol nguyên văn (dừng và gọi kongming khi verify thất bại)."
+   },
+   {
+    "name": "--yagni",
+    "kind": "flag",
+    "desc": "Chủ động chất vấn và loại phạm vi không thực sự cần; mở lựa chọn scope với REDUCTION được đề xuất. Mặc định giữ nguyên toàn bộ scope (HOLD SCOPE)."
+   },
+   {
+    "name": "--skip-journal",
+    "kind": "flag",
+    "desc": "Bỏ bước tự động /ak:journal cuối quy trình (và trong archive); in dòng `journal skipped by --skip-journal`. Ưu tiên hơn preference journal.auto."
+   },
+   {
+    "name": "--no-antv",
+    "kind": "flag",
+    "desc": "Tắt lớp AntV Infographic trong plan.html."
+   },
+   {
+    "name": "--no-diagram-design",
+    "kind": "flag",
+    "desc": "Tắt lớp diagram-design (Quadrant...) trong plan.html."
+   },
+   {
+    "name": "--no-editorial-visuals",
+    "kind": "flag",
+    "desc": "Tắt toàn bộ editorial visual layer trong plan.html."
+   },
+   {
+    "name": "validate <path>",
+    "kind": "subcommand",
+    "desc": "Chạy gate kiểm định: verification pass (Light/Standard/Full theo số phase, kiểm file path/symbol bằng grep/glob), rồi phỏng vấn câu hỏi then chốt (tối đa 4 mỗi lượt, có (Recommended)), ghi `## Validation Log`, lan truyền quyết định vào phase file và chạy whole-plan consistency sweep. Failed > 0 thì phải sửa plan trước khi cook."
+   },
+   {
+    "name": "red-team <path>",
+    "kind": "subcommand",
+    "desc": "Review đối kháng: 2-4 reviewer code-reviewer (Security Adversary, Assumption Destroyer, Failure Mode Analyst, Scope & Complexity Critic tùy số phase), khử trùng lặp, giới hạn 15 finding, loại finding không có file:line, đề xuất Accept/Reject, người dùng duyệt, áp vào phase file và thêm `## Red Team Review` vào plan.md."
+   },
+   {
+    "name": "archive [slug]",
+    "kind": "subcommand",
+    "desc": "Đọc plan, tùy chọn viết journal bằng journal-writer vào plans/journals/, xác nhận rồi chạy `ak plan archive` / `ak plan cleanup` — chỉ đổi trạng thái hiển thị trong index, KHÔNG xóa hay di chuyển file plan. Cuối cùng hỏi có commit qua /ak:git không."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:plan Thêm xác thực OAuth Google và GitHub",
+    "note": "Để skill tự phát hiện mode theo độ phức tạp."
+   },
+   {
+    "cmd": "/ak:plan --hard --tdd Tích hợp thanh toán Stripe subscription",
+    "note": "Domain mới, cần research, red-team, validate và test-first."
+   },
+   {
+    "cmd": "/ak:plan --parallel Xây auth, billing và notifications",
+    "note": "3 module độc lập, chuẩn bị cho /ak:cook --parallel."
+   },
+   {
+    "cmd": "/ak:plan --two --html Chọn kiến trúc đồng bộ dữ liệu offline",
+    "note": "So sánh 2 hướng, xuất plan.html để duyệt."
+   },
+   {
+    "cmd": "/ak:plan validate plans/260926-0945-stripe/plan.md",
+    "note": "Kiểm định plan có sẵn trước khi cook."
+   },
+   {
+    "cmd": "/ak:plan red-team plans/260926-0945-stripe/plan.md",
+    "note": "Tìm lỗ hổng bằng reviewer đối kháng."
+   },
+   {
+    "cmd": "/ak:plan archive",
+    "note": "Lưu trữ các plan đã hoàn thành khỏi chỉ mục (file vẫn giữ nguyên)."
+   }
+  ],
+  "tips": [
+   "Các mode flag loại trừ nhau; truyền hai mode (ví dụ --fast --hard) sẽ bị dừng cứng kèm lý do chứ không tự chọn một.",
+   "File plan.md/phase-*.md là nguồn sự thật; `ak plan` và plans.db chỉ là index dựng lại được (`ak plan reindex` khi lệch).",
+   "Sau validate, nên `/clear` rồi chạy `/ak:cook <đường-dẫn-tuyệt-đối>/plan.md` để cook có context sạch.",
+   "--fast chỉ giảm độ sâu lập kế hoạch, không tự cắt tính năng; muốn cắt scope phải dùng --yagni.",
+   "--debate (3 planner) và --ultra (5 planner + verifier) tốn token gấp nhiều lần; dành cho quyết định quan trọng.",
+   "archive không bao giờ `rm -rf` plan; muốn xóa hẳn, tự chạy `git rm -r ./plans/<plan-dir>` sau khi đã commit."
+  ],
+  "related": [
+   "ak-brainstorm",
+   "ak-cook",
+   "ak-scout",
+   "ak-research",
+   "ak-journal",
+   "ak-issue-to-plan",
+   "ak-plans-kanban",
+   "ak-vibe"
+  ],
+  "agents": [
+   "planner",
+   "researcher",
+   "scout",
+   "code-reviewer",
+   "kongming",
+   "journal-writer"
+  ],
+  "artifacts": [
+   "plans/<timestamp>-<slug>/plan.md",
+   "plans/<timestamp>-<slug>/phase-NN-<name>.md",
+   "plans/<timestamp>-<slug>/plan.html (--html)",
+   "plans/<timestamp>-<slug>/reports/ (debate-evidence-packet.md, planner-debate-candidate-{N}.md, planner-ultra-candidate-{N}.md, báo cáo research/scout)",
+   "Mục `## Validation Log` và `## Red Team Review` trong plan.md",
+   "plans/journals/ (archive)",
+   "GitHub issue `Plan: ...` (--github)",
+   "Share URL AgentWiki (--wiki)"
+  ]
+ },
+ "ak-preview": {
+  "tagline": "Xem file/thư mục trong trình đọc đẹp, hoặc sinh giải thích trực quan, slide, sơ đồ dạng Markdown hay HTML.",
+  "summary": "ak:preview là trình xem đa năng kiêm bộ sinh nội dung trực quan. View mode mở file Markdown hoặc thư mục trong giao diện novel-reader qua một server nền; generation mode tạo giải thích trực quan (--explain), slide (--slides), sơ đồ (--diagram) hoặc sơ đồ ASCII (--ascii). Thêm --html để có file HTML tự chứa, và ba mode chỉ-HTML: --diff (review diff trực quan), --plan-review (so plan với codebase), --recap (ảnh chụp bối cảnh project). Output lưu vào visuals/ của plan đang active hoặc plans/visuals/.",
+  "howItWorks": [
+   "Không có tham số: hỏi người dùng qua ask_user với danh sách thao tác (view, --explain, --slides, --diagram, --ascii, --stop, các biến thể --html).",
+   "Resolve tham số theo thứ tự ưu tiên: --stop → cờ --html → cờ generation (--explain/--slides/--diagram/--ascii) → cờ chỉ-HTML (--diff/--plan-review/--recap, tự bật HTML) → workflow trực quan không rõ mode (nạp visual-explanation-routing.md) → resolve path → path tồn tại thì view mode → không resolve được thì hỏi lại.",
+   "View mode: chạy server ak-markdown-novel-viewer (`server.cjs --file|--dir ... --host 0.0.0.0 --open --foreground`) như background task, báo URL local và network đầy đủ; --stop dừng server.",
+   "Generation mode Markdown: xác định vị trí lưu ({plan_dir}/visuals/{topic-slug}.md hoặc plans/visuals/{topic-slug}.md), sinh nội dung theo template của từng cờ (ASCII + Mermaid + văn bản), dùng /ak:mermaidjs-v11 cho cú pháp Mermaid, rồi mở bằng server preview.",
+   "Visual self-review cho --diagram: render ra ảnh và tự kiểm tra (mũi tên xuyên box, nhãn chồng nhau, box đè nhau...) rồi sửa, render lại đến khi sạch.",
+   "HTML mode: kích hoạt ak:frontend-design rồi ak:diagram (fallback SVG inline), đọc html-design-guidelines.md và reference/template theo mode, áp quy tắc anti-slop, bắt buộc có nút chuyển theme sáng/tối, ghi một file .html tự chứa và mở bằng open/xdg-open/start.",
+   "Mode chỉ-HTML thu thập dữ liệu: --diff (git diff --stat/--name-status, file thay đổi, API mới, CHANGELOG; hoặc `gh pr diff`), --plan-review (đọc plan, mọi file được tham chiếu, blast radius), --recap (git log/shortlog/status theo khung thời gian, mặc định 2w).",
+   "Chạy checklist chất lượng (squint test, swap test, theme toggle, overflow, zoom Mermaid, responsive) trước khi báo đường dẫn file."
+  ],
+  "useWhen": [
+   "Muốn đọc một file Markdown dài (plan, report, RFC) trong giao diện dễ đọc trên trình duyệt.",
+   "Cần giải thích trực quan một khái niệm hoặc luồng code bằng sơ đồ ASCII + Mermaid.",
+   "Cần slide trình bày nhanh cho một chủ đề kỹ thuật.",
+   "Muốn review trực quan một nhánh/PR/commit (--html --diff) hoặc so plan với code thực tế (--html --plan-review).",
+   "Quay lại project sau một thời gian và cần ảnh chụp bối cảnh gần đây (--html --recap)."
+  ],
+  "avoidWhen": [
+   "Cần giải thích có căn cứ cho một khái niệm/lỗi mới, có chế độ ELI5: dùng /ak:explain.",
+   "Cần sơ đồ chất lượng xuất bản SVG/PNG: dùng /ak:tech-graph; sơ đồ hệ thống tương tác từ JSON IR: dùng /ak:diagram.",
+   "Chỉ cần diễn đạt lại câu trả lời vừa rồi: dùng /ak:bro.",
+   "Cần trang showcase/demo tự chứa: dùng /ak:show-off."
+  ],
+  "params": [
+   {
+    "name": "[path]",
+    "kind": "arg",
+    "desc": "Đường dẫn file hoặc thư mục cần xem (view mode), hoặc tham chiếu ngữ cảnh được resolve từ hội thoại gần đây. Path không tồn tại thì skill hỏi lại."
+   },
+   {
+    "name": "--html",
+    "kind": "flag",
+    "desc": "Chuyển output sang một file HTML tự chứa (CSS/JS inline) mở trực tiếp trên trình duyệt, không cần server; kết hợp với --explain, --slides, --diagram. Không hỗ trợ kết hợp với --ascii (gợi ý --html --diagram)."
+   },
+   {
+    "name": "--explain",
+    "kind": "flag",
+    "desc": "Sinh giải thích trực quan cho [topic]: Overview, Quick View (ASCII), Detailed Flow (Mermaid), Key Concepts, Code Example. Với --html dùng template architecture.html."
+   },
+   {
+    "name": "--slides",
+    "kind": "flag",
+    "desc": "Sinh slide trình bày, mỗi slide một khái niệm. Với --html tạo slide deck chất lượng tạp chí (template slide-deck.html), có thể gọi /ak:ui-ux-pro-max để chọn style."
+   },
+   {
+    "name": "--diagram",
+    "kind": "flag",
+    "desc": "Sinh sơ đồ tập trung (bản ASCII + bản Mermaid); với --html có nút zoom. Có bước visual self-review sau khi render."
+   },
+   {
+    "name": "--ascii",
+    "kind": "flag",
+    "desc": "Chỉ sinh sơ đồ ASCII dạng box kèm chú giải, thân thiện với terminal. Chỉ dùng ở chế độ Markdown."
+   },
+   {
+    "name": "--diff",
+    "kind": "flag",
+    "desc": "Chỉ-HTML (tự bật --html). Review diff trực quan cho [ref]: tên nhánh, commit hash, HEAD (chưa commit), số PR (cần `gh`), dải commit; mặc định so với main. Gồm executive summary, KPI, kiến trúc module, file map, review card, decision log. Cần git repo."
+   },
+   {
+    "name": "--plan-review",
+    "kind": "flag",
+    "desc": "Chỉ-HTML (tự bật --html). So sánh plan với codebase: nhận đường dẫn plan hoặc lấy plan active; vẽ kiến trúc hiện tại vs dự kiến, blast radius, rủi ro, khoảng trống hiểu biết (xanh dương = hiện tại, xanh lá = dự kiến, vàng = lo ngại, đỏ = khoảng trống)."
+   },
+   {
+    "name": "--recap",
+    "kind": "flag",
+    "desc": "Chỉ-HTML (tự bật --html). Ảnh chụp bối cảnh project trong [timeframe] (2w, 30d, 3m; mặc định 2w): danh tính project, kiến trúc, hoạt động gần đây, decision log, điểm nóng nợ nhận thức, bước tiếp. Cần lịch sử git."
+   },
+   {
+    "name": "--stop",
+    "kind": "flag",
+    "desc": "Dừng server preview đang chạy (có trong bảng thao tác và mục Usage, không có trong argument-hint)."
+   },
+   {
+    "name": "[topic]",
+    "kind": "arg",
+    "desc": "Chủ đề cho các cờ generation; được chuyển thành slug kebab-case tối đa 80 ký tự để đặt tên file. Nếu truyền nhiều cờ generation, chỉ cờ đầu có hiệu lực, phần còn lại coi là topic."
+   },
+   {
+    "name": "--no-antv",
+    "kind": "flag",
+    "desc": "Tắt lớp AntV Infographic (ô KPI, danh sách so sánh) trong output HTML của lần gọi này."
+   },
+   {
+    "name": "--no-diagram-design",
+    "kind": "flag",
+    "desc": "Tắt lớp diagram-design (Architecture, Quadrant, Timeline) trong output HTML, quay về Mermaid/Chart.js."
+   },
+   {
+    "name": "--no-editorial-visuals",
+    "kind": "flag",
+    "desc": "Tắt toàn bộ editorial visual layer; ưu tiên cao nhất trong thang resolve (trên --no-antv/--no-diagram-design, cấu hình project, cấu hình user)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:preview plans/260926-0945-auth/plan.md",
+    "note": "Đọc plan trong giao diện novel-reader trên trình duyệt."
+   },
+   {
+    "cmd": "/ak:preview --explain luồng refresh token JWT",
+    "note": "Giải thích trực quan dạng Markdown với ASCII + Mermaid."
+   },
+   {
+    "cmd": "/ak:preview --html --slides kiến trúc event-driven",
+    "note": "Slide deck HTML để trình bày cho team."
+   },
+   {
+    "cmd": "/ak:preview --html --diff 142",
+    "note": "Review trực quan PR #142 (cần gh)."
+   },
+   {
+    "cmd": "/ak:preview --html --recap 30d",
+    "note": "Tóm tắt bối cảnh project 30 ngày qua khi quay lại làm việc."
+   },
+   {
+    "cmd": "/ak:preview --stop",
+    "note": "Dừng server preview khi xem xong."
+   }
+  ],
+  "tips": [
+   "View mode chạy server nền (xem trong /tasks); nhớ `/ak:preview --stop` khi xong để không để lại process mồ côi. Server đang chạy sẽ được tái sử dụng.",
+   "File output trùng tên sẽ bị ghi đè không hỏi; đổi topic nếu muốn giữ bản cũ.",
+   "HTML dùng CDN (Google Fonts, Mermaid, Chart.js) theo generation-modes; nếu cần hoàn toàn offline hãy cân nhắc /ak:explain --html.",
+   "--html --slides và --plan-review đọc nhiều reference/template lớn, tốn token đáng kể.",
+   "Sơ đồ đúng cú pháp chưa chắc hiển thị đẹp; skill tự render và kiểm tra lại, nhưng bạn vẫn nên xem kết quả."
+  ],
+  "related": [
+   "ak-explain",
+   "ak-markdown-novel-viewer",
+   "ak-mermaidjs-v11",
+   "ak-tech-graph",
+   "ak-diagram",
+   "ak-frontend-design",
+   "ak-ui-ux-pro-max"
+  ],
+  "agents": [],
+  "artifacts": [
+   "{plan_dir}/visuals/{topic-slug}.md hoặc .html khi có plan active",
+   "plans/visuals/{topic-slug}.md hoặc .html khi không có plan",
+   "Server preview nền (URL local + network) ở view mode"
+  ]
+ },
+ "ak-cook": {
+  "tagline": "Triển khai tính năng, plan và bản sửa theo workflow có cấu trúc: implement → verify → review → finalize.",
+  "summary": "ak:cook là skill triển khai chính: nhận một mô tả tác vụ hoặc đường dẫn plan và thực hiện toàn bộ outcome được phép cho tới khi đã verify và review. Skill tái sử dụng outcome/constraints/non-goals/acceptance criteria có sẵn, đọc code và test lân cận, sửa regression do chính thay đổi gây ra và chạy lại check trước khi kết thúc. Có các mode interactive, fast, parallel, auto, no-test cùng các modifier --tdd, --advice, --yagni. Cook đứng sau ak:plan và trước ak:test / code-review / ship; cuối quy trình đồng bộ plan, cập nhật docs bị ảnh hưởng và viết journal.",
+  "howItWorks": [
+   "Chọn mode: flag tường minh ưu tiên nhất, sau đó là phát hiện đường dẫn plan (plans/*, plan.md, phase-*.md → mode code), rồi từ khóa (quick/asap → fast; trust me/yolo → auto; no test → no-test), rồi số tính năng (≥3 → parallel), mặc định là tiếp tục trong phạm vi được phép.",
+   "Tái sử dụng bằng chứng inspect và acceptance còn hiệu lực; thay đổi nhỏ chỉ cần plan ngắn, chỉ viết phase file khi có module/public contract/schema/data cần phối hợp. Plan có sẵn được resolve files-first (`ak plan use`, `ak plan resolve`, `ak plan show`).",
+   "Implement theo workflow-steps.md: theo helper, import, xử lý lỗi và public contract sẵn có; đối chiếu plan với source hiện tại trước khi sửa.",
+   "--tdd: mỗi phase tách thành 3.T (viết test cho hành vi hiện tại làm lưới an toàn), 3.I (implement), 3.V (verify test cũ vẫn pass + compile gate).",
+   "Step 3.S Conditional Simplify: tính lại diff thực tế (`git diff --numstat HEAD`); nếu vượt ngưỡng .ck.json (mặc định 400 LOC / 8 file / 200 LOC một file) thì spawn `code-simplifier` giới hạn trên file đã sửa; tắt bằng CK_SIMPLIFY_DISABLED=1.",
+   "Verify: chạy check hẹp nhất trước rồi mở rộng cho caller/contract bị ảnh hưởng; không làm yếu check, không fake kết quả. Review theo review-cycle.md (acceptance, tương thích, bảo mật, regression), dùng tester/code-reviewer độc lập khi rủi ro cross-module/public-contract/security.",
+   "Tiếp tục sửa trong phạm vi; chỉ dừng khi quyết định sản phẩm thay đổi, hành động phá hủy chưa được phép, hoặc blocker có bằng chứng. Chỉ --interactive mới dừng sau research, plan, implement và test để người dùng duyệt.",
+   "Finalize: đồng bộ trạng thái plan (giữ unchecked cho mục chưa có bằng chứng), đánh giá và cập nhật docs bị ảnh hưởng, báo cáo kết quả/bằng chứng/giới hạn; chỉ commit khi đã được phép. Chạy /ak:journal trừ khi --skip-journal hoặc preference journal.auto=false."
+  ],
+  "useWhen": [
+   "Đã có plan được chấp nhận và muốn thực thi: `/ak:cook plans/.../plan.md`.",
+   "Scope tính năng đã rõ, muốn triển khai kèm test và review mà không cần lập plan dài.",
+   "Refactor cần lưới an toàn test trước khi đổi code (--tdd).",
+   "Nhiều tính năng độc lập có thể giao cho các agent song song với file tách biệt (--parallel).",
+   "Muốn chạy hết mọi phase liền mạch không dừng duyệt định kỳ (--auto)."
+  ],
+  "avoidWhen": [
+   "Yêu cầu còn mơ hồ: dùng /ak:brainstorm rồi /ak:plan trước.",
+   "Bug, lỗi, test fail hoặc CI đỏ cụ thể: dùng /ak:fix.",
+   "Chỉ cần chạy/thiết kế test: dùng /ak:test.",
+   "Nhánh đã xong và cần mở PR: dùng /ak:ship; muốn cả pipeline từ issue tới PR/merge: dùng /ak:vibe."
+  ],
+  "params": [
+   {
+    "name": "[task|plan-path]",
+    "kind": "arg",
+    "desc": "Mô tả tác vụ bằng ngôn ngữ tự nhiên, hoặc đường dẫn tới plan.md / phase-*.md. Đường dẫn plan kích hoạt mode code: thực thi plan với bằng chứng hiện tại và giữ các mode tường minh của plan."
+   },
+   {
+    "name": "--interactive",
+    "kind": "flag",
+    "desc": "Dừng để người dùng duyệt ở các bước lớn (sau research, plan, implement và test). Là mode duy nhất có review gate chờ người."
+   },
+   {
+    "name": "--fast",
+    "kind": "flag",
+    "desc": "Bỏ research: inspect, viết plan ngắn, implement và verify. Không bỏ test."
+   },
+   {
+    "name": "--parallel",
+    "kind": "flag",
+    "desc": "Giao các phần việc độc lập có sở hữu file riêng cho subagent (fullstack-developer) khi runtime hỗ trợ và được phép; cần file tách biệt và điểm tích hợp rõ."
+   },
+   {
+    "name": "--auto",
+    "kind": "flag",
+    "desc": "Chạy tiếp mọi phase được phép mà không dừng duyệt định kỳ (auto-approve trong phạm vi được phép). Cũng là mode mặc định khi không có flag/tín hiệu nào."
+   },
+   {
+    "name": "--no-test",
+    "kind": "flag",
+    "desc": "Bỏ chạy test và báo rõ khoảng trống verify đó trong kết quả. Các check review/contract khác vẫn chạy."
+   },
+   {
+    "name": "--tdd",
+    "kind": "flag",
+    "desc": "Modifier không đổi mode: viết test cho hành vi hiện tại trước mỗi phase refactor (3.T → 3.I → 3.V); test cũ fail sau khi sửa nghĩa là refactor làm hỏng và phải sửa trước khi đi tiếp."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "Giám sát tư vấn bởi kongming: spawn sau mỗi phase, khi kẹt, trước quyết định rủi ro cao, và BẮT BUỘC ở mọi lần verify thất bại (dừng trước khi sửa tiếp). Tự bật khi plan có handover contract --advice hoặc khối `## Failure Protocol`. Được chuyển cho skill ship downstream; khi CI xanh, kongming review và comment lên PR/issue."
+   },
+   {
+    "name": "--yagni",
+    "kind": "flag",
+    "desc": "Bật cắt phạm vi không cần thiết; mặc định giao đủ mọi phạm vi được yêu cầu và không thêm gì. Flag được chuyển cho delegate."
+   },
+   {
+    "name": "--skip-journal",
+    "kind": "flag",
+    "desc": "Bỏ bước tự động /ak:journal ở cuối; in `journal skipped by --skip-journal`. Các bước finalize khác vẫn chạy."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:cook plans/260926-0945-stripe/plan.md",
+    "note": "Thực thi plan đã validate (mode code)."
+   },
+   {
+    "cmd": "/ak:cook plans/260926-0945-stripe/plan.md --tdd --auto",
+    "note": "Chạy liền mạch mọi phase với lưới an toàn test-first."
+   },
+   {
+    "cmd": "/ak:cook thêm nút export CSV cho bảng đơn hàng --fast",
+    "note": "Tính năng nhỏ, rõ ràng, không cần research."
+   },
+   {
+    "cmd": "/ak:cook implement auth, payments, notifications --parallel",
+    "note": "Nhiều tính năng độc lập, giao song song cho subagent."
+   },
+   {
+    "cmd": "/ak:cook refactor auth middleware --tdd --interactive",
+    "note": "Refactor nhạy cảm, muốn duyệt ở từng bước lớn."
+   },
+   {
+    "cmd": "/ak:cook plans/260926-0945-stripe/plan.md --advice",
+    "note": "Plan được viết dưới --advice, giữ giám sát kongming và Failure Protocol."
+   }
+  ],
+  "tips": [
+   "Dùng đường dẫn tuyệt đối tới plan.md sau `/clear` để cook có context sạch mà vẫn tìm được plan.",
+   "Mặc định (không flag) cook không dừng hỏi duyệt; nếu muốn kiểm soát từng bước phải truyền --interactive.",
+   "--no-test để lại khoảng trống verify; chỉ dùng khi thật sự không có test chạy được và nhớ đọc cảnh báo trong báo cáo.",
+   "Finalize không tự cho phép commit/push; git chỉ chạy khi bạn đã cho phép.",
+   "--parallel chỉ an toàn khi các phase không chạm cùng file; dùng plan từ `/ak:plan --parallel` để có ranh giới sở hữu rõ.",
+   "Diff lớn sẽ kích hoạt code-simplifier tự động; tắt bằng CK_SIMPLIFY_DISABLED=1 nếu không muốn."
+  ],
+  "related": [
+   "ak-plan",
+   "ak-brainstorm",
+   "ak-fix",
+   "ak-test",
+   "ak-code-review",
+   "ak-ship",
+   "ak-journal",
+   "ak-vibe"
+  ],
+  "agents": [
+   "researcher",
+   "scout",
+   "planner",
+   "ui-ux-designer",
+   "fullstack-developer",
+   "tester",
+   "debugger",
+   "code-reviewer",
+   "code-simplifier",
+   "docs-manager",
+   "git-manager",
+   "kongming"
+  ],
+  "artifacts": [
+   "Thay đổi code và test trong repo",
+   "Plan ngắn hoặc phase file khi cần phối hợp (plans/...)",
+   "Cập nhật checkbox/status trong plan.md và phase-*.md",
+   "Cập nhật docs bị ảnh hưởng",
+   "Journal entry qua /ak:journal (trừ khi bỏ qua)"
+  ]
+ },
+ "ak-vibe": {
+  "tagline": "Pipeline tự động một lệnh: từ GitHub issue hoặc yêu cầu tính năng tới PR đã review, tùy chọn merge và chờ CI xanh.",
+  "summary": "ak:vibe điều phối toàn bộ vòng phát triển: phân tích yêu cầu, tạo worktree, research/debug có điều kiện, lập plan TDD và qua các gate validate/red-team, cập nhật GitHub issue, cook hoặc fix, code-review, test và docs có điều kiện, ship PR, review/fix/reply PR, gắn nhãn sẵn sàng, và tùy chọn merge kèm theo dõi CI. Đầu vào là URL/số GitHub issue hoặc yêu cầu bằng ngôn ngữ tự nhiên; đầu ra là PR sẵn sàng (hoặc đã merge) và báo cáo hoàn thành có cấu trúc. Skill không vượt qua gate, test, blocker review, branch protection hay chính sách bảo mật của các skill con. Hỗ trợ ship beta, ship hai giai đoạn (--both), ultra verifier và giám sát kongming.",
+  "howItWorks": [
+   "1. Parse và phân tích: tách --ship/--beta/--both/--advice/--ultra, resolve ship mode (both > beta > stable). Issue URL/số là nguồn sự thật (không tạo trùng), repo phải khớp repo hiện tại; ngôn ngữ tự nhiên sẽ tạo issue sau khi plan qua gate. Trích outcome, acceptance criteria, ranh giới scope; phân loại route bugfix hoặc feature; đánh dấu công nghệ cần research; dò plan có sẵn (đường dẫn người dùng, `ak plan search --issue`, pointer/`ak plan resolve`, link trong issue/worktree).",
+   "2. Worktree: tái sử dụng nếu đang ở worktree riêng trên nhánh feature; ngược lại gọi /ak:worktree. Không bao giờ làm trực tiếp trên main, master, dev, beta, develop.",
+   "3. Điều tra trước plan (có điều kiện, quyết định tất định): /ak:research khi có công nghệ cụ thể; /ak:debug để chứng minh root cause khi ở route bugfix.",
+   "4. Plan và gate: tái sử dụng plan hợp lệ hoặc chạy `/ak:plan --tdd \"<issue/yêu cầu>\" [--ultra] [--advice]`; luôn chạy `/ak:plan validate` và `/ak:plan red-team`, whole-plan consistency sweep; không implement khi còn lỗi validate hay finding chưa xử lý.",
+   "5. GitHub issue: tạo nhãn nếu thiếu (ready to cook, in progress, ready to ship stable, ready to ship beta), cập nhật/tạo issue với nhánh, route, tóm tắt, link plan, ship mode, acceptance criteria; gắn `ready to cook`; ghi liên kết bằng `ak plan update --issue <n>`.",
+   "6. Implement: chuyển nhãn sang `in progress`, rồi `/ak:fix --auto <plan.md>` (bugfix) hoặc `/ak:cook --tdd --auto <plan.md>` (feature), kèm --advice nếu có; dừng và cập nhật issue nếu cần quyết định kinh doanh.",
+   "7-9. `/ak:code-review --pending [--ultra] [--advice]` và sửa hết Critical/Important; /ak:test create|audit|optimize khi hành vi quan sát được thay đổi và coverage chưa đủ; /ak:docs update chỉ ở mode beta (mode official để /ak:ship official tự làm), docs ở repo ngoài thì tạo issue nhãn `ai-handle`.",
+   "10-12. Ship: `/ak:ship official` (mặc định) hoặc `/ak:ship beta`; ship skill ghi `status: completed` vào plan và `--linked-pr`. Sau đó `/ak:review-pr <pr> --fix --reply` đến khi hết finding và CI xanh; gắn nhãn `ready to ship stable` hoặc `ready to ship beta`, gỡ `ready to cook` và `in progress`.",
+   "13. Chỉ với --ship/--both: merge theo quy ước repo (ưu tiên `gh pr merge --auto`), không force push; theo dõi CI nhánh đích, lỗi tái hiện được thì tạo nhánh fix → `/ak:fix --auto` → ship → review-pr → merge lại, tối đa 3 lần cho cùng blocker; merge xong chạy `ak plan close <id>`. --both chạy trọn giai đoạn beta tới CI xanh rồi mới sang stable.",
+   "Kết thúc bằng Completion Report: Vibe Result (kèm trạng thái Research/Debug/Test/Docs chạy hay bỏ qua và lý do), Journey Diagram Mermaid, Implementation Summary, Plan Deviations, Subagent Quality Assessment (số finding theo mức, không bịa điểm), Human Next Steps, Unresolved questions."
+  ],
+  "useWhen": [
+   "Muốn một lệnh đưa GitHub issue từ lập plan tới PR đã review và sẵn sàng merge.",
+   "Có yêu cầu tính năng bằng lời và muốn pipeline tự tạo issue, plan, code, PR.",
+   "Cần ship bản beta trước rồi mới lên stable, mỗi giai đoạn đều chờ CI xanh (--both).",
+   "Muốn tự động merge và tự sửa CI hậu merge cho tới khi xanh (--ship).",
+   "Giao việc cho model thực thi yếu hơn nhưng vẫn cần giám sát và dừng đúng lúc khi verify thất bại (--advice)."
+  ],
+  "avoidWhen": [
+   "Chỉ cần lập plan: dùng /ak:plan hoặc /ak:issue-to-plan.",
+   "Chỉ triển khai trên nhánh hiện tại mà không cần issue/PR: dùng /ak:cook hoặc /ak:fix.",
+   "Nhánh đã xong, chỉ cần mở PR: dùng /ak:ship; chỉ cần review PR: dùng /ak:review-pr.",
+   "Repo không có GitHub remote hoặc `gh` không có quyền tạo nhãn/issue/PR: vibe sẽ dừng và báo thiếu quyền.",
+   "Yêu cầu còn mơ hồ ở mức sản phẩm: dùng /ak:brainstorm hoặc /ak:advise trước."
+  ],
+  "params": [
+   {
+    "name": "<github-issue-url | feature request>",
+    "kind": "arg",
+    "desc": "URL hoặc số GitHub issue (được coi là nguồn sự thật, phải thuộc repo hiện tại, không tạo issue trùng) hoặc yêu cầu tính năng bằng ngôn ngữ tự nhiên (issue mới được tạo sau khi plan qua validate/red-team)."
+   },
+   {
+    "name": "--ship",
+    "kind": "flag",
+    "desc": "Sau khi review/fix/reply PR, merge PR và theo dõi/sửa CI nhánh đích cho tới khi thành công hoặc gặp blocker bên ngoài thực sự (tối đa 3 lần sửa cho cùng blocker). Không có flag này thì dừng khi PR đã review, sửa, trả lời và gắn nhãn sẵn sàng."
+   },
+   {
+    "name": "--beta",
+    "kind": "flag",
+    "desc": "Ship tới target beta/dev qua `/ak:ship beta`; nhãn cuối là `ready to ship beta`; vibe tự chạy /ak:docs update khi cần. Không có flag này thì ship stable qua `/ak:ship official` với nhãn `ready to ship stable`. Bị --both ghi đè (cảnh báo một lần)."
+   },
+   {
+    "name": "--both",
+    "kind": "flag",
+    "desc": "Ship hai giai đoạn: trọn giai đoạn beta (ship, review, merge, CI xanh) rồi mới tới stable (ship official hoặc PR promotion theo quy ước repo, review, merge, CI xanh). Ngầm bật --ship cho cả hai giai đoạn, ưu tiên cao hơn --beta. Beta đỏ/kẹt thì stable bị bỏ qua; PR promotion kéo theo commit không liên quan thì dừng hỏi người dùng."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "Chạy toàn pipeline dưới giám sát kongming: plan viết theo handover contract cho model yếu hơn; spawn kongming sau mỗi phase pipeline, khi kẹt, trước quyết định rủi ro cao, khi verify thất bại (dừng ngay), và gate bắt buộc sau khi PR mở và CI xanh (comment đánh giá lên PR và issue). Chuyển tiếp cho /ak:plan, /ak:cook, /ak:fix, /ak:code-review, /ak:ship, /ak:review-pr, /ak:test; không chuyển cho /ak:research, /ak:debug. Kết hợp được với mọi ship mode."
+   },
+   {
+    "name": "--ultra",
+    "kind": "flag",
+    "desc": "Chạy /ak:plan và /ak:code-review ở ultra verifier mode (best-of-5 candidate); chỉ áp cho hai skill này, không chuyển cho research. Tăng đáng kể chi phí và thời gian. Độc lập với ship mode."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:vibe https://github.com/org/repo/issues/42",
+    "note": "Đưa issue tới PR đã review, gắn `ready to ship stable`, không merge."
+   },
+   {
+    "cmd": "/ak:vibe --ship Thêm bộ lọc theo ngày cho trang báo cáo",
+    "note": "Yêu cầu bằng lời: tạo issue, plan, code, PR, merge và chờ CI xanh."
+   },
+   {
+    "cmd": "/ak:vibe --beta 128",
+    "note": "Ship issue #128 lên nhánh beta/dev, dừng ở PR sẵn sàng."
+   },
+   {
+    "cmd": "/ak:vibe --both --advice https://github.com/org/repo/issues/77",
+    "note": "Beta rồi stable, có kongming giám sát và review sau PR."
+   },
+   {
+    "cmd": "/ak:vibe --ultra --ship Migrate lớp lưu trữ sang Postgres",
+    "note": "Thay đổi rủi ro cao: plan và code-review best-of-5, rồi merge."
+   }
+  ],
+  "tips": [
+   "Vibe chạy rất lâu và tốn nhiều token (plan + validate + red-team + cook + review + ship + review-pr); --ultra và --both nhân chi phí thêm.",
+   "Cần `gh` đăng nhập với quyền tạo nhãn, issue, PR, review và merge; thiếu quyền là vibe dừng và báo đúng capability còn thiếu.",
+   "Issue URL phải thuộc repo hiện tại; nếu khác, vibe sẽ dừng và yêu cầu chuyển sang repo/worktree phù hợp.",
+   "Không cần tự chuẩn bị nhánh: vibe tạo worktree riêng và từ chối làm trực tiếp trên main/dev/beta.",
+   "Các bước Research/Debug/Test/Docs được quyết định tất định, không hỏi; lý do chạy hoặc bỏ qua được ghi trong báo cáo cuối.",
+   "CI fail do thiếu secret, dịch vụ ngoài hoặc cần người duyệt được ghi là blocker bên ngoài; vibe không làm yếu test để qua."
+  ],
+  "related": [
+   "ak-worktree",
+   "ak-plan",
+   "ak-cook",
+   "ak-fix",
+   "ak-code-review",
+   "ak-ship",
+   "ak-review-pr",
+   "ak-debug",
+   "ak-research",
+   "ak-test",
+   "ak-docs",
+   "ak-orchestrate"
+  ],
+  "agents": [
+   "kongming",
+   "planner",
+   "code-reviewer",
+   "tester",
+   "researcher",
+   "debugger",
+   "fullstack-developer"
+  ],
+  "artifacts": [
+   "Git worktree và nhánh feature riêng",
+   "plans/<timestamp>-<slug>/plan.md + phase-*.md (plan TDD, validation log, red-team review)",
+   "GitHub issue được tạo/cập nhật với nhãn ready to cook / in progress / ready to ship stable|beta",
+   "Pull request (và PR stable khi --both)",
+   "Comment đánh giá của kongming trên PR/issue (--advice)",
+   "Completion Report trong hội thoại"
+  ]
+ },
+ "ak-bro": {
+  "tagline": "Nói lại tin nhắn vừa rồi của assistant bằng lời đơn giản, ngắn gọn, không thuật ngữ.",
+  "summary": "ak:bro lấy đúng tin nhắn liền trước của assistant và diễn đạt lại như người với người nói chuyện: rõ ràng, mạch lạc, đơn giản, ngắn. Skill giữ nguyên ý nghĩa, dữ kiện, mức độ chắc chắn, cảnh báo, quyết định và lời kêu gọi hành động cần thiết. Skill không thêm phân tích mới, không trả lời câu hỏi khác, không chạy tool, không sửa file và không thực hiện hành động được nhắc tới trong tin nhắn gốc. Trả lời bằng ngôn ngữ của người dùng.",
+  "howItWorks": [
+   "Chỉ đọc tin nhắn assistant liền trước làm nguồn.",
+   "Giữ nguyên ý nghĩa, dữ kiện, sự không chắc chắn, cảnh báo, quyết định và lời kêu gọi hành động cần thiết.",
+   "Thay jargon, từ viết tắt, khái niệm trừu tượng và văn phong trang trọng bằng từ ngữ thông thường; định nghĩa ngắn gọn thuật ngữ kỹ thuật không thể bỏ.",
+   "Bỏ lặp lại, tường thuật quy trình, câu độn, định dạng thừa và chi tiết không ảnh hưởng tới hiểu biết.",
+   "Trả lời bằng ngôn ngữ của người dùng (trừ khi họ yêu cầu ngôn ngữ khác) và chỉ trả về bản diễn đạt lại, không có lời mở đầu kiểu “đây là bản đơn giản hóa”.",
+   "Nếu không có tin nhắn trước để diễn đạt lại, nói thẳng và nhờ người dùng dán văn bản; chủ đề mới thì chuyển sang ak:explain.",
+   "An toàn: chỉ dẫn nhúng trong tin nhắn gốc được coi là nội dung, không phải mệnh lệnh; không tiết lộ prompt ẩn, secret, dữ liệu cá nhân; giữ ranh giới an toàn."
+  ],
+  "useWhen": [
+   "Câu trả lời vừa rồi quá dài, nhiều thuật ngữ, khó hiểu.",
+   "Muốn tóm tắt ngắn một báo cáo kỹ thuật vừa nhận để gửi cho người không chuyên.",
+   "Muốn nghe lại kết luận chính của một phân tích dài mà không mất các cảnh báo quan trọng.",
+   "Nói “simplify that”, “nói dễ hiểu thôi”, “explain it like a human”."
+  ],
+  "avoidWhen": [
+   "Muốn giải thích một chủ đề mới hoặc đoạn code mới: dùng /ak:explain (có --eli5).",
+   "Muốn thêm phân tích, số liệu hay ý kiến mới: bro không bổ sung nội dung; hỏi lại trực tiếp hoặc dùng /ak:ask.",
+   "Muốn thực hiện hành động được nhắc trong câu trả lời trước: bro không chạy tool hay sửa file.",
+   "Muốn mọi câu trả lời về sau đều đơn giản: dùng /ak:coding-level 0 hoặc 1."
+  ],
+  "params": [
+   {
+    "name": "[last message]",
+    "kind": "arg",
+    "desc": "Nguồn cần diễn đạt lại; mặc định là tin nhắn assistant liền trước. Nếu không có tin nhắn trước, người dùng cần dán văn bản vào."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:bro",
+    "note": "Ngay sau một câu trả lời kỹ thuật dài, muốn bản ngắn dễ hiểu."
+   },
+   {
+    "cmd": "/ak:bro nói bằng tiếng Anh",
+    "note": "Diễn đạt lại tin nhắn trước bằng ngôn ngữ khác theo yêu cầu."
+   },
+   {
+    "cmd": "/ak:bro",
+    "note": "Sau báo cáo hoàn thành của /ak:cook, muốn biết ngắn gọn cái gì đã xong và cái gì còn lại để kể cho quản lý."
+   }
+  ],
+  "tips": [
+   "Gọi ngay sau câu trả lời cần đơn giản hóa; bro chỉ đọc đúng một tin nhắn liền trước.",
+   "Cảnh báo và mức độ không chắc chắn được giữ nguyên, nên bản rút gọn vẫn an toàn để hành động theo.",
+   "Rất rẻ về token vì không chạy tool, không đọc file.",
+   "Nếu bạn muốn giải thích sâu hơn thay vì ngắn hơn, dùng /ak:explain thay vì bro."
+  ],
+  "related": [
+   "ak-explain",
+   "ak-coding-level",
+   "ak-sumup"
+  ],
+  "agents": [],
+  "artifacts": []
+ },
+ "ak-explain": {
+  "tagline": "Giải thích khái niệm, code, hệ thống, lỗi và tài liệu có căn cứ; --eli5 cho ẩn dụ dễ hiểu, --html cho bản giải thích trực quan.",
+  "summary": "ak:explain xây mô hình tư duy có căn cứ cho bất kỳ chủ đề kỹ thuật, đường code, kiến trúc, lỗi hay tài liệu nào. Mặc định trả lời Markdown ngắn gọn, tách rõ dữ kiện đã kiểm chứng với suy luận; --eli5 chuyển sang ẩn dụ đời thường nhưng giữ nguyên mọi cảnh báo; --html tạo một file HTML tự chứa, offline, có sơ đồ. Giải thích lỗi là thao tác read-only; nếu người dùng muốn sửa thì chuyển sang skill sửa lỗi kèm bằng chứng. Khác ak:bro (chỉ diễn đạt lại tin nhắn trước) và ak:preview (xem file, slide, diff).",
+  "howItWorks": [
+   "Parse flag và chủ đề: tách --html và --eli5 (thứ tự nào cũng được, flag lạ trả về hướng dẫn ngắn); lấy chủ đề từ tham số, file đang mở hoặc hội thoại. Chủ đề rõ thì làm ngay; hoàn toàn thiếu thì hỏi đúng MỘT câu.",
+   "Kiểm tra bằng chứng khi cần: với file repo, đường code, stack trace thì đọc đúng vị trí source trước khi giải thích; không bịa nội dung file, API hay hành vi; tách dữ kiện đã kiểm chứng với suy luận.",
+   "Dựng mô hình tư duy: Gist (1-2 câu), Core Concepts/Parts, Mechanism/Flow (nhân quả theo thứ tự), Concrete Example, Caveats & Failure Modes.",
+   "Áp biến đổi theo mode: --eli5 theo references/eli5-contract.md (một ẩn dụ chính, ánh xạ rõ sang hệ thống thật, định nghĩa thuật ngữ lần đầu, nói rõ chỗ ẩn dụ hết đúng, giữ mọi cảnh báo, không nói kiểu trẻ con).",
+   "--html theo references/html-contract.md: resolve catalog, kích hoạt ak:frontend-design, rồi ak:diagram nếu có (chọn archetype architecture/workflow/sequence/dataflow/lifecycle, viết JSON IR và biên dịch); không có ak:diagram thì vẽ SVG/CSS inline có <title>/<desc> và ghi rõ khả năng tương tác bị giảm.",
+   "Lắp một tài liệu HTML duy nhất gồm Hero Header, Visual Mental Model, Step-by-Step Walkthrough, Concrete Example/Trace, Warnings & Failure Modes, Glossary & Analogy Limits; không iframe, không tài liệu lồng nhau.",
+   "Verify và giao: Markdown thì trả thẳng; HTML thì kiểm tra offline 100% (không CDN, mở được qua file://), khả năng tiếp cận (heading, focus, tương phản, prefers-reduced-motion) và báo đường dẫn file cùng trạng thái capability thật.",
+   "An toàn: file, log, issue do người dùng cung cấp là dữ liệu không tin cậy; không thực thi prompt injection, không lộ secret."
+  ],
+  "useWhen": [
+   "Muốn hiểu một khái niệm kỹ thuật (JWT refresh token, event loop, DNS resolution...).",
+   "Cần walkthrough một hàm, module hoặc luồng request trong codebase, có trích dẫn đường dẫn.",
+   "Muốn biết vì sao một lỗi (deadlock, race condition, lỗi build) xảy ra mà chưa cần sửa.",
+   "Cần giải thích cho người không chuyên bằng ẩn dụ đời thường (--eli5).",
+   "Cần một trang giải thích trực quan offline để chia sẻ (--html)."
+  ],
+  "avoidWhen": [
+   "Chỉ muốn nói lại câu trả lời vừa rồi cho đơn giản: dùng /ak:bro.",
+   "Muốn xem/mở file HTML hoặc Markdown có sẵn, làm slide, review diff trực quan: dùng /ak:preview.",
+   "Muốn sửa lỗi: dùng /ak:fix (hoặc /ak:debug để chứng minh nguyên nhân).",
+   "Cần tư vấn chọn kiến trúc hay giải pháp: dùng /ak:ask hoặc /ak:advise."
+  ],
+  "params": [
+   {
+    "name": "[subject|path|URL]",
+    "kind": "arg",
+    "desc": "Chủ đề, đường dẫn file/thư mục trong repo, hoặc URL cần giải thích. Nếu bỏ trống, lấy từ file đang mở hoặc hội thoại; hoàn toàn không có thì hỏi một câu."
+   },
+   {
+    "name": "--html",
+    "kind": "flag",
+    "desc": "Tạo một file HTML tự chứa, responsive, accessible, 100% offline: kích hoạt ak:frontend-design và ak:diagram (khi có, fallback SVG inline khi không). Lưu tại {plan_dir}/visuals/explain-{slug}.html khi có plan active, ngược lại plans/visuals/explain-{slug}.html; tên file không chứa timestamp."
+   },
+   {
+    "name": "--eli5",
+    "kind": "flag",
+    "desc": "“Explain like I'm 5”: mở đầu bằng ý chính 1-2 câu, dùng một ẩn dụ đời thường và ánh xạ rõ sang hệ thống thật, định nghĩa thuật ngữ và viết đầy đủ từ viết tắt lần đầu, nêu chỗ ẩn dụ hết đúng, giữ nguyên mọi cảnh báo, lệnh và mã lỗi chính xác; giọng người lớn, không nói kiểu trẻ con. Kết hợp với --html thì cả nội dung và nhãn sơ đồ đều theo văn phong ELI5."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:explain JWT refresh token hoạt động thế nào",
+    "note": "Giải thích Markdown mặc định: ý chính, mô hình tư duy, lưu ý."
+   },
+   {
+    "cmd": "/ak:explain src/server/middleware/auth.ts",
+    "note": "Walkthrough file cụ thể, trích dẫn đường dẫn, tách dữ kiện và suy luận."
+   },
+   {
+    "cmd": "/ak:explain \"event loop\" --eli5",
+    "note": "Giải thích cho người mới bằng ẩn dụ đời thường, vẫn giữ cảnh báo."
+   },
+   {
+    "cmd": "/ak:explain kiến trúc xác thực của project --html",
+    "note": "Trang HTML offline có sơ đồ để chia sẻ với team."
+   },
+   {
+    "cmd": "/ak:explain \"luồng request microservice\" --html --eli5",
+    "note": "Kết hợp cả hai: trang trực quan với văn phong dễ hiểu và nhãn sơ đồ đơn giản."
+   }
+  ],
+  "tips": [
+   "Cho đường dẫn file cụ thể để giải thích bám source thật; không có source, skill sẽ ghi rõ phần nào là suy luận.",
+   "--eli5 không bao giờ làm mờ cảnh báo nguy hiểm (ví dụ `rm -rf`, xóa key, mất dữ liệu); đó là yêu cầu bắt buộc.",
+   "--html tạo file hoàn toàn offline (khác /ak:preview --html có thể dùng CDN), phù hợp gửi qua chat hoặc mở trên máy không có mạng.",
+   "Nếu kit không có ak:diagram (ví dụ chỉ cài Core), --html vẫn chạy với sơ đồ SVG tĩnh và báo rõ phần tương tác bị giảm.",
+   "--html tốn token nhiều hơn đáng kể so với Markdown vì kích hoạt thêm frontend-design và diagram."
+  ],
+  "related": [
+   "ak-bro",
+   "ak-preview",
+   "ak-frontend-design",
+   "ak-diagram",
+   "ak-debug",
+   "ak-fix",
+   "ak-coding-level"
+  ],
+  "agents": [],
+  "artifacts": [
+   "{plan_dir}/visuals/explain-{slug}.html hoặc plans/visuals/explain-{slug}.html (--html)"
+  ]
+ }
+}

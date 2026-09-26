@@ -1,0 +1,282 @@
+[
+ {
+  "id": "advisor",
+  "name": "advisor",
+  "description": "Use this agent to run the interview-driven `ak:advise` advisory workflow in an isolated context on the strongest available model. It scouts, interviews the user one question at a time to reframe a raw idea into exact requirements and goals, then delivers honest advice (what to do, what to avoid, better alternatives, benefits, trade-offs, a work checklist, and success metrics). Because a Claude Code subagent cannot call `AskUserQuestion` itself, this agent relays each interview question back to the orchestrator and is re-spawned with the user''s answer. Examples: - -",
+  "model": "fable",
+  "tools": "Glob, Grep, Read, Write, Bash, WebFetch, WebSearch, TaskCreate, TaskGet, TaskUpdate, TaskList, SendMessage, Task(Explore)",
+  "memory": "project"
+ },
+ {
+  "id": "analytics-analyst",
+  "name": "analytics-analyst",
+  "description": "Use this agent for performance reporting and marketing insights. This includes campaign performance reports, traffic analysis, conversion tracking, custom event analysis, and trend identification.",
+  "model": "haiku",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "attraction-specialist",
+  "name": "attraction-specialist",
+  "description": "Use this agent for lead generation, top-of-funnel content, and competitor intelligence. This includes keyword research, gap analysis, landing page content, programmatic SEO templates, and lead magnet ideation.",
+  "model": "sonnet",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "brainstormer",
+  "name": "brainstormer",
+  "description": "Use this agent when you need to brainstorm software solutions, evaluate architectural approaches, or debate technical decisions before implementation. Examples: - - -",
+  "model": "opus",
+  "tools": "Glob, Grep, Read, Bash, WebFetch, WebSearch, TaskCreate, TaskGet, TaskUpdate, TaskList, SendMessage",
+  "memory": ""
+ },
+ {
+  "id": "campaign-debugger",
+  "name": "campaign-debugger",
+  "description": "Use this agent when you need to investigate marketing issues, analyze campaign behavior, diagnose performance problems, examine analytics data, collect and analyze marketing metrics, or optimize campaign performance. This includes troubleshooting underperforming campaigns, identifying conversion bottlenecks, analyzing failed ad deployments, investigating tracking issues, and creating diagnostic reports.",
+  "model": "sonnet",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "campaign-manager",
+  "name": "campaign-manager",
+  "description": "Use this agent for campaign orchestration across channels. This includes multi-channel campaign planning, performance tracking, budget allocation, timeline management, and campaign briefs.",
+  "model": "sonnet",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "code-reviewer",
+  "name": "code-reviewer",
+  "description": "Comprehensive code review with scout-based edge case detection. Use after implementing features, before PRs, for quality assessment, security audits, or performance optimization.",
+  "model": "opus",
+  "tools": "Glob, Grep, Read, Bash, WebFetch, WebSearch, TaskCreate, TaskGet, TaskUpdate, TaskList, SendMessage",
+  "memory": "project"
+ },
+ {
+  "id": "code-simplifier",
+  "name": "code-simplifier",
+  "description": "Simplifies and refines code for clarity, consistency, and maintainability while preserving all functionality. Focuses on recently modified code unless instructed otherwise.",
+  "model": "opus",
+  "tools": "Glob, Grep, Read, Edit, MultiEdit, Write, NotebookEdit, Bash, TaskCreate, TaskGet, TaskUpdate, TaskList, SendMessage, Task(Explore)",
+  "memory": ""
+ },
+ {
+  "id": "community-manager",
+  "name": "community-manager",
+  "description": "Use this agent for Discord/Slack moderation and community engagement. This includes sentiment analysis, response drafting, moderation alerts, engagement metrics, and FAQ generation.",
+  "model": "sonnet",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "content-creator",
+  "name": "content-creator",
+  "description": "Use this agent to generate marketing content. This includes blog posts, social media posts, video scripts, ad copy, landing page copy, and newsletter content.",
+  "model": "sonnet",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "content-reviewer",
+  "name": "content-reviewer",
+  "description": "Use this agent when you need comprehensive content review and quality assessment. This includes: after creating marketing content, copy, or campaigns, before publishing to production channels, when investigating content quality issues or brand inconsistencies, when you need SEO and conversion optimization assessment, or when optimizing content performance.",
+  "model": "sonnet",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "continuity-specialist",
+  "name": "continuity-specialist",
+  "description": "Use this agent for customer retention and engagement strategies. This includes churn risk detection, re-engagement campaigns, NPS automation, testimonial requests, and customer health scoring.",
+  "model": "sonnet",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "copywriter",
+  "name": "copywriter",
+  "description": "Use this agent when you need to create high-converting, engagement-driven copy for marketing materials, social media posts, landing pages, email campaigns, product descriptions, or any content that needs to capture attention and drive action.",
+  "model": "sonnet",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "database-admin",
+  "name": "database-admin",
+  "description": "Use this agent when you need to work with database systems, including querying for data analysis, diagnosing performance bottlenecks, optimizing database structures, managing indexes, implementing backup and restore strategies, setting up replication, configuring monitoring, managing user permissions, or when you need comprehensive database health assessments and optimization recommendations. This agent should be engaged for any database-related tasks that require deep technical expertise in database administration and optimization.",
+  "model": "sonnet",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "debugger",
+  "name": "debugger",
+  "description": "Use this agent when you need to investigate issues, analyze system behavior, diagnose performance problems, examine database structures, collect and analyze logs from servers or CI/CD pipelines, run tests for debugging purposes, or optimize system performance. This includes troubleshooting errors, identifying bottlenecks, analyzing failed deployments, investigating test failures, and creating diagnostic reports.",
+  "model": "sonnet",
+  "tools": "Glob, Grep, Read, Edit, MultiEdit, Write, NotebookEdit, Bash, WebFetch, WebSearch, TaskCreate, TaskGet, TaskUpdate, TaskList, SendMessage, Task(Explore), Task(kongming)",
+  "memory": "project"
+ },
+ {
+  "id": "docs-manager",
+  "name": "docs-manager",
+  "description": "Use this agent to create, reconcile, or audit evidence-backed project documentation for both people and AI collaborators without imposing a fixed docs layout, while honouring an explicit route the repository or the user supplies.",
+  "model": "sonnet",
+  "tools": "Glob, Grep, Read, Edit, MultiEdit, Write, NotebookEdit, Bash, WebFetch, WebSearch, TaskCreate, TaskGet, TaskUpdate, TaskList, SendMessage, Task(Explore)",
+  "memory": ""
+ },
+ {
+  "id": "email-wizard",
+  "name": "email-wizard",
+  "description": "Use this agent for email campaign orchestration and optimization. This includes sequence templates, dynamic content personalization, send-time optimization, A/B test design, subject line generation, and drip campaign architecture.",
+  "model": "sonnet",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "explore",
+  "name": "Explore",
+  "description": "Fast codebase scanner and analyzer for locating relevant files, tracing relationships, and summarizing implementation context.",
+  "model": "haiku",
+  "tools": "Glob, Grep, Read, Bash",
+  "memory": ""
+ },
+ {
+  "id": "fullstack-developer",
+  "name": "fullstack-developer",
+  "description": "Execute implementation phases from parallel plans. Handles backend (Node.js, APIs, databases), frontend (React, TypeScript), and infrastructure tasks. Designed for parallel execution with strict file ownership boundaries. Use when implementing a specific phase from `the engineer plan skill --parallel` output.",
+  "model": "sonnet",
+  "tools": "Glob, Grep, Read, Edit, MultiEdit, Write, NotebookEdit, Bash, WebFetch, WebSearch, TaskCreate, TaskGet, TaskUpdate, TaskList, SendMessage, Task(Explore), Task(kongming)",
+  "memory": ""
+ },
+ {
+  "id": "funnel-architect",
+  "name": "funnel-architect",
+  "description": "Use this agent for funnel design and conversion optimization. This includes funnel stage design, conversion rate analysis, bottleneck identification, A/B test recommendations, offer sequencing (Hormozi model), and attribution modeling.",
+  "model": "opus",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "git-manager",
+  "name": "git-manager",
+  "description": "Stage, commit, and push code changes with conventional commits. Use when user says \"commit\", \"push\", or finishes a feature/fix.",
+  "model": "haiku",
+  "tools": "Glob, Grep, Read, Bash, TaskCreate, TaskGet, TaskUpdate, TaskList, SendMessage",
+  "memory": ""
+ },
+ {
+  "id": "journal-writer",
+  "name": "journal-writer",
+  "description": "Use this agent when:\\n- A test suite fails repeatedly despite multiple fix attempts\\n- A critical bug is discovered in production or staging\\n- An implementation approach proves fundamentally flawed and requires complete redesign\\n- External dependencies (APIs, services, libraries) cause blocking issues\\n- Performance bottlenecks are discovered that significantly impact user experience\\n- Security vulnerabilities are identified\\n- Database migrations fail or cause data integrity issues\\n- CI/CD pipelines break unexpectedly\\n- Integration conflicts arise between major system components\\n- Techn",
+  "model": "sonnet",
+  "tools": "Glob, Grep, Read, Edit, MultiEdit, Write, NotebookEdit, Bash, TaskCreate, TaskGet, TaskUpdate, TaskList, SendMessage",
+  "memory": ""
+ },
+ {
+  "id": "kongming",
+  "name": "kongming",
+  "description": "Autonomous counsel from the strongest model (`fable`) in one run — no session model switch, no user interview. Mention `@kongming` from a lower tier (opus/sonnet) or spawn it from a stuck subagent for hard design, debugging, or trade-off calls. Advisory-only; returns advice, not code.",
+  "model": "fable",
+  "tools": "Glob, Grep, Read, Bash, WebFetch, WebSearch, Write, Task(Explore)",
+  "memory": "project"
+ },
+ {
+  "id": "lead-qualifier",
+  "name": "lead-qualifier",
+  "description": "Use this agent for intent detection, lead scoring, and behavioral analysis. This includes engagement pattern recognition, sales readiness prediction, and qualification criteria definition.",
+  "model": "haiku",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "planner",
+  "name": "planner",
+  "description": "Use this agent when you need to research, analyze, and create comprehensive implementation plans for new features, system architectures, or complex technical solutions. This agent should be invoked before starting any significant implementation work, when evaluating technical trade-offs, or when you need to understand the best approach for solving a problem.",
+  "model": "opus",
+  "tools": "Glob, Grep, Read, Edit, MultiEdit, Write, NotebookEdit, Bash, WebFetch, WebSearch, TaskCreate, TaskGet, TaskUpdate, TaskList, SendMessage, Task(Explore), Task(researcher), Task(kongming)",
+  "memory": "project"
+ },
+ {
+  "id": "project-manager",
+  "name": "project-manager",
+  "description": "Use this agent when you need comprehensive project oversight and coordination.",
+  "model": "sonnet",
+  "tools": "Glob, Grep, LS, Read, Edit, MultiEdit, Write, NotebookEdit, WebFetch, TaskCreate, TaskGet, TaskUpdate, TaskList, WebSearch, BashOutput, KillBash, ListMcpResourcesTool, ReadMcpResourceTool, SendMessage",
+  "memory": ""
+ },
+ {
+  "id": "researcher",
+  "name": "researcher",
+  "description": "Use this agent when you need to conduct comprehensive research on software development topics, including investigating new technologies, finding documentation, exploring best practices, or gathering information about plugins, packages, and open source projects. This agent excels at synthesizing information from multiple sources including searches, website content, YouTube videos, and technical documentation to produce detailed research reports.",
+  "model": "sonnet",
+  "tools": "Glob, Grep, Read, Bash, WebFetch, WebSearch, TaskCreate, TaskGet, TaskUpdate, TaskList, SendMessage",
+  "memory": "user"
+ },
+ {
+  "id": "sale-enabler",
+  "name": "sale-enabler",
+  "description": "Use this agent for sales collateral and deal acceleration. This includes personalized pitch generation, objection handling guides, social proof matching, proposal templates, and case study generation.",
+  "model": "sonnet",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "scout-external",
+  "name": "scout-external",
+  "description": "Use this agent for read-only codebase discovery with native tools and optional user-permitted OpenCode probes. Prefer Glob, Grep, and Read when they can answer the request directly.",
+  "model": "haiku",
+  "tools": "Glob, Grep, Read, WebFetch, TodoWrite, WebSearch, Bash, BashOutput, KillShell, ListMcpResourcesTool, ReadMcpResourceTool",
+  "memory": ""
+ },
+ {
+  "id": "scout",
+  "name": "scout",
+  "description": "Use this agent when you need to quickly locate relevant files across a large codebase to complete a specific task. This agent is particularly useful when: Proactively use this agent when:\\n- Beginning work on a feature that spans multiple directories\\n- User mentions needing to \"find\", \"locate\", or \"search for\" files\\n- Starting a debugging session that requires understanding file relationships\\n- User asks about project structure or where specific functionality lives\\n- Before making changes that might affect multiple parts of the codebase",
+  "model": "haiku",
+  "tools": "Glob, Grep, Read, WebFetch, TodoWrite, WebSearch, Bash, BashOutput, KillShell, ListMcpResourcesTool, ReadMcpResourceTool",
+  "memory": ""
+ },
+ {
+  "id": "seo-specialist",
+  "name": "seo-specialist",
+  "description": "Use this agent for SEO audit and optimization. This includes technical SEO audit, content optimization, keyword analysis, link building strategy, JSON+LD generation, and competitor SEO analysis.",
+  "model": "sonnet",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "social-media-manager",
+  "name": "social-media-manager",
+  "description": "Use this agent for social media scheduling and analytics. This includes multi-platform post generation, content calendar management, engagement analysis, trend research, and platform-specific adaptation.",
+  "model": "sonnet",
+  "tools": "",
+  "memory": ""
+ },
+ {
+  "id": "tester",
+  "name": "tester",
+  "description": "Use this agent when you need to validate code quality through testing, including running unit and integration tests, analyzing test coverage, validating error handling, checking performance requirements, or verifying build processes. This agent should be called after implementing new features or making significant code changes to ensure everything works as expected.",
+  "model": "haiku",
+  "tools": "Glob, Grep, Read, Edit, MultiEdit, Write, NotebookEdit, Bash, WebFetch, WebSearch, TaskCreate, TaskGet, TaskUpdate, TaskList, SendMessage, Task(Explore), Task(kongming)",
+  "memory": "project"
+ },
+ {
+  "id": "ui-ux-designer",
+  "name": "ui-ux-designer",
+  "description": "Use this agent when the user needs UI/UX design work including interface designs, wireframes, design systems, user research, responsive layouts, animations, or design documentation.",
+  "model": "inherit",
+  "tools": "Glob, Grep, Read, Edit, MultiEdit, Write, NotebookEdit, Bash, WebFetch, WebSearch, TaskCreate, TaskGet, TaskUpdate, TaskList, SendMessage, Task(Explore), Task(researcher)",
+  "memory": ""
+ },
+ {
+  "id": "upsell-maximizer",
+  "name": "upsell-maximizer",
+  "description": "Use this agent for revenue expansion and product recommendations. This includes upsell opportunity identification, product recommendation logic, expansion revenue forecasting, feature adoption tracking, cross-sell sequences, and pricing tier optimization.",
+  "model": "sonnet",
+  "tools": "",
+  "memory": ""
+ }
+]

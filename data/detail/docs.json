@@ -1,0 +1,1111 @@
+{
+ "ak-docs": {
+  "tagline": "Tạo, làm mới, tóm tắt hoặc audit tài liệu dự án dựa trên bằng chứng, không áp đặt bố cục cố định.",
+  "summary": "ak:docs phân tích codebase để duy trì bộ tài liệu nhỏ nhất đủ cho người và AI hiểu mục đích, hợp đồng hiện tại, bằng chứng và quy trình vận hành của dự án. Triết lý: code sở hữu WHAT/HOW, docs sở hữu WHY/WHERE (quyết định, phương án bị loại, business rule, thuật ngữ, ràng buộc); root CLAUDE.md/AGENTS.md là loại artifact riêng — process memory chứa chỉ dẫn HOW-TO-BEHAVE. Đầu vào là một subcommand (init, update, summarize, agent-context, agents, llms) kèm flag; đầu ra là file docs được tạo/cập nhật, root context file, route record vận hành hoặc llms.txt/llms-full.txt. Không ghi gì khi không có chỉ dẫn bền vững mới là kết quả đúng. Skill không bao giờ viết product code.",
+  "howItWorks": [
+   "Opening Gate: brainstorm có giới hạn để xác định ai đọc docs (người, AI hay cả hai), outcome và quyết định docs phải hỗ trợ, nguồn chứng minh hành vi hiện tại, phần evergreen vs stateful và acceptance criteria; tái dùng plan/brainstorm đã chấp nhận nếu có.",
+   "Routing theo từ đầu tiên của $ARGUMENTS: init → references/init-workflow.md, update → update-workflow.md, summarize → summarize-workflow.md, agent-context → agent-context-rules.md, agents → agents-workflow.md, llms → llms.md; rỗng hoặc mơ hồ thì hỏi người dùng (không bao giờ mặc định init).",
+   "Discovery Contract: đọc lần lượt AGENTS.md/CLAUDE.md, README.md gốc, docs index/navigation, các file trong docs/, rồi source/tests/scripts/artifact/live state làm bằng chứng; route khai báo tường minh (trong repository instructions hoặc --preset classic) ghi đè discovery về tên file.",
+   "Load references/doc-content-rules.md cho mọi thao tác viết docs; init/update/agent-context load thêm operational-lookup.md khi thay đổi thiết lập, đổi hoặc bác bỏ một route tới hệ thống bên ngoài repo (deploy path, nguồn log, nơi lấy credential, webhook/OAuth/DNS, backup/rollback).",
+   "Route record vận hành gồm: When to use, Scope, Source of truth, How to look up, Access and permission, Limits, Verification and fallback; chỉ ghi đường lấy secret, không bao giờ ghi giá trị secret.",
+   "init: inspect dự án → thiết kế route nhỏ nhất theo vai trò thông tin (hoặc bộ filename classic) → giao docs-manager viết dựa trên bằng chứng → validate link, path, lệnh và quyền sở hữu route.",
+   "update: xác định contract thay đổi (kể cả thay đổi vận hành ngoài repo) → map từng claim với owner hiện tại → 'prune, không refresh': xóa prose mô tả lại code, chuyển thành pointer, giữ WHY; thêm/sửa/xóa route record; không đổi gì nếu nội dung đã tương đương.",
+   "summarize: dùng ak:scout hoặc search có trọng tâm, trả về tóm tắt có bằng chứng; chỉ ghi file khi dự án đã chỉ định file summary hoặc người dùng yêu cầu.",
+   "agents: đào git history (revert, fix-of-fix, hotspot fix, co-change coupling) và CI qua gh trong cửa sổ giới hạn, tùy chọn thêm source-tree qua ak:scout (--source) → xếp hạng tín hiệu → chưng cất rule DO/DON'T → spawn kongming review một lần → xin người dùng xác nhận diff → ghi vào root context file và verify.",
+   "llms: tìm docs route, chọn thư mục public/static hoặc repo root, cập nhật tại chỗ llms.txt và llms-full.txt theo grammar llmstxt.org (thêm trang mới, bỏ trang đã xóa, giữ thứ tự curated).",
+   "Validate cuối: kiểm tra mọi path, command, config key và claim hành vi với bằng chứng hiện tại; báo cáo file tạo/sửa/giữ/xóa."
+  ],
+  "useWhen": [
+   "Onboard một repo chưa có docs và muốn dựng route tài liệu tối giản (init).",
+   "Sau khi merge thay đổi làm lệch contract, đường dẫn hoặc route vận hành (deploy path, nguồn log, nơi lấy credential) trong docs hiện có (update).",
+   "Cần tóm tắt codebase hoặc một chủ đề có dẫn chứng mà không sinh thêm file (summarize).",
+   "Viết mới, audit hoặc tối ưu root CLAUDE.md/AGENTS.md (agent-context).",
+   "Muốn rút rule DO/DON'T cho agent từ lỗi lặp lại trong git history, CI và marker trong source (agents).",
+   "Cần sinh hoặc cập nhật llms.txt/llms-full.txt cho dự án (llms)."
+  ],
+  "avoidWhen": [
+   "Cần context cho một thư mục con chứ không phải root: dùng ak-folder-context.",
+   "Nội dung tài liệu phải đến từ suy nghĩ/quyết định của người dùng chứ không từ code: dùng ak-interview-docs.",
+   "Chỉ cần llms.txt với tùy chọn --url/--output và script generate: có thể dùng ak-llms.",
+   "Muốn ghi nhật ký theo thời gian của phiên làm việc: dùng ak-journal (journal không thay thế docs).",
+   "Đang cần implement product code: dùng ak-cook; ak:docs cấm viết product code."
+  ],
+  "params": [
+   {
+    "name": "init",
+    "kind": "subcommand",
+    "desc": "Thiết lập route tài liệu tối giản, đặc thù dự án (references/init-workflow.md). Không tạo placeholder rỗng, roadmap suy đoán hay bộ ADR chỉ để đủ template; trình bày route đề xuất trước khi ghi nếu nó thay thế docs cũ."
+   },
+   {
+    "name": "update",
+    "kind": "subcommand",
+    "desc": "Đối chiếu các docs bị ảnh hưởng với bằng chứng hiện tại (references/update-workflow.md). Chỉ sửa bề mặt bị ảnh hưởng, xóa nội dung stale/trùng lặp, không thêm version note hay issue reference."
+   },
+   {
+    "name": "summarize",
+    "kind": "subcommand",
+    "desc": "Tóm tắt bằng chứng hiện tại (references/summarize-workflow.md) mà không ép tạo file mới; chỉ cập nhật file summary khi dự án đã chỉ định hoặc người dùng yêu cầu."
+   },
+   {
+    "name": "agent-context",
+    "kind": "subcommand",
+    "desc": "Viết, audit hoặc tối ưu root CLAUDE.md/AGENTS.md theo references/agent-context-rules.md (keep-or-cut filter, bảng write/don't-write, enforcement chỉ ở mức khuyến nghị)."
+   },
+   {
+    "name": "agents",
+    "kind": "subcommand",
+    "desc": "Đào git và CI history có giới hạn để tìm lỗi lặp lại và gotcha không suy ra được, chưng cất rule DO/DON'T vào root context file. Mặc định 90 ngày HOẶC 300 commit (lấy cái nhỏ hơn) và 200 CI run; ngầm bật --advice; bắt buộc người dùng xác nhận diff trước khi ghi. Nếu gh chưa auth thì chỉ chạy git-only."
+   },
+   {
+    "name": "[bound]",
+    "kind": "arg",
+    "desc": "Chỉ dùng với agents: giới hạn cửa sổ dạng số ngày (vd agents 30d) hoặc số commit (vd agents 500), ghi đè mặc định."
+   },
+   {
+    "name": "llms",
+    "kind": "subcommand",
+    "desc": "Sinh hoặc cập nhật cả llms.txt và llms-full.txt theo llmstxt.org (references/llms.md); ghi vào thư mục public/static nếu dự án có site, ngược lại repo root; cập nhật tại chỗ thay vì sinh lại mù quáng."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "Trước khi viết/cập nhật docs hoặc context file, spawn kongming xin tư vấn giữ/cắt/tái cấu trúc; kongming chỉ tư vấn, skill vẫn chịu trách nhiệm mọi chỉnh sửa. Kết hợp được với mọi operation; đã ngầm bật trong agents (không spawn lại)."
+   },
+   {
+    "name": "--audit",
+    "kind": "flag",
+    "desc": "Với agent-context: lấy kongming audit CLAUDE.md/AGENTS.md hiện tại rồi phỏng vấn người dùng từng câu một (mỗi câu một quyết định keep/cut/fix), chỉ áp dụng thay đổi được xác nhận. Với agents: cùng nhịp phỏng vấn ở bước xác nhận, mỗi câu một rule đề xuất."
+   },
+   {
+    "name": "--dry-run",
+    "kind": "flag",
+    "desc": "Chỉ áp dụng cho agents: dừng sau bước xếp hạng tín hiệu (bước 3), báo cáo tín hiệu và watchlist, không spawn advisor, không ghi file."
+   },
+   {
+    "name": "--source",
+    "kind": "flag",
+    "desc": "Chỉ áp dụng cho agents: thêm lớp đào source-tree qua ak:scout (chỉ đọc, không chạy generator/test) bên cạnh git/CI, không thay thế. Cluster chỉ có từ source cần cổng xác thực: ≥2 anchor cộng code/test guard hoặc chứng thực từ git/CI. Kết hợp được với --dry-run và --audit."
+   },
+   {
+    "name": "--preset classic",
+    "kind": "flag",
+    "desc": "Chỉ áp dụng cho init: dùng bố cục classic dưới docs/ gồm project-overview-pdr.md, code-standards.md, codebase-summary.md, design-guidelines.md, deployment-guide.md, system-architecture.md, project-roadmap.md. Preset chỉ chọn filename; nội dung vẫn theo doc-content-rules.md, file nào không có thông tin thì bỏ qua (không viết placeholder) và ghi route vào docs index."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:docs init",
+    "note": "Repo mới chưa có docs, để skill tự thiết kế route nhỏ nhất theo vai trò thông tin."
+   },
+   {
+    "cmd": "/ak:docs init --preset classic",
+    "note": "Team muốn filename cố định giữa các dự án hoặc tooling ngoài đọc path cố định."
+   },
+   {
+    "cmd": "/ak:docs update",
+    "note": "Sau một đợt refactor đổi tên module, cần dọn docs lệch với code."
+   },
+   {
+    "cmd": "/ak:docs summarize auth flow",
+    "note": "Cần tóm tắt nhanh luồng xác thực có dẫn chứng, không tạo file."
+   },
+   {
+    "cmd": "/ak:docs agent-context --audit",
+    "note": "Rà lại CLAUDE.md đang phình to, quyết từng mục giữ/cắt qua phỏng vấn."
+   },
+   {
+    "cmd": "/ak:docs agents 30d --dry-run",
+    "note": "Xem trước tín hiệu lỗi lặp lại trong 30 ngày mà không ghi gì."
+   },
+   {
+    "cmd": "/ak:docs agents --source",
+    "note": "Rút rule DO/DON'T từ git/CI kèm marker trong source tree."
+   },
+   {
+    "cmd": "/ak:docs llms",
+    "note": "Tạo hoặc đồng bộ llms.txt và llms-full.txt với docs hiện tại."
+   }
+  ],
+  "tips": [
+   "Gọi không có subcommand thì skill hỏi lại chứ không tự chạy init; nên ghi rõ operation ngay từ đầu.",
+   "Docs chỉ nên chứa WHY/WHERE; prose mô tả lại hàm hay liệt kê lệnh sẽ bị update cắt thành pointer tới script/manifest sở hữu.",
+   "Không có chỉ dẫn bền vững mới thì skill để nguyên file (no-op) — không chạm timestamp, sắp xếp lại hay viết lại chỉ để chứng tỏ đã chạy.",
+   "Root context file chỉ giữ policy ngắn cộng một dòng pointer tới operational guide; không chép runbook, URL, account/project id hay tên khách hàng vào root.",
+   "agents cần gh đã đăng nhập (gh auth status) để lấy tín hiệu CI; nếu không, skill chỉ dùng git.",
+   "Docs evergreen không nên chứa ngày tháng, issue ID hay nhãn phase; plan/report/audit phải được đánh dấu là bản ghi stateful.",
+   "Khi docs có hướng dẫn về test, init/update load thêm nguyên tắc thực hành test của ak:test để đối chiếu."
+  ],
+  "related": [
+   "ak-folder-context",
+   "ak-interview-docs",
+   "ak-llms",
+   "ak-scout",
+   "ak-diagram",
+   "ak-journal",
+   "ak-mintlify",
+   "ak-test"
+  ],
+  "agents": [
+   "docs-manager",
+   "kongming"
+  ],
+  "artifacts": [
+   "Các file tài liệu trong docs/ (theo route được discover hoặc preset classic)",
+   "docs index / navigation file (khi có nhiều tài liệu)",
+   "Route record vận hành trong operational guide của dự án",
+   "CLAUDE.md / AGENTS.md ở root (agent-context, agents)",
+   "llms.txt và llms-full.txt (llms)"
+  ]
+ },
+ "ak-docs-seeker": {
+  "tagline": "Tra cứu tài liệu thư viện/framework mới nhất qua llms.txt của context7.com bằng script.",
+  "summary": "ak:docs-seeker tìm tài liệu kỹ thuật theo cách script-first: phân loại truy vấn, tự dựng URL context7.com, lấy llms.txt và đề xuất chiến lược đọc song song. Đầu vào là tên thư viện và chủ đề (hoặc một URL tài liệu chính thức), đầu ra là danh sách URL/nội dung tài liệu liên quan để agent đọc tiếp. Skill thường dùng trong giai đoạn research/implement khi cần API hoặc tính năng mới nhất của thư viện; khi không có llms.txt thì fallback sang phân tích repository bằng Repomix.",
+  "howItWorks": [
+   "Nếu người dùng đưa URL tài liệu chính thức chính xác, đọc trực tiếp và xác nhận version phù hợp; tái dùng kết quả trong task khi nguồn không đổi.",
+   "Chạy node scripts/detect-topic.js \"<query>\" để phân loại truy vấn topic-specific hay general, trả về JSON {topic, library, isTopicSpecific}.",
+   "Chạy node scripts/fetch-docs.js \"<query>\" để dựng URL context7.com và lấy llms.txt, tự fallback topic → general → error.",
+   "Nếu trả về nhiều URL: cat llms.txt | node scripts/analyze-llms-txt.js - để phân loại URL (critical/important/supplementary) và đề xuất phân bổ agent (1, 3, 7 agent hoặc phased).",
+   "Đọc các URL bằng năng lực web search/fetch, hoặc triển khai agent song song theo đề xuất.",
+   "Fallback cuối (workflows/repo-analysis.md): tìm repo GitHub chính thức, clone vào /tmp, pack bằng Repomix rồi đọc README, docs/, examples/, API."
+  ],
+  "useWhen": [
+   "Cần API hoặc tính năng mới nhất của một thư viện mà kiến thức model có thể đã cũ.",
+   "Câu hỏi theo chủ đề cụ thể, ví dụ 'dùng date picker trong shadcn thế nào' (topic search, khoảng 10-15 giây).",
+   "Cần bao quát toàn bộ tài liệu một framework như Next.js để lên kế hoạch (library search, khoảng 30-60 giây).",
+   "Thư viện không có trên context7 và không có llms.txt, cần phân tích trực tiếp repo."
+  ],
+  "avoidWhen": [
+   "Cần sinh llms.txt cho chính dự án của mình: dùng ak-llms hoặc /ak:docs llms.",
+   "Cần research so sánh giải pháp, kiến trúc, best practice rộng: dùng ak-research.",
+   "Cần pack repo hiện tại làm context cho LLM: dùng ak-repomix.",
+   "Câu hỏi về codebase nội bộ chứ không phải thư viện ngoài: dùng ak-scout."
+  ],
+  "params": [
+   {
+    "name": "[library-name]",
+    "kind": "arg",
+    "desc": "Tên thư viện/framework cần tra (vd next.js, shadcn); detect-topic.js trích xuất library từ truy vấn."
+   },
+   {
+    "name": "[topic]",
+    "kind": "arg",
+    "desc": "Chủ đề cụ thể trong thư viện; có topic thì đi đường topic-specific (nhanh, 2-3 URL), không có thì đi general library search (8+ URL)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:docs-seeker shadcn date picker",
+    "note": "Truy vấn theo chủ đề, lấy nhanh 2-3 URL liên quan."
+   },
+   {
+    "cmd": "/ak:docs-seeker next.js",
+    "note": "Cần tổng quan tài liệu Next.js, script đề xuất số agent đọc song song."
+   },
+   {
+    "cmd": "/ak:docs-seeker tanstack router search params",
+    "note": "Kiểm tra API mới nhất trước khi implement."
+   },
+   {
+    "cmd": "/ak:docs-seeker some-niche-lib",
+    "note": "Thư viện ít phổ biến, có thể rơi vào fallback phân tích repo bằng Repomix."
+   }
+  ],
+  "tips": [
+   "Cấu hình tùy chọn trong .env của skill: CONTEXT7_API_KEY (context7.com), GITHUB_TOKEN (tăng rate limit khi phân tích repo), GEMINI_API_KEY (tích hợp ai-multimodal); thứ tự ưu tiên process.env > .env của skill > .env plugin > .env dự án.",
+   "Cần Node để chạy các script; kết quả script vẫn tiêu tốn context nên chỉ đọc phần output có giới hạn.",
+   "Nếu đã biết URL tài liệu chính thức thì đưa luôn để bỏ qua bước discovery.",
+   "Repo analysis chậm (5-10 phút) và tốn token; chỉ dùng khi không có llms.txt.",
+   "Chú ý version: xác nhận tài liệu lấy về đúng version thư viện dự án đang dùng (xem references/advanced.md)."
+  ],
+  "related": [
+   "ak-research",
+   "ak-repomix",
+   "ak-llms",
+   "ak-scout"
+  ],
+  "agents": [
+   "Agent đọc song song theo đề xuất của analyze-llms-txt.js (nguồn không chỉ định loại subagent cụ thể)"
+  ],
+  "artifacts": [
+   "Không tạo file cố định; fallback repo analysis clone vào /tmp/docs-analysis và tạo repomix-output.xml"
+  ]
+ },
+ "ak-document-skills": {
+  "tagline": "Cổng vào đọc, tạo và sửa tài liệu Office: docx, pdf, pptx, xlsx.",
+  "summary": "ak:document-skills là router chọn workflow theo định dạng: Word (ak:docx), PDF (ak:pdf), PowerPoint (ak:pptx) và Spreadsheet (ak:xlsx). Đầu vào là định dạng, đường dẫn file và hành động; đầu ra là file Office được trích xuất, tạo mới hoặc chỉnh sửa và đã validate. Skill giữ nguyên template và nội dung có sẵn, phân biệt rõ trích xuất với chỉnh sửa, và render/kiểm tra layout khi cần. Với nhiều định dạng, nó chạy từng workflow và validate từng artifact chứ không dừng ở bước route.",
+  "howItWorks": [
+   "Xác định định dạng đầu ra được yêu cầu và load SKILL.md con tương ứng: ak-docx, ak-pdf, ak-pptx hoặc ak-xlsx.",
+   "docx: chọn intent (extract, create → docx-js.md, edit → ooxml.md, redline tài liệu người khác → redline.md + ooxml.md); giữ run, comment, tracked changes; validate OOXML và render kiểm tra.",
+   "pdf: chọn operation (extract text/table, create, merge/split/rotate, fill form qua forms.md, OCR/watermark, CLI) và kiểm tra acceptance riêng (số trang, thứ tự, field còn fillable...).",
+   "pptx: chọn create (html2pptx.md), dùng template, edit (ooxml.md) hoặc extract; giữ master, notes, relationship; render và kiểm tra từng slide về overlap, clipping, contrast.",
+   "xlsx: dùng pandas cho dữ liệu, openpyxl cho formula/format; dùng formula Excel thay vì hardcode giá trị tính trong Python; chạy python recalc.py output.xlsx để tính lại và sửa lỗi #REF!, #DIV/0!, #VALUE!, #NAME?.",
+   "Với yêu cầu nhiều định dạng: chạy từng workflow, validate từng artifact; báo rõ nếu renderer/tool không có thay vì tự nhận đã kiểm tra trực quan."
+  ],
+  "useWhen": [
+   "Cần tạo báo cáo Word, sửa hợp đồng có tracked changes hoặc trích xuất text từ .docx.",
+   "Cần trích bảng từ PDF, merge/split PDF hoặc điền form PDF tự động.",
+   "Cần tạo slide deck .pptx từ nội dung hoặc chỉnh sửa theo template công ty.",
+   "Cần phân tích dữ liệu, tạo bảng tính có formula, chart hoặc pivot trong .xlsx/.csv."
+  ],
+  "avoidWhen": [
+   "Chỉ cần xem/đọc markdown dài trong trình duyệt: dùng ak-markdown-novel-viewer.",
+   "Cần trang HTML trình diễn: dùng ak-show-off hoặc ak-preview.",
+   "Cần OCR/vision trên ảnh thuần mà model không tự xử lý được: cân nhắc ak-ai-multimodal."
+  ],
+  "params": [
+   {
+    "name": "<docx|pdf|pptx|xlsx>",
+    "kind": "arg",
+    "desc": "Bắt buộc: định dạng cần xử lý, quyết định skill con được load (ak:docx, ak:pdf, ak:pptx, ak:xlsx)."
+   },
+   {
+    "name": "[path]",
+    "kind": "arg",
+    "desc": "Đường dẫn file đầu vào hoặc đầu ra."
+   },
+   {
+    "name": "[action]",
+    "kind": "arg",
+    "desc": "Hành động theo skill con: docx/pptx dùng create|edit|extract; pdf dùng extract|create|merge|split|fill; xlsx dùng create|edit|analyze."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:document-skills docx ./contract.docx edit",
+    "note": "Sửa hợp đồng, giữ định dạng và đánh dấu thay đổi."
+   },
+   {
+    "cmd": "/ak:document-skills pdf ./invoices.pdf extract",
+    "note": "Trích bảng số liệu từ hóa đơn PDF."
+   },
+   {
+    "cmd": "/ak:document-skills pdf ./form.pdf fill",
+    "note": "Điền form PDF tự động nhưng giữ field fillable."
+   },
+   {
+    "cmd": "/ak:document-skills pptx ./deck.pptx create",
+    "note": "Tạo slide deck mới không cần template."
+   },
+   {
+    "cmd": "/ak:document-skills xlsx ./sales.xlsx analyze",
+    "note": "Phân tích dữ liệu bán hàng và thêm formula tổng hợp."
+   }
+  ],
+  "tips": [
+   "openpyxl chỉ ghi text formula, không tính giá trị; phải chạy recalc.py (cần engine hỗ trợ như LibreOffice) nếu không file mở ra toàn ô trống.",
+   "PDF scan cho ra extraction rỗng không có nghĩa là không có nội dung; cần OCR hoặc kiểm tra trực quan.",
+   "Khi sửa docx của người khác (pháp lý/kinh doanh) nên đi workflow redline để tracked changes đúng độ chi tiết.",
+   "Render và kiểm tra layout sau khi sửa pptx/docx; nếu không có renderer, skill sẽ báo chưa verify trực quan.",
+   "Luôn giữ template gốc: master slide, style, notes, relationship không được đụng tới nếu không yêu cầu."
+  ],
+  "related": [
+   "ak-ai-multimodal",
+   "ak-preview",
+   "ak-markdown-novel-viewer"
+  ],
+  "agents": [],
+  "artifacts": [
+   "File .docx/.pdf/.pptx/.xlsx được tạo hoặc chỉnh sửa",
+   "Ảnh render kiểm tra layout (khi renderer có sẵn)"
+  ]
+ },
+ "ak-folder-context": {
+  "tagline": "Tạo CLAUDE.md gọn cho một thư mục con kèm AGENTS.md liên kết, lưu quy ước cục bộ bền vững.",
+  "summary": "ak:folder-context tạo context bền vững chỉ cho thư mục con chứa quyết định, quy ước hoặc công việc đang dở mà agent sau không tự suy ra được. Đầu vào là đường dẫn thư mục đích; đầu ra là CLAUDE.md gọn trong thư mục đó và AGENTS.md là symlink tới nó. Skill không bao giờ sửa root CLAUDE.md/AGENTS.md và có sanity gate để từ chối thư mục tham chiếu tĩnh.",
+  "howItWorks": [
+   "Xác nhận đích là thư mục con (không phải root) và đọc các file source, config, Markdown và context cục bộ quan trọng.",
+   "Sanity gate: không tạo file cho thư mục tham chiếu tĩnh hoặc thư mục mà context có thể khám phá khi cần.",
+   "Với yêu cầu tạo rõ ràng, viết bản nháp gọn ngay trong thư mục đó và trình bày để review; chỉ hỏi khi xung đột với nội dung người dùng đã có hoặc cần quyết định ghi đè.",
+   "Viết CLAUDE.md chỉ dựa trên bằng chứng trong thư mục hoặc quyết định tường minh của người dùng, bỏ section rỗng; file kế thừa policy root, không nhắc lại rule root và không chứa route vận hành (chỉ link tới operational guide sở hữu).",
+   "Tạo AGENTS.md là symlink tới CLAUDE.md; nếu không hỗ trợ symlink thì tạo file pointer một dòng nhắc tới CLAUDE.md và báo người dùng.",
+   "Khi người dùng sửa file, đọc lại và cảnh báo mâu thuẫn; không bao giờ revert chỉnh sửa của họ nếu không được yêu cầu."
+  ],
+  "useWhen": [
+   "Một package trong monorepo có quy ước riêng (naming, MUST NOT) khác với root.",
+   "Thư mục có quyết định đã khóa kèm ngày tháng mà agent phiên sau cần biết.",
+   "Có công việc dài hạn trong một module cần giữ context xuyên phiên.",
+   "Muốn agent tuân thủ ràng buộc cục bộ mà không làm phình root CLAUDE.md."
+  ],
+  "avoidWhen": [
+   "Cần sửa root CLAUDE.md/AGENTS.md: dùng /ak:docs agent-context.",
+   "Cần tài liệu dự án trong docs/: dùng ak-docs.",
+   "Thư mục chỉ chứa tài liệu tham chiếu tĩnh hoặc context dễ khám phá khi cần: không nên tạo.",
+   "Muốn ghi lại lịch sử phiên làm việc: dùng ak-journal."
+  ],
+  "params": [
+   {
+    "name": "<target-folder>",
+    "kind": "arg",
+    "desc": "Bắt buộc: đường dẫn thư mục con cần tạo context. Không được là root dự án; skill chỉ ghi file trong đích đã xác nhận."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:folder-context packages/billing",
+    "note": "Package thanh toán có ràng buộc riêng về xử lý tiền tệ."
+   },
+   {
+    "cmd": "/ak:folder-context src/legacy",
+    "note": "Ghi lại quy tắc MUST NOT refactor module legacy và lý do."
+   },
+   {
+    "cmd": "/ak:folder-context apps/mobile",
+    "note": "App mobile trong monorepo có convention build và naming khác web."
+   }
+  ],
+  "tips": [
+   "Section hữu ích: mục đích và file chính (mỗi file một dòng vai trò), ràng buộc (đặc biệt MUST NOT), convention/naming, quyết định đã khóa có ngày, context cần xuyên phiên.",
+   "Dùng bullet, không vẽ cây thư mục hay chép lại tài liệu chung của dự án.",
+   "Không lặp lại chỉ dẫn đã có ở root, không bịa ràng buộc, không ghi credential, không tạo file ngoài thư mục đích đã xác nhận.",
+   "Cách tra cứu hệ thống bên ngoài (deploy, log, secret) không đặt ở đây; chỉ để link tới operational guide.",
+   "Tôn trọng chỉ dẫn cục bộ người dùng đã có trước khi thêm context mới.",
+   "Trên hệ thống không hỗ trợ symlink (vd Windows thiếu quyền), AGENTS.md sẽ là file pointer một dòng."
+  ],
+  "related": [
+   "ak-docs",
+   "ak-journal",
+   "ak-project-organization"
+  ],
+  "agents": [],
+  "artifacts": [
+   "<target-folder>/CLAUDE.md",
+   "<target-folder>/AGENTS.md (symlink tới CLAUDE.md hoặc file pointer)"
+  ]
+ },
+ "ak-interview-docs": {
+  "tagline": "Phỏng vấn có hướng dẫn để biến tầm nhìn và quyết định của người dùng thành tài liệu bền vững.",
+  "summary": "ak:interview-docs chuyển kiến thức, gu và quyết định của chính người dùng thành README, ADR, strategy, principles hoặc tài liệu có cấu trúc. Đầu vào là một vision, đường dẫn tài liệu hoặc chủ đề; đầu ra là tài liệu được vá dần sau từng câu trả lời. Skill không bịa nội dung, không tự xếp hạng danh sách của người dùng và không suy tài liệu từ source code. Có hai mode: vision mode và structured-doc mode.",
+  "howItWorks": [
+   "Chọn mode: vision mode cho tầm nhìn dự án, hướng README và quyết định ADR; structured-doc mode cho một tài liệu do người dùng viết như principles, strategy, review, framework; nếu hợp cả hai thì hỏi một câu ngắn trước.",
+   "Vision mode: đọc README.md và navigation docs để tìm owner hiện có của vision/quyết định (không giả định docs/adr tồn tại).",
+   "Vision mode: hỏi một loạt câu tập trung về quyết định chưa rõ, bỏ câu đã được trả lời; sau mỗi câu trả lời đọc lại và vá lời người dùng vào tài liệu owner trước khi xử lý câu tiếp.",
+   "Vision mode: README chỉ giữ vision, quyết định đã xác nhận ghi vào owner mà repo chọn; chỉ dùng ADR nếu đó là convention sẵn có; tiếp tục đến khi người dùng kết thúc.",
+   "Structured-doc mode: đọc tài liệu lân cận, tạo skeleton tối thiểu một lần, rồi hỏi đúng một câu mở cụ thể mỗi lượt, chờ trả lời, đọc lại section đích và vá trước khi hỏi tiếp.",
+   "Coi danh sách người dùng đưa ra là tập không thứ tự; hỏi rõ trước khi gán thứ hạng/ưu tiên; giữ nguyên câu chữ và chỉnh sửa của người dùng."
+  ],
+  "useWhen": [
+   "Viết README thể hiện tầm nhìn dự án từ lời của founder/người dùng.",
+   "Ghi lại quyết định kiến trúc người dùng đã chốt thành ADR (nếu repo dùng ADR).",
+   "Soạn tài liệu principles, strategy hoặc framework cá nhân qua hỏi đáp từng câu.",
+   "Người dùng có ý tưởng trong đầu nhưng chưa biết cách viết ra có cấu trúc."
+  ],
+  "avoidWhen": [
+   "Muốn AI đề xuất và so sánh phương án: dùng ak-brainstorm.",
+   "Tài liệu cần suy ra từ code: dùng ak-docs.",
+   "Cần research prompt/brief giao cho người khác: dùng ak-research-prompt.",
+   "Muốn ghi nhật ký kỹ thuật theo thời gian: dùng ak-journal."
+  ],
+  "params": [
+   {
+    "name": "<vision | document-path | topic>",
+    "kind": "arg",
+    "desc": "Bắt buộc: một mô tả tầm nhìn (vision mode), đường dẫn tài liệu cần xây/hoàn thiện, hoặc chủ đề của tài liệu có cấu trúc (structured-doc mode)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:interview-docs vision cho README của dự án",
+    "note": "Vision mode: phỏng vấn để viết README thể hiện định hướng."
+   },
+   {
+    "cmd": "/ak:interview-docs docs/principles.md",
+    "note": "Structured-doc mode: xây tài liệu nguyên tắc từng câu một."
+   },
+   {
+    "cmd": "/ak:interview-docs chiến lược go-to-market năm tới",
+    "note": "Soạn tài liệu strategy từ quyết định của người dùng."
+   },
+   {
+    "cmd": "/ak:interview-docs quyết định chọn PostgreSQL thay MongoDB",
+    "note": "Ghi quyết định đã chốt vào owner quyết định của repo."
+   }
+  ],
+  "tips": [
+   "Skill không ghi ý kiến tạm thời thành quyết định; ADR chỉ ghi quyết định người dùng đã chốt rõ ràng.",
+   "Có thể yêu cầu nhịp phỏng vấn riêng (vd mỗi lần một câu), skill sẽ giữ nhịp đó.",
+   "Tài liệu được vá sau mỗi câu trả lời, nên có thể dừng giữa chừng mà không mất nội dung.",
+   "Skill không ghi đè tài liệu có sẵn hay thêm section suy đoán; không ghi secret hoặc dữ liệu cá nhân."
+  ],
+  "related": [
+   "ak-brainstorm",
+   "ak-docs",
+   "ak-research-prompt",
+   "ak-journal"
+  ],
+  "agents": [],
+  "artifacts": [
+   "README.md (phần vision)",
+   "Tài liệu quyết định/ADR theo convention của repo",
+   "Tài liệu có cấu trúc do người dùng chỉ định (vd docs/principles.md)"
+  ]
+ },
+ "ak-llms": {
+  "tagline": "Sinh file llms.txt (và llms-full.txt) theo spec llmstxt.org từ docs hoặc URL.",
+  "summary": "ak:llms tạo index Markdown thân thiện với LLM cho tài liệu dự án theo đặc tả llmstxt.org. Đầu vào là đường dẫn hoặc URL nguồn tài liệu (mặc định discover từ README, site config và navigation); đầu ra là llms.txt và tùy chọn llms-full.txt có nội dung inline. Skill không xử lý hosting, deploy, SEO, robots.txt hay sitemap. Phù hợp khi xuất bản docs site hoặc chuẩn bị context file cho AI assistant.",
+  "howItWorks": [
+   "Gather Sources: mặc định đọc README và navigation của docs/site để lập allowlist nguồn công khai (kể cả ngoài docs/); nếu là URL thì dùng web search để lấy cấu trúc tài liệu.",
+   "Analyze & Categorize: xác định title từ navigation/frontmatter/H1, tóm tắt nội dung thật của trang, giữ path/URL, phân nhóm (API, Guides, Reference...) và độ ưu tiên core vs optional.",
+   "Generate: chạy scripts/generate-llms-txt.py --source <path> --output <output-path> --base-url <url> [--full], hoặc viết thủ công theo references/llms-txt-specification.md.",
+   "Structure Output: H1 tên dự án, blockquote tóm tắt, các section H2 chứa link dạng [Title](url): mô tả, section ## Optional ở cuối.",
+   "Validate: có H1, có blockquote, link đúng cú pháp Markdown, Optional ở cuối, mô tả ngắn gọn không jargon."
+  ],
+  "useWhen": [
+   "Xuất bản docs site và muốn AI dễ khám phá tài liệu.",
+   "Cần file context gọn cho AI assistant đọc tài liệu dự án.",
+   "Người dùng yêu cầu 'llms.txt', 'LLM documentation', 'AI-friendly docs'.",
+   "Cần bản llms-full.txt chứa toàn bộ nội dung inline để nạp một lần."
+  ],
+  "avoidWhen": [
+   "Muốn cập nhật llms.txt như một phần của quy trình docs chung (discovery contract, update tại chỗ cả hai file): dùng /ak:docs llms.",
+   "Cần tra tài liệu thư viện bên ngoài qua llms.txt: dùng ak-docs-seeker.",
+   "Docs site dùng Mintlify và cần cấu hình tính năng AI của nó: dùng ak-mintlify."
+  ],
+  "params": [
+   {
+    "name": "[path|url]",
+    "kind": "arg",
+    "desc": "Thư mục/file cần quét hoặc URL site tài liệu. Không truyền thì discover từ README gốc, site config và navigation."
+   },
+   {
+    "name": "--full",
+    "kind": "flag",
+    "desc": "Sinh thêm llms-full.txt (bản mở rộng có nội dung tài liệu inline)."
+   },
+   {
+    "name": "--output path",
+    "kind": "flag",
+    "desc": "Vị trí output tùy chỉnh; mặc định là project root."
+   },
+   {
+    "name": "--url base",
+    "kind": "flag",
+    "desc": "Tiền tố base URL cho link (vd https://example.com/docs); tương ứng --base-url của script. Có trong phần Arguments dù không nằm trong argument-hint."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:llms",
+    "note": "Tự discover docs dự án và sinh llms.txt ở root."
+   },
+   {
+    "cmd": "/ak:llms docs/ --full",
+    "note": "Quét thư mục docs/ và sinh cả llms-full.txt."
+   },
+   {
+    "cmd": "/ak:llms docs/ --output public/ --url https://example.com/docs",
+    "note": "Xuất vào thư mục public của site với link tuyệt đối."
+   },
+   {
+    "cmd": "/ak:llms https://docs.example.com",
+    "note": "Tạo llms.txt từ cấu trúc một docs site có sẵn."
+   }
+  ],
+  "tips": [
+   "Section ## Optional phải nằm cuối; agent có thể bỏ qua khi context ngắn, nên đặt changelog/legacy ở đó.",
+   "Không lấy đoạn đầu trang làm mô tả một cách máy móc vì có thể là boilerplate; tóm tắt nội dung thật.",
+   "Loại trừ secret, tài liệu riêng tư và config không liên quan khỏi output công khai.",
+   "Script generate-llms-txt.py cần Python; có thể viết thủ công theo spec nếu script không phù hợp."
+  ],
+  "related": [
+   "ak-docs",
+   "ak-docs-seeker",
+   "ak-mintlify"
+  ],
+  "agents": [],
+  "artifacts": [
+   "llms.txt",
+   "llms-full.txt (khi dùng --full)"
+  ]
+ },
+ "ak-markdown-novel-viewer": {
+  "tagline": "Mở file markdown trong trình đọc kiểu sách, tĩnh lặng, phục vụ qua HTTP cục bộ.",
+  "summary": "ak:markdown-novel-viewer phục vụ file hoặc thư mục Markdown qua server Node cục bộ với giao diện đọc kiểu sách (theme novel, dark mode, progress bar, header tự ẩn). Đầu vào là đường dẫn file hoặc thư mục; đầu ra là URL localhost để đọc trong trình duyệt. Phù hợp để review nội dung dài như RFC, runbook, design doc, report, spec, plan hay tiểu thuyết. Việc sinh HTML thuộc về ak:preview --html, không phải skill này.",
+  "howItWorks": [
+   "Resolve và quote đường dẫn (kể cả đường dẫn Windows có dấu cách).",
+   "Tái dùng server đã biết của dự án; kiểm tra process/port trước khi khởi động server mới.",
+   "Kiểm tra Node và dependency marked, highlight.js, gray-matter; chỉ chạy npm install trong thư mục skill khi thiếu.",
+   "Chạy node scripts/server.cjs --file \"<absolute-path>\" --open (hoặc --dir cho thư mục); giữ bind localhost trừ khi yêu cầu truy cập từ xa; trả về URL thật mà server in ra.",
+   "Ghi lại PID, port và dự án; khi xong chỉ dừng server mà task sở hữu (--stop dừng tất cả server viewer nên chỉ dùng khi mọi server đều thuộc task này)."
+  ],
+  "useWhen": [
+   "Cần đọc RFC, design doc hoặc report dài mà không bị phân tâm.",
+   "Duyệt plan có nhiều phase: viewer tự nhận cấu trúc plan, có sidebar trạng thái và nút Previous/Next.",
+   "Đọc tài liệu có sơ đồ Mermaid, được render tự động theo theme.",
+   "Duyệt cả một thư mục markdown qua directory browser."
+  ],
+  "avoidWhen": [
+   "Cần sinh trang HTML giải thích/slide: dùng ak-preview (--html).",
+   "Cần trang showcase công khai: dùng ak-show-off.",
+   "Cần xem dashboard plan dạng kanban: dùng ak-plans-kanban.",
+   "Chỉ cần đọc nhanh vài dòng trong terminal: không cần khởi động server."
+  ],
+  "params": [
+   {
+    "name": "[file-or-directory]",
+    "kind": "arg",
+    "desc": "File markdown (map sang --file) hoặc thư mục (map sang --dir) cần mở."
+   },
+   {
+    "name": "--file <path>",
+    "kind": "flag",
+    "desc": "Tùy chọn CLI của scripts/server.cjs: file markdown cần xem."
+   },
+   {
+    "name": "--dir <path>",
+    "kind": "flag",
+    "desc": "Tùy chọn CLI: thư mục cần duyệt."
+   },
+   {
+    "name": "--port <number>",
+    "kind": "flag",
+    "desc": "Tùy chọn CLI: port server, mặc định 3456."
+   },
+   {
+    "name": "--host <addr>",
+    "kind": "flag",
+    "desc": "Tùy chọn CLI: host bind, mặc định localhost; 0.0.0.0 để truy cập từ xa (chỉ khi được yêu cầu)."
+   },
+   {
+    "name": "--open",
+    "kind": "flag",
+    "desc": "Tùy chọn CLI: tự mở trình duyệt, mặc định false."
+   },
+   {
+    "name": "--background",
+    "kind": "flag",
+    "desc": "Tùy chọn CLI: chạy nền, mặc định false."
+   },
+   {
+    "name": "--stop",
+    "kind": "flag",
+    "desc": "Tùy chọn CLI: dừng TẤT CẢ server viewer; chỉ dùng khi mọi server thuộc task hiện tại, nếu không hãy dừng đúng PID."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:markdown-novel-viewer docs/rfc-001.md",
+    "note": "Đọc một RFC dài trong trình duyệt."
+   },
+   {
+    "cmd": "/ak:markdown-novel-viewer plans/260926-auth-refactor/",
+    "note": "Duyệt plan nhiều phase với sidebar và điều hướng."
+   },
+   {
+    "cmd": "/ak:markdown-novel-viewer ./book",
+    "note": "Duyệt thư mục chứa các chương tiểu thuyết."
+   }
+  ],
+  "tips": [
+   "Phím tắt: ? xem cheatsheet, T đổi theme, S bật/tắt sidebar, ←/→ chuyển phase, Esc đóng.",
+   "Luôn dùng URL server in ra, không giả định port 3456 vì server có thể chọn khác.",
+   "Tránh tạo server trùng: kiểm tra process/port trước; dừng server của mình khi xong để không để lại process mồ côi.",
+   "Lỗi Mermaid thường do sai cú pháp (vd dùng -> thay vì -->); xem references/mermaid-diagrams.md."
+  ],
+  "related": [
+   "ak-preview",
+   "ak-plans-kanban",
+   "ak-mermaidjs-v11"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Không tạo file tài liệu; khởi động process server Node cục bộ (cần ghi nhận PID/port)"
+  ]
+ },
+ "ak-mintlify": {
+  "tagline": "Xây và bảo trì docs site Mintlify: docs.json, MDX, navigation, OpenAPI, AI assets, validate cục bộ.",
+  "summary": "ak:mintlify hỗ trợ xây dựng và bảo trì site tài liệu Mintlify, biến Markdown/MDX thành docs site tương tác. Đầu vào là một task (config, content, navigation, OpenAPI, deploy, AI) và đường dẫn docs root; đầu ra là docs.json, trang MDX, cấu hình navigation/theme được chỉnh sửa và đã chạy lệnh validate. Skill ưu tiên CLI đã cài và tài liệu chính thức đúng version, không cài CLI global hay init site chỉ để sửa MDX.",
+  "howItWorks": [
+   "Inspect docs root, package manifest/lockfile, cấu hình và navigation hiện có trước khi chọn lệnh.",
+   "Kiểm tra version/help của CLI đã cài và dùng tài liệu chính thức khớp version khi đổi cấu hình hoặc API.",
+   "Route theo loại thay đổi: config/theme → docs-json-configuration-reference.md; content → mdx-components-reference.md; navigation → navigation-structure-and-organization-reference.md; OpenAPI → api-documentation-components-reference.md; preview/deploy → deployment-and-continuous-integration-reference.md; AI → ai-features-and-integrations-reference.md.",
+   "Chỉ load quick-examples.md khi bắt đầu content/cấu hình mới.",
+   "Chạy lệnh validate đã cài (vd mint validate, mint broken-links, mint a11y, mint openapi-check), kiểm tra navigation/link bị ảnh hưởng và xem nội dung render khi đổi layout.",
+   "Tái dùng preview đang chạy; ghi lại command/PID/port của process đã khởi động và dừng khi xong; deploy cần target được yêu cầu và bằng chứng kết quả thật."
+  ],
+  "useWhen": [
+   "Thêm trang MDX mới dùng component Mintlify (Card, Tabs, Steps...).",
+   "Sắp xếp lại navigation/tab/group trong docs.json.",
+   "Tích hợp OpenAPI/AsyncAPI để sinh trang API reference.",
+   "Cấu hình tính năng AI như llms.txt, skill.md, MCP cho docs site.",
+   "Thiết lập CI validate broken links, a11y trước khi deploy."
+  ],
+  "avoidWhen": [
+   "Dự án không dùng Mintlify và chỉ cần docs markdown trong repo: dùng ak-docs.",
+   "Chỉ cần llms.txt độc lập không gắn Mintlify: dùng ak-llms.",
+   "Deploy ứng dụng lên hosting chung: dùng ak-deploy.",
+   "Cần API docs cho ASP.NET: dùng dotnet-claude-kit:openapi hoặc scalar."
+  ],
+  "params": [
+   {
+    "name": "[task]",
+    "kind": "arg",
+    "desc": "Công việc cần làm (config/theme, content, navigation, OpenAPI, preview/deploy, AI integration); quyết định reference được load."
+   },
+   {
+    "name": "[path]",
+    "kind": "arg",
+    "desc": "Đường dẫn docs root hoặc file cần chỉnh."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:mintlify thêm trang quickstart docs/",
+    "note": "Viết trang MDX mới và thêm vào navigation."
+   },
+   {
+    "cmd": "/ak:mintlify tích hợp openapi.yaml docs/",
+    "note": "Sinh API reference từ file OpenAPI."
+   },
+   {
+    "cmd": "/ak:mintlify đổi theme và màu thương hiệu docs/docs.json",
+    "note": "Chỉnh cấu hình theme trong docs.json."
+   },
+   {
+    "cmd": "/ak:mintlify kiểm tra broken links",
+    "note": "Chạy validate cục bộ trước khi merge."
+   }
+  ],
+  "tips": [
+   "Không cài CLI global hay chạy init chỉ để sửa một file MDX; dùng CLI có sẵn trong dự án.",
+   "Các lệnh kiểm tra trong reference: mint validate, mint broken-links, mint a11y, mint openapi-check; có thể dùng biến MINTLIFY_CONFIG để chọn file docs.json theo môi trường.",
+   "Mintlify tự deploy từ Git repo đã kết nối; deploy khác (Vercel, AWS...) cần build tĩnh và bằng chứng kết quả.",
+   "Nhớ dừng process mint dev mình đã khởi động để không chiếm port."
+  ],
+  "related": [
+   "ak-docs",
+   "ak-llms",
+   "ak-deploy",
+   "ak-docs-seeker"
+  ],
+  "agents": [],
+  "artifacts": [
+   "docs.json",
+   "Các trang .mdx",
+   "Cấu hình CI validate (khi được yêu cầu)"
+  ]
+ },
+ "ak-diagram": {
+  "tagline": "Biên dịch JSON IR có kiểu thành system map SVG, fragment hoặc HTML reader tương tác tự chứa, tất định và đã validate.",
+  "summary": "ak:diagram (v3) biên dịch đặc tả JSON IR có kiểu thành SVG tất định, HTML fragment nhúng được hoặc HTML reader tương tác tự chứa, hoàn toàn offline, không cần trình duyệt. Compiler tự lo layout: xếp hạng đồ thị, sắp cột để giảm giao cắt, định tuyến cạnh vuông góc tránh node không liên quan và vẽ card theo vai trò kèm legend — người viết chỉ mô tả topology, không bao giờ nhập tọa độ. Hỗ trợ 5 archetype (architecture, workflow, sequence, dataflow, lifecycle), 4 preset hình ảnh và theme sáng/tối. Đầu vào là file IR (hoặc Mermaid .mmd/template cũ qua wrapper Python render.py); đầu ra là .html/.svg/fragment. Reader chỉ truy vấn trên node và quan hệ đã khai báo trong IR, không suy đoán topology.",
+  "howItWorks": [
+   "Chọn archetype theo ý định: architecture (components, boundaries, connections; trường role, layer 0–10, kind), workflow (lanes, steps, transitions; kind, lane, condition), sequence (participants, messages; kind sync-call | return), dataflow (stages, nodes, flows; stage, role, classification), lifecycle (states, transitions, lanes; kind initial | active | ...).",
+   "Viết JSON IR: envelope {\"schema_version\": 1, \"diagram_type\": \"<type>\", \"meta\": {...}}, chọn preset (classic, signal-flow, blueprint, editorial) và theme (light/dark); tùy chọn animation \"trace\" và meta.views tối đa 5 chapter kể chuyện (id, title, narrative, focus_nodes).",
+   "Áp invariant schema: enum role chặt trên node (compiler kiểm tra lúc compile), ID dạng ^[a-zA-Z0-9_-]{1,64}$. Vị trí theo IR: layer chọn cột architecture, lane chọn hàng workflow, stage.order chọn cột dataflow, state initial mở đầu lifecycle; node không xếp hạng lấy đường dài nhất từ node trước, chu trình vẽ thành route quay lại.",
+   "Biên dịch offline: node scripts/compiler/compile.mjs --input diagram.json --format html|svg|fragment --out <path> --preset <preset> --theme <theme>; wrapper python3 scripts/render.py tự nhận IR, Mermaid hoặc template cũ.",
+   "Layout tất định: cùng IR cho cùng hình học và cùng SHA-256 output; node không chồng nhau, route không cắt node không liên quan, boundary/lane/stage bao trọn thành viên (scripts/test_layout_geometry.mjs kiểm trên mọi fixture).",
+   "Mỗi role ánh xạ tới một visual family (client, service, data, queue, cache, gateway, security, external, worker, start, success, failure, waiting, decision, process, governance, transform, filter) có màu, sigil và mục legend riêng, lộ ra qua data-family trên .ak-node.",
+   "Chuyển động chỉ bằng CSS: entrance so le theo cột (--step tối đa 40), tổng dưới 8 giây; trace thêm một lượt dòng chảy hữu hạn; prefers-reduced-motion: reduce hiển thị thẳng khung cuối.",
+   "Giao file .html (reader có tìm kiếm, focus, route, role lens, chapter, share card, đổi theme, replay) hoặc .svg vector sạch."
+  ],
+  "useWhen": [
+   "Cần sơ đồ kiến trúc microservice có boundary và layer, xuất HTML reader tương tác để người đọc tự tìm, focus và truy vết.",
+   "Mô tả workflow nhiều lane có bàn giao và điểm quyết định mà không muốn tự căn tọa độ.",
+   "Vẽ sequence gọi API hoặc pipeline ETL/stream/data lineage (dataflow).",
+   "Cần state machine (lifecycle) cho trạng thái đơn hàng, kèm chapter kể chuyện qua meta.views.",
+   "Cần output tất định (cùng IR cho cùng SHA-256) để commit vào repo và diff trong review."
+  ],
+  "avoidWhen": [
+   "Phác thảo whiteboard tự do, chỉnh sửa được: dùng ak-excalidraw.",
+   "Sơ đồ tĩnh chất lượng xuất bản/infographic in ấn: dùng ak-tech-graph.",
+   "Khối sơ đồ inline trong markdown: dùng ak-mermaidjs-v11.",
+   "Cần slide hoặc giải thích trực quan tổng thể thay vì một system map: dùng ak-preview."
+  ],
+  "params": [
+   {
+    "name": "[input-file]",
+    "kind": "arg",
+    "desc": "File JSON IR có kiểu (tương ứng --input của compile.mjs). Wrapper render.py còn nhận Mermaid .mmd (vendored v11.4.1) hoặc template cũ."
+   },
+   {
+    "name": "--format <svg|fragment|html>",
+    "kind": "flag",
+    "desc": "svg: vector sạch (vẫn có animation CSS); fragment: HTML scoped nhúng vào trang có sẵn; html: reader tương tác tự chứa có phím tắt."
+   },
+   {
+    "name": "--preset <classic|signal-flow|blueprint|editorial>",
+    "kind": "flag",
+    "desc": "Preset hình ảnh, chỉ đổi typography/nét/mật độ, không đổi ngữ nghĩa đồ thị: classic (mặc định, trung tính), signal-flow (glow emerald/cyan, nhấn connector), blueprint (lưới kỹ thuật xanh đậm, chữ monospace), editorial (typography xuất bản, serif ấm)."
+   },
+   {
+    "name": "--theme <light|dark>",
+    "kind": "flag",
+    "desc": "Theme sáng hoặc tối; trong reader có nút đổi theme mà không đổi hình học hay preset."
+   },
+   {
+    "name": "--out <path>",
+    "kind": "flag",
+    "desc": "Đường dẫn file output (vd ./build/diagram.html). Với render.py, --out là thư mục output."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:diagram diagram.json --format html --preset signal-flow --theme dark --out ./build/diagram.html",
+    "note": "Reader tương tác cho kiến trúc hệ thống, nền tối."
+   },
+   {
+    "cmd": "/ak:diagram diagram.json --format svg --out ./build/diagram.svg",
+    "note": "SVG vector để nhúng vào docs."
+   },
+   {
+    "cmd": "/ak:diagram diagram.json --format fragment --preset blueprint --theme dark",
+    "note": "Fragment scoped nhúng vào trang HTML có sẵn."
+   },
+   {
+    "cmd": "/ak:diagram vẽ lifecycle trạng thái đơn hàng",
+    "note": "Để skill tự chọn archetype lifecycle và viết IR."
+   },
+   {
+    "cmd": "python3 scripts/render.py --input diagram.mmd --out ./build/",
+    "note": "Wrapper cũ: tự nhận Mermaid và bọc vào khung editorial."
+   }
+  ],
+  "tips": [
+   "Không khai báo tọa độ: điều khiển vị trí bằng layer, lane, stage.order hoặc state initial; compiler lo phần còn lại.",
+   "Reader: / tìm kiếm, click node để focus, Escape bỏ focus, R tìm đường ngắn nhất giữa hai node, L lọc theo role, F chế độ trình chiếu, [ và ] chuyển chapter, M phát lại chuyển động.",
+   "Biên dịch hoàn toàn offline bằng Node: không gọi mạng, không telemetry, không tải font.",
+   "Animation luôn hữu hạn (dưới 8 giây) và tự tắt khi prefers-reduced-motion: reduce.",
+   "Mermaid được vendored ở v11.4.1; không dùng tính năng Mermaid ra sau bản này. Chuyển động nặng thì nên dùng IR hoặc template thay vì Mermaid.",
+   "Lỗi compile thường do role enum sai hoặc ID chứa ký tự không hợp lệ; tra references/schema-and-reader.md."
+  ],
+  "related": [
+   "ak-excalidraw",
+   "ak-tech-graph",
+   "ak-mermaidjs-v11",
+   "ak-preview",
+   "ak-show-off"
+  ],
+  "agents": [],
+  "artifacts": [
+   "File JSON IR (vd diagram.json)",
+   "diagram.html (reader tương tác tự chứa)",
+   "diagram.svg",
+   "HTML fragment scoped",
+   "Share card SVG 1200×630 xuất từ reader"
+  ]
+ },
+ "ak-excalidraw": {
+  "tagline": "Vẽ sơ đồ Excalidraw 'biết lập luận' qua MCP canvas trực tiếp hoặc file JSON render bằng Playwright.",
+  "summary": "ak:excalidraw tạo sơ đồ kiến trúc, data flow, workflow, system design dạng Excalidraw có thể chỉnh sửa. Triết lý: sơ đồ phải lập luận bằng hình (shape phản ánh ý nghĩa) chứ không chỉ là các box có nhãn. Có hai backend: Mode A MCP canvas (live, ưu tiên) và Mode B file .excalidraw render PNG qua Playwright. Đầu vào là mô tả hoặc đường dẫn (kể cả 'diagram this repo'); đầu ra là file .excalidraw và ảnh PNG/SVG.",
+  "howItWorks": [
+   "Mode Detection: nếu tool mcp__excalidraw__read_diagram_guide có trong catalog và chạy được thì dùng Mode A (load references/mcp-workflow.md); nếu không dùng Mode B file-based (references/file-workflow.md); không có cả hai thì hướng dẫn setup.",
+   "Step 0 Assess Depth: sơ đồ khái niệm đơn giản hay kỹ thuật toàn diện; với kỹ thuật phải research spec, event, API thật và đưa evidence artifact vào.",
+   "Step 1 Map concept sang visual pattern: fan-out, convergence, tree, timeline, spiral/cycle, cloud, assembly line, side-by-side, gap/break; mỗi khái niệm lớn dùng pattern khác nhau.",
+   "Step 2 Plan layout theo hướng trái→phải hoặc trên→dưới, phần quan trọng nhiều khoảng trắng hơn.",
+   "Step 3 Generate theo mode đang dùng; auto-diagram cho repo: detect → discover component (≤15 tool call) → map connection (≤10) → verify → chọn layout → generate (tối đa 12 component, 20 mũi tên).",
+   "Self-critique loop: render/screenshot → đối chiếu thiết kế → tìm overlap, text bị cắt, mũi tên sai → sửa → render lại (thường 2-4 vòng, tối đa 2 với MCP).",
+   "Export khi được yêu cầu: MCP dùng export_to_image (PNG/SVG); file mode chạy render_excalidraw.py ra PNG."
+  ],
+  "useWhen": [
+   "Người dùng nói 'diagram this repo' hoặc 'visualize the architecture' để tự phân tích codebase.",
+   "Cần sơ đồ có thể chỉnh sửa tiếp trên Excalidraw.",
+   "Giải thích một khái niệm/mental model bằng hình có tính lập luận.",
+   "Vẽ data flow hoặc system design trực tiếp trên canvas live cùng người dùng."
+  ],
+  "avoidWhen": [
+   "Cần system map từ JSON IR có validate và HTML reader tương tác: dùng ak-diagram.",
+   "Cần sơ đồ tĩnh chất lượng xuất bản với style cố định: dùng ak-tech-graph.",
+   "Cần sơ đồ inline trong markdown: dùng ak-mermaidjs-v11.",
+   "Cần slide hoặc giải thích trực quan dạng trang: dùng ak-preview."
+  ],
+  "params": [
+   {
+    "name": "[diagram description|path]",
+    "kind": "arg",
+    "desc": "Mô tả sơ đồ cần vẽ, hoặc đường dẫn (file .excalidraw để sửa/render, hoặc thư mục/repo để auto-diagram)."
+   },
+   {
+    "name": "--export <png|svg>",
+    "kind": "flag",
+    "desc": "Xuất ảnh PNG hoặc SVG. Mode MCP dùng export_to_image với format tương ứng; file mode script render_excalidraw.py ra PNG (hỗ trợ --output, --scale mặc định 2, --width mặc định 1920). (nguồn không mô tả chi tiết cách flag map vào từng mode)"
+   },
+   {
+    "name": "--live",
+    "kind": "flag",
+    "desc": "Dùng canvas live qua MCP (Mode A, cập nhật real-time trên trình duyệt). (nguồn không mô tả chi tiết flag này; SKILL.md chỉ mô tả việc tự detect mode)"
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:excalidraw diagram this repo",
+    "note": "Auto-diagram kiến trúc codebase hiện tại."
+   },
+   {
+    "cmd": "/ak:excalidraw luồng xác thực OAuth giữa client, API và IdP --export png",
+    "note": "Sơ đồ data flow xuất PNG."
+   },
+   {
+    "cmd": "/ak:excalidraw kiến trúc event-driven với Kafka --live",
+    "note": "Vẽ trên canvas MCP trực tiếp."
+   },
+   {
+    "cmd": "/ak:excalidraw docs/arch.excalidraw --export svg",
+    "note": "Render lại file có sẵn ra SVG."
+   }
+  ],
+  "tips": [
+   "Mode B cần uv và Playwright Chromium (uv run playwright install chromium); Mode A cần chạy canvas (vd docker ghcr.io/yctimlin/mcp_excalidraw-canvas) và cấu hình MCP mcp-excalidraw-server.",
+   "Lỗi phổ biến nhất là khoảng cách quá chật: box 200-240px, gap mũi tên có nhãn 150-200px, row 280-350px.",
+   "Giữ dưới 30% text nằm trong container; tối đa 3-4 màu fill; cùng vai trò cùng màu (Frontend #a5d8ff, Backend #d0bfff, Database #b2f2bb...).",
+   "Khi sửa sơ đồ có sẵn, giữ nguyên element ID, binding, palette và font.",
+   "Với MCP, phải clear canvas và screenshot xác nhận trống trước khi vẽ mới."
+  ],
+  "related": [
+   "ak-diagram",
+   "ak-tech-graph",
+   "ak-mermaidjs-v11",
+   "ak-preview"
+  ],
+  "agents": [],
+  "artifacts": [
+   "File .excalidraw (JSON)",
+   "Ảnh PNG render (cùng tên, hoặc theo --output)",
+   "Ảnh SVG/PNG export từ MCP canvas"
+  ]
+ },
+ "ak-mermaidjs-v11": {
+  "tagline": "Viết sơ đồ bằng cú pháp Mermaid.js v11: flowchart, sequence, class, ER, Gantt, state, timeline...",
+  "summary": "ak:mermaidjs-v11 tạo sơ đồ dạng text theo cú pháp khai báo Mermaid.js v11, hỗ trợ hơn 24 loại sơ đồ. Đầu vào là loại sơ đồ hoặc mô tả; đầu ra là code block mermaid để nhúng inline trong Markdown, hoặc file SVG/PNG/PDF khi cần export qua mermaid-cli. Đây là lựa chọn nhẹ nhất cho sơ đồ trong tài liệu, README, PR.",
+  "howItWorks": [
+   "Chọn loại sơ đồ phù hợp (flowchart, sequenceDiagram, classDiagram, stateDiagram, erDiagram, gantt, journey... xem references/diagram-types.md).",
+   "Viết cấu trúc {diagram-type} + nội dung, có thể thêm frontmatter cấu hình (theme, look) và comment bằng %%.",
+   "Với Markdown/host render: xuất code block mermaid, không cần cài CLI; kiểm tra host có hỗ trợ tính năng v11 ít phổ biến không.",
+   "Chỉ export khi cần: dùng mmdc (@mermaid-js/mermaid-cli) với -i/-o, -t theme, -b background, --cssFile; kiểm tra kết quả.",
+   "Tùy chỉnh qua configuration.md (theme, look, fontFamily, securityLevel) hoặc nhúng qua JavaScript API (integration.md)."
+  ],
+  "useWhen": [
+   "Thêm sơ đồ inline vào README, docs hoặc mô tả PR.",
+   "Vẽ ER diagram cho schema database.",
+   "Lập Gantt chart timeline dự án hoặc user journey.",
+   "Vẽ sequence diagram cho luồng API trong tài liệu."
+  ],
+  "avoidWhen": [
+   "Cần system map tương tác có validate: dùng ak-diagram.",
+   "Cần sơ đồ publish-grade nhiều style: dùng ak-tech-graph.",
+   "Cần canvas chỉnh sửa tự do: dùng ak-excalidraw.",
+   "Cần biểu đồ dữ liệu phức tạp (chart): dùng skill dataviz."
+  ],
+  "params": [
+   {
+    "name": "[diagram-type or description]",
+    "kind": "arg",
+    "desc": "Loại sơ đồ Mermaid (vd flowchart, erDiagram) hoặc mô tả điều cần minh họa."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:mermaidjs-v11 erDiagram cho bảng users, orders, products",
+    "note": "Sơ đồ quan hệ database trong docs."
+   },
+   {
+    "cmd": "/ak:mermaidjs-v11 sequence luồng đăng nhập OAuth",
+    "note": "Sequence diagram nhúng vào README."
+   },
+   {
+    "cmd": "/ak:mermaidjs-v11 gantt roadmap quý 4",
+    "note": "Timeline dự án."
+   },
+   {
+    "cmd": "/ak:mermaidjs-v11 flowchart xử lý đơn hàng, xuất SVG",
+    "note": "Export file bằng mmdc khi cần ảnh."
+   }
+  ],
+  "tips": [
+   "Không cần cài CLI khi chỉ nhúng inline; mermaid-cli (npm install -g @mermaid-js/mermaid-cli) chỉ cần khi export ảnh.",
+   "Kiểm tra renderer của host (GitHub, GitLab, docs site) có hỗ trợ tính năng v11 mới trước khi dùng.",
+   "Lỗi thường gặp: dùng -> thay vì -->, typo tên loại sơ đồ; test nhanh trên mermaid.live.",
+   "Khi review SVG render bị chồng nhãn, áp quy tắc layout từ ak:tech-graph.",
+   "Dùng look: handDrawn cho phong cách phác thảo, theme base để tùy biến màu."
+  ],
+  "related": [
+   "ak-diagram",
+   "ak-tech-graph",
+   "ak-excalidraw",
+   "ak-markdown-novel-viewer"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Code block mermaid inline",
+   "File .mmd và SVG/PNG/PDF khi export"
+  ]
+ },
+ "ak-tech-graph": {
+  "tagline": "Sinh sơ đồ kỹ thuật SVG+PNG chất lượng xuất bản với 7 style hình ảnh.",
+  "summary": "ak:tech-graph tạo sơ đồ kỹ thuật dạng SVG và export PNG qua rsvg-convert: architecture, data flow, flowchart, sequence, agent/memory architecture, concept map, UML, ER, network topology... với 7 style (Flat Icon mặc định, Dark Terminal, Blueprint, Notion Clean, Glassmorphism, Claude Official, OpenAI Official). Đầu vào là loại sơ đồ hoặc mô tả hệ thống; đầu ra là cặp file .svg và .png. Đây là chế độ output publish-grade, bổ sung cho mermaid (inline) và preview --diagram (tự review).",
+  "howItWorks": [
+   "Khôi phục entity, edge và claim từ bằng chứng source hoặc mô tả người dùng; đánh dấu quan hệ chưa chắc.",
+   "Giữ style/brand được cung cấp hoặc chọn mặc định Flat Icon; load reference style tương ứng và diagram-type-layout-rules.md.",
+   "Sinh SVG bằng helper phù hợp (generate-from-template.py tạo starter từ template + JSON) hoặc viết tay theo drawing-recipes.md; giữ nghĩa mũi tên, nhãn dễ đọc, asset tự chứa.",
+   "Validate + export bằng generate-diagram.sh (hoặc validate-svg.sh và rsvg-convert -w 1920 thủ công).",
+   "Xem ảnh export để tìm va chạm, cắt chữ, sai quan hệ; sửa và export lại; nếu không xem được ảnh thì báo chất lượng chưa được verify.",
+   "Trả về đường dẫn SVG nguồn và PNG kèm trạng thái validate thật."
+  ],
+  "useWhen": [
+   "Cần sơ đồ kiến trúc đẹp cho blog, bài viết, slide.",
+   "Minh họa RAG pipeline, agentic search, multi-agent hoặc memory layer.",
+   "Cần sơ đồ theo phong cách Anthropic hoặc OpenAI.",
+   "Cần cả SVG lẫn PNG retina (1920px) để publish."
+  ],
+  "avoidWhen": [
+   "Sơ đồ inline trong tài liệu markdown: dùng ak-mermaidjs-v11.",
+   "Cần HTML reader tương tác từ JSON IR: dùng ak-diagram.",
+   "Cần canvas chỉnh sửa được: dùng ak-excalidraw.",
+   "Chỉ cần tự review trực quan nhanh: dùng /ak:preview --diagram."
+  ],
+  "params": [
+   {
+    "name": "[diagram-type or system description]",
+    "kind": "arg",
+    "desc": "Loại sơ đồ (architecture, data flow, flowchart, sequence, agent, memory, comparison matrix, timeline, mind map, UML class/use case/state, ER, network) hoặc mô tả hệ thống."
+   },
+   {
+    "name": "--output /path/",
+    "kind": "flag",
+    "desc": "Đường dẫn output tùy chỉnh (nêu trong phần Output, không có trong argument-hint); mặc định ./[derived-name].svg và .png ở thư mục hiện tại."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:tech-graph architecture của hệ thống RAG với vector DB",
+    "note": "Sơ đồ kiến trúc style Flat Icon mặc định."
+   },
+   {
+    "cmd": "/ak:tech-graph multi-agent orchestrator style Claude Official",
+    "note": "Sơ đồ agent phong cách Anthropic."
+   },
+   {
+    "cmd": "/ak:tech-graph sequence thanh toán Stripe style Dark Terminal",
+    "note": "Sơ đồ cho bài viết dev trên GitHub."
+   },
+   {
+    "cmd": "/ak:tech-graph ER diagram cho schema blog --output ./docs/img/",
+    "note": "Xuất vào thư mục ảnh tài liệu."
+   }
+  ],
+  "tips": [
+   "Yêu cầu rsvg-convert (librsvg) có sẵn trong máy; phải verify trước khi hứa export PNG.",
+   "Không cài upstream fireworks-tech-graph riêng bằng npx skills add; skill đã vendored.",
+   "Dùng helper script cho SVG phức tạp để tránh lỗi cú pháp; sơ đồ đơn giản có thể viết tay.",
+   "Xem references/style-diagram-matrix.md để chọn style hợp với loại sơ đồ.",
+   "Quy tắc layout SVG của skill này (spacing, định tuyến mũi tên, nhãn, z-index) cũng được excalidraw và mermaid mượn để review."
+  ],
+  "related": [
+   "ak-mermaidjs-v11",
+   "ak-diagram",
+   "ak-excalidraw",
+   "ak-preview"
+  ],
+  "agents": [],
+  "artifacts": [
+   "./[derived-name].svg",
+   "./[derived-name].png"
+  ]
+ },
+ "ak-show-off": {
+  "tagline": "Tạo trang HTML tự chứa để trình diễn công việc, có chụp ảnh từng section và publish tùy chọn.",
+  "summary": "ak:show-off tạo trang HTML showcase tự chứa, responsive, có hero ấn tượng và các section cuộn mượt để khoe demo, đăng mạng xã hội hoặc lấy ảnh minh họa bài viết. Đầu vào là markdown hoặc prompt mô tả nhiệm vụ; đầu ra là content.md, trang HTML, ảnh chụp từng section theo tỉ lệ ngang/dọc/vuông và bản publish qua agentwiki (tùy preference). Skill nhớ preference người dùng (screenshots, publishing, languages) và dùng ak:frontend-design cùng ak:diagram để dựng trang.",
+  "howItWorks": [
+   "Resolve preference bằng node scripts/preferences.js get (mặc định screenshots=true, publishing=true, languages=[vi,en]); nhận diện ý định tắt screenshot/publish/đổi ngôn ngữ/reset, lưu lại trừ khi người dùng nói chỉ cho lần này.",
+   "Với việc nhiều artifact/publish: tạo hoặc tái dùng plan qua project-management, đăng ký checklist (request-analysis, content, HTML, local review, + capture nếu screenshots, + publish nếu publishing).",
+   "Phân tích yêu cầu thành 2-6 section (gồm hero), tìm kiếm internet để fact-check, viết assets/showoff/<mission-name>/content.md kèm citation; dùng writing style nếu có file trong các thư mục writing-styles.",
+   "Nếu publishing=true thì publish tài liệu bằng agentwiki CLI.",
+   "Dựng HTML theo contract: ak:frontend-design trước (layout, typography, Design Read, Self-Review Gate), ak:diagram sau cho system map, fallback SVG inline; hero bắt mắt, parallax, theme toggle system/light/dark, ngôn ngữ theo preference.",
+   "Lớp editorial visual: AntV Infographic cho panel KPI/list/quadrant (khi ≥3 tile và prefs bật), diagram-design cho sơ đồ trong section; tắt bằng --no-antv, --no-diagram-design, --no-editorial-visuals.",
+   "Nếu screenshots=true: chạy node scripts/capture-sections.js --url --output-dir --sections --ratios --settle-delay; fallback rws screenshot API chỉ khi publishing=true, có RWEB_API_KEY và HTML đã public.",
+   "Handoff Gate 5 chiều (context fit, visual hierarchy, craft, usability/a11y, implementation safety), publish site nếu bật, rồi mở trang bằng open."
+  ],
+  "useWhen": [
+   "Muốn khoe một tính năng/dự án vừa làm xong bằng trang HTML đẹp.",
+   "Cần ảnh các section theo tỉ lệ 16:9, 9:16, 1:1 để đăng mạng xã hội.",
+   "Tạo trang trình diễn song ngữ Việt-Anh kèm nguồn trích dẫn.",
+   "Biến một bản markdown thành trang showcase tương tác có sơ đồ."
+  ],
+  "avoidWhen": [
+   "Cần giải thích code/kiến trúc hoặc slide nội bộ: dùng ak-preview.",
+   "Cần UI sản phẩm thật: dùng ak-frontend-design.",
+   "Chỉ cần đọc markdown dài: dùng ak-markdown-novel-viewer."
+  ],
+  "params": [
+   {
+    "name": "[markdown-or-prompt]",
+    "kind": "arg",
+    "desc": "Nội dung markdown hoặc prompt mô tả nhiệm vụ showcase ($ARGUMENTS)."
+   },
+   {
+    "name": "--no-antv",
+    "kind": "flag",
+    "desc": "Tắt palette AntV Infographic cho panel KPI/ranked-list/quadrant (mặc định bật khi prefs.visual.antv.enabled và có ≥3 tile)."
+   },
+   {
+    "name": "--no-diagram-design",
+    "kind": "flag",
+    "desc": "Tắt diagram-design (Architecture, Process, Data flow) cho sơ đồ trong section."
+   },
+   {
+    "name": "--no-editorial-visuals",
+    "kind": "flag",
+    "desc": "Tắt toàn bộ lớp editorial visual (AntV và diagram-design); hero vẫn giao ak:frontend-design."
+   },
+   {
+    "name": "--no-screenshots",
+    "kind": "flag",
+    "desc": "Ý định workflow nhận diện từ yêu cầu: bỏ chụp ảnh section; được lưu vào preference trừ khi nói chỉ cho lần này."
+   },
+   {
+    "name": "--no-publish",
+    "kind": "flag",
+    "desc": "Ý định workflow: chỉ giữ local, không publish qua agentwiki và không dùng fallback rws; lưu vào preference trừ khi chỉ cho lần này."
+   },
+   {
+    "name": "--languages en|vi|en,vi",
+    "kind": "flag",
+    "desc": "Ý định workflow: chế độ ngôn ngữ nội dung (vi,en song ngữ có toggle; en hoặc vi đơn ngữ, không toggle)."
+   },
+   {
+    "name": "preferences.js set|get|reset",
+    "kind": "subcommand",
+    "desc": "Helper lưu preference tại $AGENTKIT_HOME/show-off/preferences.json (hoặc ~/.agentkit/show-off/preferences.json; ghi đè bằng SHOW_OFF_PREFS_PATH). set nhận --screenshots on|off, --no-screenshots, --publishing on|off, --publish on|off, --no-publishing, --no-publish, --languages, --language, --dual-language on|off, --no-dual-language."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:show-off giới thiệu tính năng realtime sync vừa ship",
+    "note": "Trang showcase đầy đủ với ảnh và publish theo preference."
+   },
+   {
+    "cmd": "/ak:show-off ./notes/launch.md --no-antv",
+    "note": "Dựng từ markdown có sẵn, không dùng infographic AntV."
+   },
+   {
+    "cmd": "/ak:show-off demo dashboard, English only, local only",
+    "note": "Chỉ tiếng Anh, không publish; được lưu làm preference."
+   },
+   {
+    "cmd": "/ak:show-off kiến trúc hệ thống mới, không chụp ảnh cho lần này",
+    "note": "Tắt screenshot một lần, không lưu preference."
+   }
+  ],
+  "tips": [
+   "Chụp ảnh cục bộ cần Node và puppeteer/headless Chrome; fallback rws cần lệnh rws trên PATH và biến RWEB_API_KEY (không truyền key trên command line).",
+   "Publish cần agentwiki CLI; nếu không muốn publish hãy nói 'local only' một lần, skill sẽ nhớ.",
+   "Nhớ id/class của từng section vì script capture dùng selector (vd #hero,#section-2).",
+   "Font phải hỗ trợ tiếng Việt khi bật ngôn ngữ vi; không đưa API key vào HTML.",
+   "Dùng --settle-delay lớn hơn nếu trang có animation hoặc lazy reveal."
+  ],
+  "related": [
+   "ak-frontend-design",
+   "ak-diagram",
+   "ak-preview",
+   "ak-agent-browser",
+   "ak-project-management",
+   "ak-design"
+  ],
+  "agents": [],
+  "artifacts": [
+   "assets/showoff/<mission-name>/content.md",
+   "Trang HTML showcase (index.html) trong assets/showoff/<mission-name>/",
+   "assets/showoff/<mission-name>/images/ (ảnh horizontal-/vertical-/square- theo section)",
+   "Plan dưới plans/ khi công việc nhiều artifact",
+   "$AGENTKIT_HOME/show-off/preferences.json"
+  ]
+ }
+}

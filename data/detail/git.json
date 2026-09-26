@@ -1,0 +1,811 @@
+{
+ "ak-git": {
+  "tagline": "Stage, commit theo conventional commits, push, tạo PR, merge và điều khiển stacked PR — có quét secret trước mỗi commit.",
+  "summary": "ak:git gói các thao tác git thường ngày thành 6 subcommand: cm, cp, pr, merge, merge-pr và stack. Đầu vào là working tree hiện tại (hoặc PR ref với merge-pr); đầu ra là commit đã tách theo type/scope, branch đã push, PR đã tạo hoặc PR đã merge kèm CI xanh. Mỗi lần commit đều qua bước quét secret trên staged diff và quyết định có tách commit hay không. Skill nằm ở cuối chuỗi implement → review, thường được ak:ship, ak:review-pr (--fix, --merge) gọi lại.",
+  "howItWorks": [
+   "Không có argument: hỏi người dùng qua ask_user capability (header \"Git Operation\") để chọn cm / cp / pr / merge / merge-pr / stack.",
+   "Stage + phân tích: git status --short, git diff -- <authorized-paths>, git add -- <authorized-paths>, rồi git diff --cached --stat và --name-only để xác minh phạm vi staged; giữ nguyên các thay đổi staged không liên quan.",
+   "Security check: grep staged diff theo mẫu api_key|token|password|secret|credential; nếu có thì DỪNG, cảnh báo, gợi ý .gitignore và không commit.",
+   "Split decision: tách commit khi trộn type (feat + fix, code + docs), nhiều scope, config/deps lẫn code, hoặc > 10 file không liên quan; gộp một commit khi cùng type/scope, ≤ 3 file, ≤ 50 dòng. Tìm issue GitHub liên quan để đưa vào body.",
+   "Commit: git commit -m \"type(scope): description\" theo references/commit-standards.md.",
+   "cp: sau commit chạy workflow-push (kiểm tra upstream, git push origin HEAD hoặc push -u; cấm force push lên main/master/production).",
+   "pr: chạy qua subagent git-manager, fetch + push branch, phân tích diff REMOTE (origin/BASE...origin/HEAD, không dùng diff local), sinh title conventional < 72 ký tự và body Summary + Test plan, rồi gh pr create.",
+   "merge: fetch, checkout TO_BRANCH, pull, git merge origin/{FROM_BRANCH} --no-ff, xử lý conflict, push.",
+   "merge-pr: source gh-api-helpers.sh của ak:review-pr (hỗ trợ fallback REST khi GraphQL bị chặn), gate sẵn sàng (OPEN, MERGEABLE, CI không đỏ, không CHANGES_REQUESTED), chọn merge method theo CLAUDE.md/CONTRIBUTING.md → PR đã merge gần đây → mặc định merge commit, gh pr merge (dùng --auto khi check còn pending), theo dõi CI sau merge trên branch đích, CI đỏ thì tạo branch fix và gọi ak:fix --auto tối đa 3 lần, cuối cùng đóng dòng plan liên kết bằng ak plan close.",
+   "stack: dùng extension gh stack (init → add → submit --auto → sync/rebase → merge); các bước viết lại lịch sử và merge nhiều PR phải được người dùng xác nhận; dừng theo exit code (vd 9 = preview chưa bật cho repo).",
+   "Báo cáo theo format: staged N files, security passed, commit HASH, pushed yes/no."
+  ],
+  "useWhen": [
+   "Vừa sửa xong code và muốn commit đúng conventional commits, tự tách commit theo type/scope.",
+   "Cần commit và push luôn lên remote trong một lệnh (cp).",
+   "Muốn tạo PR có title/body chuẩn dựa trên diff remote thay vì diff local.",
+   "Merge một PR GitHub đã sẵn sàng và muốn skill tự canh CI sau merge tới khi xanh (merge-pr).",
+   "Làm việc với chuỗi PR xếp chồng bằng GitHub native Stacked PRs (gh stack)."
+  ],
+  "avoidWhen": [
+   "Cần cả quy trình test → review → commit → PR cho một branch đã xong — dùng ak:ship.",
+   "Cần review nội dung PR, sửa finding hoặc post review — dùng ak:review-pr.",
+   "Thao tác GitHub không liên quan commit (issue, label, Actions, secret, Projects) — dùng ak:github.",
+   "Muốn tạo nhánh làm việc cô lập song song — dùng ak:worktree."
+  ],
+  "params": [
+   {
+    "name": "cm",
+    "kind": "subcommand",
+    "desc": "Stage file và tạo commit (có quét secret và logic tách commit). Không push."
+   },
+   {
+    "name": "cp",
+    "kind": "subcommand",
+    "desc": "Như cm rồi push lên remote; tự dùng git push -u origin HEAD khi branch chưa có upstream. Push bị reject thì gợi ý git pull --rebase."
+   },
+   {
+    "name": "pr [to-branch] [from-branch]",
+    "kind": "subcommand",
+    "desc": "Tạo Pull Request. to-branch mặc định main, from-branch mặc định branch hiện tại. Phân tích diff trên remote; branch chưa có trên remote thì push trước rồi thử lại."
+   },
+   {
+    "name": "merge [to-branch] [from-branch]",
+    "kind": "subcommand",
+    "desc": "Merge branch local: to-branch mặc định main, from-branch mặc định branch hiện tại; merge từ origin/{from-branch} với --no-ff để chỉ lấy thay đổi đã push."
+   },
+   {
+    "name": "merge-pr <pr-ref>",
+    "kind": "subcommand",
+    "desc": "Merge PR (số hoặc URL, bắt buộc) qua gh rồi theo dõi CI sau merge tới khi xanh và xác minh. Từ chối khi có conflict, CI đỏ hoặc CHANGES_REQUESTED; dùng --auto khi check còn pending (đường REST thì poll tới xanh rồi PUT merge, giới hạn ~30 phút)."
+   },
+   {
+    "name": "stack",
+    "kind": "subcommand",
+    "desc": "Điều khiển GitHub native Stacked PRs qua extension gh stack: init → add → submit --auto → sync/rebase → merge. Bước viết lại lịch sử và merge nhiều PR cần người dùng xác nhận; force-push chỉ trên branch của stack."
+   },
+   {
+    "name": "[args]",
+    "kind": "arg",
+    "desc": "Tham số đi kèm subcommand (branch đích/nguồn, PR ref, lệnh con của gh stack). Không truyền subcommand thì skill hỏi người dùng chọn thao tác."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:git cm",
+    "note": "Commit các thay đổi hiện tại, tự tách theo type/scope, không push."
+   },
+   {
+    "cmd": "/ak:git cp",
+    "note": "Commit và push ngay khi đã hoàn tất một thay đổi nhỏ."
+   },
+   {
+    "cmd": "/ak:git pr develop",
+    "note": "Tạo PR từ branch hiện tại vào develop thay vì main."
+   },
+   {
+    "cmd": "/ak:git merge-pr 482",
+    "note": "Merge PR #482 khi đã được duyệt, rồi chờ CI trên branch đích xanh."
+   },
+   {
+    "cmd": "/ak:git stack",
+    "note": "Bắt đầu hoặc tiếp tục chuỗi stacked PR bằng gh stack."
+   }
+  ],
+  "tips": [
+   "Bước quét secret chỉ là grep theo từ khóa nên dễ báo nhầm các biến tên token/password; khi bị chặn hãy xem file được liệt kê thay vì tắt kiểm tra.",
+   "pr luôn so sánh diff remote: nếu còn commit chưa push, skill push trước; đừng kỳ vọng thay đổi chưa commit xuất hiện trong PR.",
+   "merge-pr không bao giờ ép merge PR chưa sẵn sàng; nếu repo chỉ cho phép một merge method, lệnh sẽ lỗi rõ ràng và skill thử lại với method được phép.",
+   "gh stack merge nhận số PR chứ không phải chỉ số layer; skill cố ý không dùng -y để giữ bước xác nhận merge nhiều PR.",
+   "Muốn bỏ qua câu hỏi chọn thao tác và tiết kiệm lượt hội thoại, luôn truyền subcommand cụ thể."
+  ],
+  "related": [
+   "ak-ship",
+   "ak-review-pr",
+   "ak-github",
+   "ak-worktree",
+   "ak-fix",
+   "ak-security"
+  ],
+  "agents": [
+   "git-manager"
+  ],
+  "artifacts": [
+   "Commit git theo conventional commits",
+   "Branch đã push lên remote",
+   "Pull Request trên GitHub",
+   "Merge commit trên branch đích (merge, merge-pr)"
+  ]
+ },
+ "ak-github": {
+  "tagline": "Vận hành GitHub bằng gh CLI với kỷ luật bằng chứng: issue, label, PR, Projects, Actions và quản trị repo/org.",
+  "summary": "ak:github thực hiện mọi thao tác GitHub qua gh CLI: tạo/cập nhật/đóng issue có kiểm tra trùng lặp, quản lý label, vòng đời PR, GitHub Projects v2, Actions CI/CD và quản trị org/repo/environment/secret. Đầu vào là mô tả task hoặc issue/PR ref; đầu ra là các mutation có URL làm bằng chứng cùng báo cáo cuối. Mọi khẳng định phải truy được về file:line, output lệnh, run URL hoặc commit SHA. Skill là cổng vào cho công việc GitHub, và chuyển sang ak:review-pr, ak:security, ak:git, ak:fix khi task thuộc về các skill đó.",
+  "howItWorks": [
+   "Tách flag (--interactive, --advice) khỏi $ARGUMENTS rồi diễn giải task.",
+   "Preflight: gh auth status và gh repo view --json nameWithOwner,defaultBranchRef; auth lỗi thì báo nguyên văn lỗi và dừng. Danh tính đã xác minh được tái sử dụng trong phiên cho tới khi repo/account/host thay đổi.",
+   "Xác định ngôn ngữ viết qua writing-language.cjs (fallback en hoặc đọc .agentkit/config.yaml); title PR theo conventional commit giữ tiếng Anh, prose theo ngôn ngữ đã resolve.",
+   "Định tuyến và chỉ load đúng một reference: issue-workflows.md, pr-workflows.md, projects-actions.md hoặc admin-operations.md.",
+   "Với tạo issue: scout nguồn chỉ khi claim phụ thuộc mã chưa kiểm tra; bắt buộc dedup (gh issue list --state all, gh search issues, gh pr list --state merged, git log --all --grep/-S) — trùng thì comment vào issue cũ, đã fix thì không tạo.",
+   "Kiểm tra label tồn tại trước khi dùng, tạo label chuẩn còn thiếu thay vì sinh bản gần trùng; điền template trong assets/templates/ (repo có template riêng thì ưu tiên template repo).",
+   "Trước hành động phá hủy/không đảo ngược (xóa hàng loạt, đóng issue ngoài phạm vi, transfer repo, đổi thành viên org, xóa/rotate secret, merge vào branch protected ngoài luồng duyệt) luôn xin xác nhận, kể cả ở chế độ Auto.",
+   "Với --advice: spawn kongming sau khi lập kế hoạch, trước hành động không đảo ngược và khi bị kẹt.",
+   "Báo cáo cuối: mutation kèm URL, những gì đã xác minh, những gì bị bỏ qua/từ chối, việc còn lại, câu hỏi mở."
+  ],
+  "useWhen": [
+   "Cần tạo issue mà không muốn trùng với issue cũ hoặc bug đã được fix trên branch khác.",
+   "Triage hàng loạt issue, chuẩn hóa label của repo.",
+   "Kiểm tra run GitHub Actions bị lỗi, rerun hoặc dispatch workflow.",
+   "Quản lý GitHub Projects v2 (thêm item, đổi status).",
+   "Quản trị repo/org: branch protection, rulesets, environments, liệt kê secret/variable."
+  ],
+  "avoidWhen": [
+   "Review nội dung PR, fix finding, post review hoặc merge có canh CI — dùng ak:review-pr (ak:github cũng tự chuyển sang skill này).",
+   "Chỉ cần commit/push/tạo PR từ thay đổi local — dùng ak:git.",
+   "Sửa lỗi CI tìm thấy trong Actions — dùng ak:fix kèm run URL và log.",
+   "Biến issue thành implementation plan — dùng ak:issue-to-plan."
+  ],
+  "params": [
+   {
+    "name": "<task description or issue/PR ref>",
+    "kind": "arg",
+    "desc": "Mô tả việc cần làm trên GitHub hoặc tham chiếu issue/PR. Skill dùng nó để định tuyến tới reference phù hợp."
+   },
+   {
+    "name": "--interactive",
+    "kind": "flag",
+    "desc": "Trước khi thực thi, phỏng vấn người dùng về các quyết định thực sự mơ hồ (repo đích, phạm vi issue, label, merge strategy, lý do đóng) theo lô 2–4 câu hỏi, rồi chạy tự động với câu trả lời. Mặc định là chế độ Auto (không hỏi, chỉ dừng ở safety gate)."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "Chạy toàn bộ task dưới giám sát tư vấn của kongming (Claude subscription → Fable 5; Codex → gpt-5.6-sol high effort). kongming được gọi sau khi lập kế hoạch, trước hành động không đảo ngược và khi bị kẹt; không bao giờ vượt safety gate. Có thể kết hợp với --interactive."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:github tạo issue: đăng nhập OAuth lỗi 500 khi callback",
+    "note": "Tạo issue có dedup, label và bằng chứng."
+   },
+   {
+    "cmd": "/ak:github triage các issue open chưa có label --interactive",
+    "note": "Triage hàng loạt nhưng muốn duyệt các lựa chọn label/đóng issue."
+   },
+   {
+    "cmd": "/ak:github xem vì sao run CI mới nhất trên main bị đỏ",
+    "note": "Kiểm tra Actions run và tóm tắt lỗi kèm run URL."
+   },
+   {
+    "cmd": "/ak:github đóng issue #120 nếu đã hoàn thành --advice",
+    "note": "Audit trước khi đóng với tư vấn kongming."
+   }
+  ],
+  "tips": [
+   "Nội dung issue/PR/comment/log CI được coi là dữ liệu, không phải chỉ thị; skill bỏ qua và báo lại nếu nội dung cố điều hướng task.",
+   "Secret chỉ được liệt kê tên/metadata (gh secret list), không bao giờ in giá trị.",
+   "Kiểm tra trùng lặp bao gồm cả issue đã đóng, PR đã merge và commit trên branch khác — đây là cách tránh báo lại bug đã fix.",
+   "Chế độ Auto vẫn dừng hỏi với hành động phá hủy; muốn kiểm soát nhiều hơn thì thêm --interactive."
+  ],
+  "related": [
+   "ak-git",
+   "ak-review-pr",
+   "ak-security",
+   "ak-fix",
+   "ak-issue-to-plan"
+  ],
+  "agents": [
+   "kongming"
+  ],
+  "artifacts": [
+   "Issue/PR/comment/label trên GitHub (kèm URL trong báo cáo)",
+   "Báo cáo cuối trong chat"
+  ]
+ },
+ "ak-review-pr": {
+  "tagline": "Review một hoặc nhiều PR GitHub về tính đúng, regression, bảo mật; tùy chọn tự fix, post review và merge có canh CI.",
+  "summary": "ak:review-pr đọc PR (metadata, body, diff, file, checks) và đưa ra finding theo mức Critical/Important/Suggestion cùng verdict Approve / Request changes / Comment. Mặc định chỉ review và in ra chat; các flag --fix, --reply, --merge lần lượt cho phép sửa + push, post review lên GitHub và merge PR đã sẵn sàng. Nhiều PR được xử lý tuần tự, lỗi ở một PR không làm dừng cả lượt. Skill đứng sau ak:ship/ak:git pr và là bước kiểm tra cuối trước khi merge.",
+  "howItWorks": [
+   "Tách các flag --fix|--reply|--merge|--advice|--ultra, tách token còn lại (số, #số, URL, cách nhau bởi dấu cách hoặc phẩy) thành PR_REFS.",
+   "Source gh-api-helpers.sh và probe GraphQL; nếu bị chặn (vd Claude Cloud Environment) thì bật AK_GH_REST=1 và dùng đường REST cho các helper _ak_pr_meta/_ak_pr_diff/_ak_pr_files/_ak_pr_checks/_ak_pr_body.",
+   "Với từng PR: resolve ngôn ngữ viết, kiểm tra PR body theo pr-body-contract (thiếu phần bằng chứng → finding Important), đọc title/mô tả/issue liên kết, so phạm vi khai báo với additions/deletions/changedFiles.",
+   "Đọc toàn bộ file bị sửa (không chỉ diff) và rà theo review-checklist.md, anti-ai-slop.md để lập finding có file/dòng và lý do.",
+   "--ultra: review ban đầu chạy 5 candidate đọc-only song song trên cùng gói bằng chứng, rồi một verifier mô hình mạnh nhất hợp nhất, khử trùng và loại finding không kiểm chứng được.",
+   "--fix: nếu có finding actionable (mọi Critical + Important, và Suggestion cụ thể, rủi ro thấp) thì gọi ak:fix --auto, sau đó ak:git cp, rồi re-review; dừng khi hết finding, bị chặn bởi quyết định nghiệp vụ, cùng finding sống sót 3 lần, hoặc CI không tự giải quyết được.",
+   "--reply: kiểm tra gh đã cài và đã auth (không thì in review local), dựng body có footer truy vết, map verdict sang APPROVE/REQUEST_CHANGES/COMMENT; PR của chính mình không approve được (422) thì chuyển sang COMMENT. Với --fix chỉ post bản re-review cuối.",
+   "--merge: chạy cuối cùng; chỉ merge khi verdict Approve, PR OPEN + mergeable, không CHANGES_REQUESTED, CI xanh hoặc pending; sau đó giao cho ak:git merge-pr để merge, canh CI sau merge và fix tối đa 3 lần.",
+   "--advice: gọi kongming theo từng PR sau review đầu, khi fix loop kẹt, trước khi reply, trước khi merge, và bắt buộc sau khi CI xanh để post đánh giá lên PR.",
+   "Báo cáo cuối: bảng theo PR (Verdict, Iterations, Commits, Reply, Merge, CI) và phần tổng hợp (số verdict, chế độ AK_GH_REST, finding/blocker còn lại)."
+  ],
+  "useWhen": [
+   "Cần review nhanh một PR của đồng đội hoặc của chính agent trước khi merge.",
+   "Muốn agent tự sửa hết finding và push lên branch PR cho tới khi sạch (--fix).",
+   "Cần post review chính thức lên GitHub thay vì chỉ đọc trong chat (--reply).",
+   "Muốn một lệnh đi từ review tới merge và chờ CI sau merge xanh (--fix --reply --merge).",
+   "Review nhiều PR cùng lúc theo thứ tự, mỗi PR có verdict riêng."
+  ],
+  "avoidWhen": [
+   "Review thay đổi local chưa có PR, commit hoặc quét cả codebase — dùng ak:code-review.",
+   "Chỉ cần merge PR đã duyệt mà không review — dùng ak:git merge-pr.",
+   "Cần audit bảo mật sâu (STRIDE/OWASP, red-team) — dùng ak:security.",
+   "Muốn đi từ issue tới PR đã merge trong một pipeline — dùng ak:vibe."
+  ],
+  "params": [
+   {
+    "name": "<PR number or URL> [...]",
+    "kind": "arg",
+    "desc": "Một hoặc nhiều PR: số (123), #123 hoặc URL đầy đủ, ngăn bằng khoảng trắng hoặc dấu phẩy. Xử lý tuần tự từng PR; lỗi ở một PR được ghi lại rồi chuyển PR kế tiếp."
+   },
+   {
+    "name": "--fix",
+    "kind": "flag",
+    "desc": "Fix loop: review → ak:fix --auto cho mọi finding actionable → ak:git cp → re-review, lặp tới khi hết finding hoặc gặp điều kiện dừng (bị chặn, cùng finding sống 3 lần, CI không giải quyết được). Mặc định tắt (review-only không sửa/commit/push)."
+   },
+   {
+    "name": "--reply",
+    "kind": "flag",
+    "desc": "Post review lên PR qua gh pr review (hoặc REST) với verdict tương ứng; gh thiếu/chưa auth thì in local. Kết hợp --fix thì chỉ post bản re-review cuối. Không khử trùng: chạy lại sẽ post review mới."
+   },
+   {
+    "name": "--merge",
+    "kind": "flag",
+    "desc": "Chạy sau cùng: nếu PR đạt gate sẵn sàng (Approve, OPEN, mergeable, không CHANGES_REQUESTED, CI xanh/pending) thì gọi ak:git merge-pr để merge và canh CI sau merge. Là quyền merge PR sẵn sàng, không phải lệnh ép merge."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "Giám sát tư vấn bởi kongming tại các checkpoint theo từng PR (sau review đầu, khi fix kẹt, trước reply, trước merge, bắt buộc sau CI xanh để comment đánh giá lên PR). Không phủ quyết verdict; kongming lỗi thì ghi nhận và chạy tiếp."
+   },
+   {
+    "name": "--ultra",
+    "kind": "flag",
+    "desc": "Review ban đầu của mỗi PR chạy best-of-5: 5 candidate độc lập song song + 1 verifier hợp nhất finding có bằng chứng. Re-review trong fix loop vẫn single-pass. Tốn token hơn nhiều."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:review-pr 123",
+    "note": "Review-only, in finding và verdict ra chat."
+   },
+   {
+    "cmd": "/ak:review-pr 123 --fix --reply",
+    "note": "Tự sửa tới khi sạch rồi post review cuối lên GitHub."
+   },
+   {
+    "cmd": "/ak:review-pr 123 --fix --reply --merge",
+    "note": "Pipeline đầy đủ: sửa, post review, merge khi Approve và canh CI."
+   },
+   {
+    "cmd": "/ak:review-pr 101 102 https://github.com/o/r/pull/103",
+    "note": "Review nhiều PR tuần tự trong một lượt."
+   },
+   {
+    "cmd": "/ak:review-pr 88 --ultra --advice",
+    "note": "PR rủi ro cao cần review kỹ nhất với verifier và kongming."
+   }
+  ],
+  "tips": [
+   "Trong môi trường chặn GraphQL, skill tự chuyển sang REST; riêng auto-merge chỉ có trên GraphQL nên merge sẽ đổi thành poll check tới xanh rồi PUT merge.",
+   "PR của chính bạn không thể Approve trên GitHub; skill tự hạ xuống COMMENT nhưng body vẫn ghi verdict Approve.",
+   "--ultra chạy 5 review + verifier nên tốn khoảng 6 lần token của review thường; chỉ dùng cho PR lớn hoặc rủi ro cao.",
+   "Finding/checks chỉ được tái sử dụng khi head SHA không đổi; trước reply/merge skill luôn kiểm tra lại head hiện tại.",
+   "Fix loop không tự bịa thêm góp ý style để kéo dài vòng lặp; nếu thấy vòng lặp dài, xem finding nào sống sót nhiều lần."
+  ],
+  "related": [
+   "ak-git",
+   "ak-fix",
+   "ak-code-review",
+   "ak-ship",
+   "ak-github",
+   "ak-vibe"
+  ],
+  "agents": [
+   "kongming"
+  ],
+  "artifacts": [
+   "Review/comment trên PR GitHub (với --reply, --advice)",
+   "Commit fix trên branch PR (với --fix)",
+   "Merge commit trên branch đích (với --merge)",
+   "Bảng báo cáo theo PR trong chat"
+  ]
+ },
+ "ak-worktree": {
+  "tagline": "Tạo, kiểm tra và dọn git worktree cô lập để phát triển song song, hỗ trợ monorepo và submodule.",
+  "summary": "ak:worktree dùng script worktree.cjs để tạo worktree mới với branch có prefix theo loại việc (feat/fix/refactor/...), liệt kê, kiểm tra sức khỏe, xóa và prune metadata cũ. Đầu vào là mô tả tính năng (hoặc project + feature với monorepo); đầu ra là thư mục worktree trên branch mới, có copy env template và (khi cần) cài dependency. Đây là skill setup đứng trước ak:cook hoặc ak:fix để làm việc cô lập.",
+  "howItWorks": [
+   "Lấy thông tin repo: node scripts/worktree.cjs info --json (repoType, baseBranch, projects, worktreeRoot, worktreeRootSource, dirtyState); tái sử dụng nếu không đổi và kiểm tra đã có worktree phù hợp chưa.",
+   "Phát hiện chế độ tên branch: nếu tên đã định dạng sẵn (chữ hoa, mã issue như ABC-1234, nhiều đoạn có dấu /) thì dùng --no-prefix; ngược lại suy prefix từ mô tả (fix/refactor/docs/test/chore/perf, mặc định feat).",
+   "Chuyển mô tả thành slug kebab-case tối đa 50 ký tự (bỏ qua khi --no-prefix).",
+   "Monorepo chưa chỉ định project: hỏi người dùng chọn project qua ask_user capability.",
+   "Chạy create: worktree.cjs create \"<PROJECT>\" \"<SLUG>\" --prefix <TYPE> (monorepo) hoặc create \"<SLUG>\" --prefix <TYPE>; base branch tự dò dev → develop → main → master.",
+   "Copy các file .env*.example sang tên bỏ hậu tố .example.",
+   "Chỉ cài dependency khi công việc cần và worktree chưa có môi trường, dùng lệnh giữ lockfile của package manager hiện có.",
+   "Theo dõi process nền chạy trong worktree; trước khi xóa, kiểm tra file dirty và repo lồng, giữ dữ liệu chưa commit và xin phép rõ ràng trước khi xóa phá hủy."
+  ],
+  "useWhen": [
+   "Bắt đầu tính năng mới mà không muốn đụng vào working tree hiện tại.",
+   "Chạy nhiều agent/phiên song song, mỗi phiên một branch riêng.",
+   "Cần branch theo quy ước đặt tên có mã Jira hoặc dạng user/type/feature.",
+   "Audit worktree cũ, dọn metadata stale (status, prune --dry-run).",
+   "Làm việc trong monorepo hoặc repo có submodule cần init trong worktree mới."
+  ],
+  "avoidWhen": [
+   "Chỉ cần đổi branch đơn giản trong cùng thư mục — dùng git checkout/switch trực tiếp hoặc ak:git.",
+   "Muốn chia việc cho nhiều runtime và tự cô lập ghi — dùng ak:orchestrate (có worktree-isolated writes).",
+   "Worktree do Claude Code/Codex tự tạo qua cơ chế native — worktree.root của skill này không ảnh hưởng tới chúng."
+  ],
+  "params": [
+   {
+    "name": "[feature-description]",
+    "kind": "arg",
+    "desc": "Mô tả tính năng cho repo standalone; dùng để suy prefix branch và slug."
+   },
+   {
+    "name": "[project] [feature]",
+    "kind": "arg",
+    "desc": "Dạng dành cho monorepo: tên project và mô tả tính năng. Thiếu project thì skill hỏi chọn."
+   },
+   {
+    "name": "create [project] <feature>",
+    "kind": "subcommand",
+    "desc": "Tạo worktree mới (lệnh của worktree.cjs)."
+   },
+   {
+    "name": "remove <name-or-path>",
+    "kind": "subcommand",
+    "desc": "Xóa worktree; cần kiểm tra file dirty và xin phép trước khi xóa phá hủy."
+   },
+   {
+    "name": "info",
+    "kind": "subcommand",
+    "desc": "Thông tin repo kèm vị trí worktree root."
+   },
+   {
+    "name": "list",
+    "kind": "subcommand",
+    "desc": "Liệt kê worktree."
+   },
+   {
+    "name": "status",
+    "kind": "subcommand",
+    "desc": "Kiểm tra sức khỏe worktree, đường dẫn đã chuẩn hóa và độ lệch so với base branch."
+   },
+   {
+    "name": "prune",
+    "kind": "subcommand",
+    "desc": "Dọn metadata worktree stale; hỗ trợ --dry-run làm lượt kiểm tra an toàn đầu tiên."
+   },
+   {
+    "name": "--prefix <type>",
+    "kind": "flag",
+    "desc": "Loại branch: feat|fix|refactor|docs|test|chore|perf."
+   },
+   {
+    "name": "--base <branch>",
+    "kind": "flag",
+    "desc": "Ghi đè base branch tự dò (mặc định dev → develop → main → master); hữu ích cho branch biến thể sống lâu như main-dsl."
+   },
+   {
+    "name": "--checkout-submodules",
+    "kind": "flag",
+    "desc": "Chạy git submodule update --init --checkout --recursive trong worktree mới sau khi tạo."
+   },
+   {
+    "name": "--no-prefix",
+    "kind": "flag",
+    "desc": "Bỏ prefix, giữ nguyên chữ hoa và dấu / của tên branch (mã Jira, user/type/feature)."
+   },
+   {
+    "name": "--worktree-root <path>",
+    "kind": "flag",
+    "desc": "Ghi đè vị trí đặt worktree; luôn thắng mọi nguồn cấu hình khác (worktree.root project > user > WORKTREE_ROOT env > superproject > monorepo > sibling)."
+   },
+   {
+    "name": "--json",
+    "kind": "flag",
+    "desc": "Xuất JSON (baseBranch, baseBranchSource, worktreePath, worktreeRootSource, warnings...)."
+   },
+   {
+    "name": "--dry-run",
+    "kind": "flag",
+    "desc": "Xem trước, không thực thi."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:worktree add authentication system",
+    "note": "Tạo branch feat/add-auth trong worktree mới."
+   },
+   {
+    "cmd": "/ak:worktree fix login bug",
+    "note": "Prefix fix tự suy từ mô tả."
+   },
+   {
+    "cmd": "/ak:worktree ND-1377-cleanup-docs",
+    "note": "Tên có mã issue nên dùng --no-prefix, giữ nguyên tên branch."
+   },
+   {
+    "cmd": "/ak:worktree web add dark mode",
+    "note": "Monorepo: tạo worktree cho project web."
+   },
+   {
+    "cmd": "/ak:worktree prune --dry-run",
+    "note": "Kiểm tra metadata stale trước khi dọn thật."
+   }
+  ],
+  "tips": [
+   "Đặt mặc định bằng ak config prefs set worktree.root ... --scope project (chỉ nhận đường dẫn tương đối) hoặc --scope user (nhận cả tuyệt đối) để khỏi truyền --worktree-root.",
+   "Giá trị tuyệt đối trong config project bị bỏ qua kèm cảnh báo vì config commit có thể tới từ repo lạ.",
+   "Mỗi worktree có thể có dev server riêng — dừng các process đã khởi động trước khi xóa worktree để không sinh process mồ côi.",
+   "Không cài dependency nếu chỉ sửa tài liệu hoặc test nhỏ; tiết kiệm thời gian và dung lượng."
+  ],
+  "related": [
+   "ak-cook",
+   "ak-fix",
+   "ak-git",
+   "ak-orchestrate",
+   "ak-vibe"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Thư mục git worktree mới trên branch <prefix>/<slug>",
+   "File .env copy từ .env*.example",
+   "Metadata worktree trong .git"
+  ]
+ },
+ "ak-security": {
+  "tagline": "Quét secret, dependency, mẫu lỗ hổng code, phân tích STRIDE + OWASP, tùy chọn red-team 4 persona và auto-fix có guard.",
+  "summary": "ak:security kết hợp các lớp quét nhanh (secret, CVE dependency, lộ .env, mẫu code nguy hiểm) với mô hình mối đe dọa STRIDE và đối chiếu OWASP Top 10. Đầu vào là scope (mặc định toàn project); đầu ra là Security Audit Report với bảng finding theo severity, file:line và khuyến nghị sửa, secret luôn được redact. Mặc định chỉ báo cáo; --fix bật vòng sửa có kiểm tra regression, --red-team chạy vòng khám phá theo 4 persona tấn công. Dùng trước release hoặc sau khi thêm auth/payment/xử lý dữ liệu.",
+  "howItWorks": [
+   "Xác định scope (mặc định '.', loại .git, node_modules, dist, vendor, __pycache__), tài sản cần bảo vệ, actor, trust boundary và phát hiện stack qua manifest (package.json, pyproject.toml, go.mod, Cargo.toml, pom.xml...).",
+   "Kiểm tra lộ .env: git ls-files .env* và .gitignore.",
+   "Quét secret theo references/secret-patterns.md, loại placeholder/env read, xếp CRITICAL/HIGH/MEDIUM.",
+   "Audit dependency bằng công cụ của stack: npm audit, pip-audit, govulncheck, cargo audit, bundle audit, mvn dependency-check.",
+   "Tìm mẫu lỗ hổng code (SQL injection, XSS, command injection, path traversal, random không an toàn, eval/deserialize) theo vulnerability-patterns.md.",
+   "Phân tích STRIDE và map vào OWASP A01–A10 (bỏ qua khi --secrets-only/--deps-only); repo lớn thì tập trung auth/, api/, config/, tầng DB.",
+   "--red-team: trước STRIDE, lặp qua 4 persona theo thứ tự Security Adversary → Supply Chain Attacker → Insider Threat → Infrastructure Attacker theo giao thức iteration của autoresearch, ghi log TSV.",
+   "Khử trùng theo root cause, gắn path, bằng chứng tái hiện được, impact, giả định, mitigation; ghi các lo ngại đã bị bác bỏ là non-issue kèm nguồn xác minh.",
+   "--fix: sắp theo severity, mỗi finding một bản sửa rồi chạy test/lint guard, commit security(fix-N): ...; secret được thay bằng biến môi trường kèm hướng dẫn rotate, không tự viết lại lịch sử git; guard fail thì dừng.",
+   "Xuất báo cáo; khi chạy trong cook --auto thì lưu vào {CK_REPORTS_PATH} hoặc plans/reports/security-{date}.md."
+  ],
+  "useWhen": [
+   "Trước release hoặc deploy lớn.",
+   "Sau khi thêm tính năng auth, payment hoặc xử lý dữ liệu người dùng.",
+   "Nghi ngờ có key/token bị hardcode và cần quét nhanh (--secrets-only).",
+   "Kiểm tra CVE trong dependency (--deps-only).",
+   "Chuẩn bị compliance (SOC 2, GDPR, PCI-DSS) hoặc review bảo mật định kỳ."
+  ],
+  "avoidWhen": [
+   "Thay đổi thuần giao diện (CSS, sửa chữ) không đụng credential hay dữ liệu.",
+   "Cần pentest mạng chủ động, DDoS, bảo mật vật lý/phần cứng — ngoài phạm vi skill.",
+   "Cần OSINT/threat intelligence về domain, email, người — dùng ak:cti-expert.",
+   "Review bảo mật của một PR cụ thể trong luồng review — dùng ak:review-pr (có thể đính kèm kết quả ak:security)."
+  ],
+  "params": [
+   {
+    "name": "[scope]",
+    "kind": "arg",
+    "desc": "Thư mục, glob hoặc 'full'. Bỏ trống thì quét toàn bộ project root."
+   },
+   {
+    "name": "--secrets-only",
+    "kind": "flag",
+    "desc": "Chỉ quét secret/credential, bỏ deps/code/STRIDE. Thắng --red-team (red-team bị bỏ kèm ghi chú). Kết hợp với --deps-only thì chạy cả hai lớp nhanh."
+   },
+   {
+    "name": "--deps-only",
+    "kind": "flag",
+    "desc": "Chỉ audit dependency tìm CVE, bỏ code/STRIDE. Thắng --red-team."
+   },
+   {
+    "name": "--fix",
+    "kind": "flag",
+    "desc": "Sau audit, sửa lần lượt finding đã xác nhận theo severity, mỗi bản sửa qua test/lint guard và commit security(fix-N); dừng khi guard fail. Với --red-team chỉ sửa Critical/High đã xác nhận. Mặc định tắt (report-only)."
+   },
+   {
+    "name": "--red-team",
+    "kind": "flag",
+    "desc": "Chạy vòng khám phá đa persona (Adversary, Supply Chain, Insider, Infra) trước lượt STRIDE/OWASP."
+   },
+   {
+    "name": "--iterations N",
+    "kind": "flag",
+    "desc": "Giới hạn tổng số iteration của red-team discovery, hoặc số iteration fix khi dùng với --fix."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:security",
+    "note": "Audit toàn diện mặc định trên project root."
+   },
+   {
+    "cmd": "/ak:security --secrets-only",
+    "note": "Quét nhanh secret trước khi push."
+   },
+   {
+    "cmd": "/ak:security src/api/**/*.ts",
+    "note": "Audit tập trung tầng API."
+   },
+   {
+    "cmd": "/ak:security src/ --red-team --iterations 20",
+    "note": "Red-team giới hạn 20 iteration."
+   },
+   {
+    "cmd": "/ak:security full --red-team --fix",
+    "note": "Khám phá đầy đủ và tự sửa Critical/High đã xác nhận."
+   }
+  ],
+  "tips": [
+   "Khi phát hiện credential thật, luôn rotate — xóa khỏi code không vô hiệu hóa token đã lộ.",
+   "Báo cáo chỉ giữ tiền tố công khai (AKIA, ghp_, sk-) và không bao giờ in độ dài hoặc ký tự cuối của secret.",
+   "Chế độ đầy đủ và --red-team tốn nhiều token; dùng --secrets-only/--deps-only cho kiểm tra thường xuyên.",
+   "Tên API trông nguy hiểm chưa phải lỗ hổng — skill yêu cầu xác minh đường lỗi có thể chạm tới trước khi gán severity.",
+   "Tên cũ ak:security-scan vẫn được map sang /ak:security."
+  ],
+  "related": [
+   "ak-predict",
+   "ak-scenario",
+   "ak-plan",
+   "ak-autoresearch",
+   "ak-review-pr",
+   "ak-cti-expert"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Security Audit Report (chat, hoặc plans/reports/security-{date}.md khi cook --auto)",
+   "Commit security(fix-N) với --fix",
+   "Log TSV red-team"
+  ]
+ },
+ "ak-cti-expert": {
+  "tagline": "Phân tích threat intelligence và OSINT thụ động theo vòng đời case Acquire → Enrich → Assess → Deliver, xuất báo cáo md + docx (+ html).",
+  "summary": "ak:cti-expert hỗ trợ điều tra OSINT/CTI: review mức độ lộ diện, recon domain, kiểm tra breach, tra username/email/phone, forensics ảnh, truy vết blockchain, darknet, recon cloud tenant, tra CVE và mô hình hóa mối đe dọa. Skill định tuyến yêu cầu vào một nhánh của vòng đời AEAD và chỉ load reference của nhánh đó; tra một IOC đơn lẻ chỉ trả nguồn, thời điểm quan sát, độ tin cậy mà không mở case. Các lệnh /case, /report, /brief tự lưu báo cáo Markdown và Word; --format html thêm bản mirror HTML offline. Chỉ OSINT thụ động, tôn trọng GDPR/CCPA.",
+  "howItWorks": [
+   "Định tuyến yêu cầu vào acquire, enrich, assess hoặc deliver và chỉ load reference của nhánh đó.",
+   "Acquire: thu thập dữ liệu thô qua /case, /sweep, /query (12–15 dork), /username, /phone, /email-deep, /subdomain, /docleak, /vuln-check, /threat-check...",
+   "Enrich: mở rộng manh mối và tìm liên kết (/branch, /timeline, /crossref, /link-subjects, /graph, /pathfind) theo engine/finding-framework.md và conflict-resolver.md.",
+   "Assess: chấm điểm và xác minh (/exposure 0–100, /threat-model, /signatures, /validate, /coverage, /verify-finding).",
+   "Deliver: đóng gói sản phẩm (/report, /report brief, /report legal, /report ioc STIX 2.1, /workspace save), tự lưu .md và .docx.",
+   "Với --format html: kích hoạt ak:frontend-design trước, rồi ak:diagram (nếu có) cho sơ đồ quan hệ/threat model; không có thì fallback inline SVG; không có request ra ngoài (0 CDN).",
+   "Thứ tự công cụ: ak:agent-browser (nếu có) → web fetch trực tiếp → search dork.",
+   "Trực quan hóa mặc định là ASCII; Mermaid chỉ khi có --mermaid."
+  ],
+  "useWhen": [
+   "Đánh giá mức độ lộ diện (exposure) của một tổ chức hoặc domain.",
+   "Kiểm tra email có nằm trong breach, tra dấu vết username trên nhiều nền tảng.",
+   "Tra CVE/lỗ hổng hoặc chấm điểm threat cho IP/domain/URL/hash.",
+   "Kiểm tra domain lừa đảo/phishing (/scam-check).",
+   "Cần báo cáo tình báo có cấu trúc (brief điều hành, định dạng pháp lý, IOC export)."
+  ],
+  "avoidWhen": [
+   "Quét lỗ hổng trong mã nguồn của chính dự án — dùng ak:security.",
+   "Pentest chủ động, quét port trái phép, brute-force, khai thác — bị cấm trong skill.",
+   "Điều tra cá nhân riêng tư nhằm doxx, quấy rối, theo dõi — bị từ chối."
+  ],
+  "params": [
+   {
+    "name": "[target]",
+    "kind": "arg",
+    "desc": "Đối tượng điều tra: domain, IP, email, username, số điện thoại, hash, v.v."
+   },
+   {
+    "name": "--yolo",
+    "kind": "flag",
+    "desc": "Bỏ qua onboarding (/onboard) và mở ngay một case trống; ghi onboarding_completed + onboarding_skipped vào workspace_metadata."
+   },
+   {
+    "name": "--case",
+    "kind": "flag",
+    "desc": "Tương ứng lệnh /case [target]: điều tra tự động đầy đủ, chạy mọi vector phù hợp; tạo báo cáo md + docx."
+   },
+   {
+    "name": "--sweep",
+    "kind": "flag",
+    "desc": "Tương ứng /sweep [target]: recon đa vector trên domain, handle, email hoặc IP."
+   },
+   {
+    "name": "--query",
+    "kind": "flag",
+    "desc": "Tương ứng /query [subject]: sinh 12–15 search engine dork chính xác."
+   },
+   {
+    "name": "--flow",
+    "kind": "flag",
+    "desc": "Tương ứng /flow [type]: walkthrough có hướng dẫn theo vai trò — Threat Analyst, Journalist Source Verification, HR/Background Screening, Private Investigator."
+   },
+   {
+    "name": "--format html|md",
+    "kind": "flag",
+    "desc": "md: báo cáo Markdown + Word (mặc định). html: thêm bản mirror HTML tự chứa, offline CTI-REPORT-<CASE-ID>-<YYYY-MM-DD>.html."
+   },
+   {
+    "name": "--no-antv",
+    "kind": "flag",
+    "desc": "Tắt lớp infographic AntV trong HTML cho lần gọi này (dùng Mermaid/Chart.js/SVG thay thế). Flag CLI thắng config project/user."
+   },
+   {
+    "name": "--no-diagram-design",
+    "kind": "flag",
+    "desc": "Tắt lớp diagram-design của editorial visual trong HTML cho lần gọi này."
+   },
+   {
+    "name": "--no-editorial-visuals",
+    "kind": "flag",
+    "desc": "Tắt toàn bộ lớp editorial visual (cả AntV và diagram-design); ưu tiên cao nhất trong thang tắt."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:cti-expert example.com --case",
+    "note": "Điều tra đầy đủ một domain, xuất md + docx."
+   },
+   {
+    "cmd": "/ak:cti-expert acme.io --case --format html",
+    "note": "Như trên kèm bản HTML offline để chia sẻ."
+   },
+   {
+    "cmd": "/ak:cti-expert john_doe --sweep",
+    "note": "Recon đa vector quanh một handle."
+   },
+   {
+    "cmd": "/ak:cti-expert CVE-2024-3094",
+    "note": "Tra một IOC/CVE đơn lẻ, không mở case."
+   },
+   {
+    "cmd": "/ak:cti-expert --flow",
+    "note": "Chọn walkthrough theo vai trò (analyst, nhà báo, HR, thám tử)."
+   }
+  ],
+  "tips": [
+   "Tra IOC đơn lẻ không sinh bộ báo cáo — chỉ khi dùng /case, /report, /brief mới lưu md + docx.",
+   "Máy airgapped nên dùng --no-antv hoặc đặt visual.antv.enabled: false trong ~/.agentkit/config.yaml.",
+   "Báo cáo phân biệt chỉ báo đã xác minh với giả thuyết của analyst — dùng /validate và /verify-finding trước khi giao.",
+   "Dùng /workspace save [name] để lưu case và /workspace open để tiếp tục ở phiên sau."
+  ],
+  "related": [
+   "ak-security",
+   "ak-agent-browser",
+   "ak-frontend-design",
+   "ak-diagram",
+   "ak-document-skills"
+  ],
+  "agents": [],
+  "artifacts": [
+   "CTI-REPORT-<CASE-ID>-<YYYY-MM-DD>.md",
+   "CTI-REPORT-<CASE-ID>-<YYYY-MM-DD>.docx",
+   "CTI-REPORT-<CASE-ID>-<YYYY-MM-DD>.html (với --format html)",
+   "Workspace case đã lưu"
+  ]
+ },
+ "ak-web-testing": {
+  "tagline": "Kiểm thử web với Playwright, Vitest, k6: unit, integration, E2E, load, security, visual regression, a11y và Core Web Vitals.",
+  "summary": "ak:web-testing là bộ tri thức và script cho kiểm thử web. Skill kiểm tra script trong repo, phiên bản runner và loại lỗi trước, rồi chọn đúng runner (unit runner sẵn có cho lỗi unit, browser test cho hành vi UI, k6 chỉ khi hỏi về tải). Đầu vào là loại test và target; đầu ra là test/cấu hình mới hoặc báo cáo kết quả hợp nhất. Có 24 reference chuyên đề và 2 script: khởi tạo Playwright và phân tích kết quả test.",
+  "howItWorks": [
+   "Kiểm tra script test trong repo, phiên bản runner đã cài và loại lỗi trước khi làm gì.",
+   "Chọn runner phù hợp; không khởi tạo Vitest, Playwright và k6 cùng lúc; chỉ load reference liên quan (vd e2e-testing-playwright.md, load-testing-k6.md, accessibility-testing.md).",
+   "Chọn mô hình chiến lược test (Pyramid, Trophy, Honeycomb) theo kiến trúc khi cần, xem testing-pyramid-strategy.md.",
+   "Chỉ chạy node ./scripts/init-playwright.js [--ct] [--dir <path>] khi repo chưa có Playwright và được yêu cầu; giữ nguyên cấu hình sẵn có.",
+   "Sửa flaky test chỉ sau khi tái hiện được nguyên nhân và chạy lại ổn định, không thêm sleep tùy tiện.",
+   "Khẳng định về visual/a11y/performance phải dựa trên kiểm tra thực tế trên browser và phạm vi metric.",
+   "Tổng hợp kết quả bằng node ./scripts/analyze-test-results.js (Playwright/Vitest/JUnit → markdown).",
+   "Theo dõi và dừng các process preview/test do mình khởi động."
+  ],
+  "useWhen": [
+   "Viết hoặc sửa E2E test bằng Playwright, component test, unit test Vitest.",
+   "Điều tra test flaky trên CI.",
+   "Chạy load test với k6 hoặc đo Core Web Vitals / Lighthouse.",
+   "Kiểm tra accessibility (axe-core, WCAG) hoặc visual regression.",
+   "Thiết lập pipeline test trên CI (sharding, gate unit → e2e → a11y → perf)."
+  ],
+  "avoidWhen": [
+   "Chỉ cần chạy bộ test hiện có và báo cáo — dùng ak:test.",
+   "Điều khiển browser để thao tác/thu thập chứ không phải viết test — dùng ak:agent-browser.",
+   "Audit bảo mật codebase — dùng ak:security.",
+   "Tìm nguyên nhân gốc của bug trước khi sửa — dùng ak:debug."
+  ],
+  "params": [
+   {
+    "name": "[test-type]",
+    "kind": "arg",
+    "desc": "Loại kiểm thử: unit, integration, e2e, load, security, visual, a11y, performance... dùng để chọn runner và reference."
+   },
+   {
+    "name": "[target]",
+    "kind": "arg",
+    "desc": "Đối tượng cần test: file/thư mục, tính năng, hoặc URL (vd cho axe/lighthouse)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:web-testing e2e checkout flow",
+    "note": "Viết E2E Playwright cho luồng thanh toán."
+   },
+   {
+    "cmd": "/ak:web-testing flaky tests/e2e/login.spec.ts",
+    "note": "Tái hiện và sửa test chập chờn."
+   },
+   {
+    "cmd": "/ak:web-testing load /api/search",
+    "note": "Viết kịch bản k6 cho endpoint tìm kiếm."
+   },
+   {
+    "cmd": "/ak:web-testing a11y https://staging.example.com",
+    "note": "Kiểm tra accessibility bằng axe-core."
+   }
+  ],
+  "tips": [
+   "Không thêm waitForTimeout/sleep để 'sửa' flaky — skill yêu cầu nguyên nhân tái hiện được và rerun ổn định.",
+   "init-playwright.js chỉ dùng khi repo chưa có Playwright; với repo có sẵn cấu hình, đừng khởi tạo lại.",
+   "Chỉ load reference cần thiết (có 24 file) để tiết kiệm context.",
+   "Nhớ dừng dev server/preview đã khởi động cho test để tránh process mồ côi."
+  ],
+  "related": [
+   "ak-test",
+   "ak-agent-browser",
+   "ak-debug",
+   "ak-security",
+   "ak-scenario"
+  ],
+  "agents": [],
+  "artifacts": [
+   "File test (spec/test) và cấu hình Playwright/Vitest/k6",
+   "Báo cáo tổng hợp kết quả test (markdown)",
+   "Thư mục test-results/, coverage/ do runner sinh ra"
+  ]
+ },
+ "ak-deep-swe": {
+  "tagline": "Benchmark một coding model trên DeepSWE qua Pier và OpenRouter, có kiểm soát chi phí và báo cáo đầy đủ.",
+  "summary": "ak:deep-swe thiết lập và chạy đánh giá coding-agent độc lập trên benchmark DeepSWE bằng công cụ Pier, gọi model qua OpenRouter. Đầu vào là slug model OpenRouter; đầu ra là báo cáo gồm lệnh chính xác, phiên bản Pier, số task, điểm/reward, chi phí và blocker. Skill không tối ưu metric trong repo của người dùng và không tự tiêu tiền model khi chưa được xác nhận. Nó chạy 1 task trước, rồi tập nhỏ, và chỉ chạy toàn bộ corpus khi người dùng đồng ý.",
+  "howItWorks": [
+   "Guardrail: xác nhận có uv, git, Docker và Docker daemon đang chạy; kiểm tra OPENROUTER_API_KEY đã set mà không in giá trị, thiếu thì dừng và nhờ người dùng cấu hình.",
+   "Setup: git clone https://github.com/datacurve-ai/deep-swe, uv tool install datacurve-pier, xem pier --help và pier run --help; liệt kê task roster và ghi revision/số lượng.",
+   "Xác minh slug model chính xác trên openrouter.ai/models.",
+   "Chạy một task: pier run -p deep-swe/tasks/<task-id> --agent mini-swe-agent --model openrouter/<vendor/model>.",
+   "Chạy tập con xác định: xác nhận flag qua help rồi pier run -p deep-swe/tasks ... --n-tasks 10 --sample-seed 0.",
+   "Trước khi chạy toàn corpus: trình bày lệnh chính xác, mức chi phí dự kiến và điều kiện dừng; chỉ tiếp tục khi được xác nhận.",
+   "Kiểm tra thư mục job bằng pier view / pier analyze / pier critique (nếu phiên bản có).",
+   "Báo cáo: lệnh, phiên bản Pier, số task, slug model, cấu hình model/effort, prompt hash, số attempted/completed/passed, điểm, chi phí, blocker; tách kết quả quan sát khỏi điểm công bố của nhà cung cấp; không submit leaderboard nếu không được yêu cầu."
+  ],
+  "useWhen": [
+   "Muốn chấm điểm một model mới trên DeepSWE trước khi chọn làm coding agent.",
+   "So sánh hai cấu hình model trên cùng tập task cố định.",
+   "Kiểm chứng lại con số benchmark được công bố bằng lượt chạy độc lập."
+  ],
+  "avoidWhen": [
+   "Tối ưu lặp một metric trong repo của chính bạn — dùng ak-loop / ak:autoresearch.",
+   "Chưa có Docker hoặc OPENROUTER_API_KEY — skill sẽ dừng.",
+   "Chỉ muốn đọc điểm benchmark đã công bố — không cần chạy, tra trực tiếp deepswe.datacurve.ai."
+  ],
+  "params": [
+   {
+    "name": "<OpenRouter model slug>",
+    "kind": "arg",
+    "desc": "Slug model trên OpenRouter dạng vendor/model (truyền cho Pier dưới dạng openrouter/<vendor/model>). Skill xác minh slug trên openrouter.ai/models trước khi chạy."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:deep-swe anthropic/claude-opus-5.5",
+    "note": "Chạy 1 task thử rồi đề xuất tập con cho model này."
+   },
+   {
+    "cmd": "/ak:deep-swe openai/gpt-5.6",
+    "note": "Benchmark model khác trên cùng tập task cố định để so sánh."
+   },
+   {
+    "cmd": "/ak:deep-swe qwen/qwen3-coder",
+    "note": "Kiểm chứng điểm công bố của một model mã nguồn mở."
+   }
+  ],
+  "tips": [
+   "Luôn giữ seed và tập task cố định khi so sánh cấu hình; tách task held-out khỏi task dùng để tinh chỉnh.",
+   "Toolchain Pier thay đổi nhanh — gặp flag lạ thì xem help, đừng thử cú pháp đoán mò.",
+   "Không bao giờ đưa API key vào lệnh, báo cáo hay artifact; chỉ kiểm tra biến đã set.",
+   "Telemetry cache không hiển thị nghĩa là unknown, không phải 0 — ghi đúng như vậy trong báo cáo."
+  ],
+  "related": [
+   "ak-autoresearch",
+   "ak-context-engineering",
+   "ak-research"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Thư mục clone deep-swe/",
+   "Thư mục job do Pier tạo ra",
+   "Báo cáo kết quả benchmark trong chat"
+  ]
+ }
+}
