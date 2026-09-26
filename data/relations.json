@@ -1,0 +1,5815 @@
+[
+ {
+  "from": "advisor",
+  "kind": "agent",
+  "to": "explore",
+  "where": [
+   "tools"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "advisor",
+  "kind": "skill",
+  "to": "ak-advise",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "advisor",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "advisor",
+  "kind": "skill",
+  "to": "ak-vibe",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "agent-behavior-linter.cjs",
+  "kind": "skill",
+  "to": "ak-context-engineering",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-advise",
+  "kind": "agent",
+  "to": "advisor",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--agent"
+  ],
+  "n": 5
+ },
+ {
+  "from": "ak-advise",
+  "kind": "agent",
+  "to": "docs-manager",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--html",
+   "--md",
+   "--wiki"
+  ],
+  "n": 4
+ },
+ {
+  "from": "ak-advise",
+  "kind": "agent",
+  "to": "git-manager",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--github"
+  ],
+  "n": 2
+ },
+ {
+  "from": "ak-advise",
+  "kind": "agent",
+  "to": "ui-ux-designer",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--html"
+  ],
+  "n": 2
+ },
+ {
+  "from": "ak-advise",
+  "kind": "skill",
+  "to": "ak-ask",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-advise",
+  "kind": "skill",
+  "to": "ak-brainstorm",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-advise",
+  "kind": "skill",
+  "to": "ak-cook",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-advise",
+  "kind": "skill",
+  "to": "ak-diagram",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-advise",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-advise",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-advise",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agent-browser",
+  "kind": "skill",
+  "to": "ak-chrome-profile",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-agent-browser",
+  "kind": "skill",
+  "to": "ak-web-testing",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentize",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "core"
+  ],
+  "flags": [
+   "--advice"
+  ],
+  "n": 4
+ },
+ {
+  "from": "ak-agentize",
+  "kind": "skill",
+  "to": "ak-mcp-builder",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "analytics-analyst",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "brainstormer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "campaign-debugger",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "code-reviewer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "content-creator",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "content-reviewer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "copywriter",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "database-admin",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "debugger",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "docs-manager",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "email-wizard",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "explore",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "fullstack-developer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "journal-writer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "planner",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "researcher",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "scout",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "social-media-manager",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-agentkit",
+  "kind": "agent",
+  "to": "tester",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-ai-multimodal",
+  "kind": "skill",
+  "to": "ak-project-organization",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-ak",
+  "kind": "skill",
+  "to": "ak-agentkit",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-ak",
+  "kind": "skill",
+  "to": "ak-cook",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-ak",
+  "kind": "skill",
+  "to": "ak-journal",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-ak",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-ak",
+  "kind": "skill",
+  "to": "ak-skill-creator",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-analytics",
+  "kind": "agent",
+  "to": "campaign-manager",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-ask",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-assets-organizing",
+  "kind": "agent",
+  "to": "attraction-specialist",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-assets-organizing",
+  "kind": "agent",
+  "to": "campaign-debugger",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-assets-organizing",
+  "kind": "agent",
+  "to": "campaign-manager",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-assets-organizing",
+  "kind": "agent",
+  "to": "community-manager",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-assets-organizing",
+  "kind": "agent",
+  "to": "content-creator",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 7
+ },
+ {
+  "from": "ak-assets-organizing",
+  "kind": "agent",
+  "to": "content-reviewer",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-assets-organizing",
+  "kind": "agent",
+  "to": "continuity-specialist",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-assets-organizing",
+  "kind": "agent",
+  "to": "copywriter",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 6
+ },
+ {
+  "from": "ak-assets-organizing",
+  "kind": "agent",
+  "to": "email-wizard",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-assets-organizing",
+  "kind": "agent",
+  "to": "funnel-architect",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-assets-organizing",
+  "kind": "agent",
+  "to": "lead-qualifier",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-assets-organizing",
+  "kind": "agent",
+  "to": "sale-enabler",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-assets-organizing",
+  "kind": "agent",
+  "to": "seo-specialist",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-assets-organizing",
+  "kind": "agent",
+  "to": "social-media-manager",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-assets-organizing",
+  "kind": "agent",
+  "to": "ui-ux-designer",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-autoresearch",
+  "kind": "skill",
+  "to": "ak-loop",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-autoresearch",
+  "kind": "skill",
+  "to": "ak-predict",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-autoresearch",
+  "kind": "skill",
+  "to": "ak-scenario",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-autoresearch",
+  "kind": "skill",
+  "to": "ak-security",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-autoresearch",
+  "kind": "skill",
+  "to": "ak-skill-creator",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-banner-design",
+  "kind": "skill",
+  "to": "ak-agent-browser",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-bootstrap",
+  "kind": "agent",
+  "to": "code-reviewer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-bootstrap",
+  "kind": "agent",
+  "to": "debugger",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-bootstrap",
+  "kind": "agent",
+  "to": "docs-manager",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-bootstrap",
+  "kind": "agent",
+  "to": "fullstack-developer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-bootstrap",
+  "kind": "agent",
+  "to": "git-manager",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-bootstrap",
+  "kind": "agent",
+  "to": "planner",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-bootstrap",
+  "kind": "agent",
+  "to": "project-manager",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-bootstrap",
+  "kind": "agent",
+  "to": "researcher",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 12
+ },
+ {
+  "from": "ak-bootstrap",
+  "kind": "agent",
+  "to": "tester",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-bootstrap",
+  "kind": "agent",
+  "to": "ui-ux-designer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 9
+ },
+ {
+  "from": "ak-bootstrap",
+  "kind": "skill",
+  "to": "ak-agent-browser",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-bootstrap",
+  "kind": "skill",
+  "to": "ak-ai-multimodal",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 14
+ },
+ {
+  "from": "ak-bootstrap",
+  "kind": "skill",
+  "to": "ak-cook",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--auto",
+   "--fast",
+   "--full",
+   "--parallel",
+   "--yagni"
+  ],
+  "n": 17
+ },
+ {
+  "from": "ak-bootstrap",
+  "kind": "skill",
+  "to": "ak-journal",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-bootstrap",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--auto",
+   "--fast",
+   "--full",
+   "--parallel",
+   "--ultra",
+   "--yagni"
+  ],
+  "n": 17
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "agent",
+  "to": "advisor",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--advice"
+  ],
+  "n": 9
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-advise",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-agentize",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-bootstrap",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--ultra"
+  ],
+  "n": 2
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-code-review",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--ultra"
+  ],
+  "n": 5
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-cook",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-debug",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-diagram",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-fix",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--ultra"
+  ],
+  "n": 5
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-problem-solving",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-project-organization",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-research",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-review-pr",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-ship",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-brainstorm",
+  "kind": "skill",
+  "to": "ak-test",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-brand",
+  "kind": "agent",
+  "to": "content-creator",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-bro",
+  "kind": "skill",
+  "to": "ak-explain",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-campaign",
+  "kind": "agent",
+  "to": "analytics-analyst",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-campaign",
+  "kind": "agent",
+  "to": "brainstormer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-campaign",
+  "kind": "agent",
+  "to": "campaign-debugger",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-campaign",
+  "kind": "agent",
+  "to": "campaign-manager",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-campaign",
+  "kind": "agent",
+  "to": "content-creator",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-campaign",
+  "kind": "agent",
+  "to": "copywriter",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-campaign",
+  "kind": "agent",
+  "to": "email-wizard",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-campaign",
+  "kind": "agent",
+  "to": "funnel-architect",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-chrome-profile",
+  "kind": "skill",
+  "to": "ak-agent-browser",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-chrome-profile",
+  "kind": "skill",
+  "to": "ak-web-testing",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-code-review",
+  "kind": "agent",
+  "to": "code-reviewer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 13
+ },
+ {
+  "from": "ak-code-review",
+  "kind": "agent",
+  "to": "git-manager",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-code-review",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--advice"
+  ],
+  "n": 2
+ },
+ {
+  "from": "ak-code-review",
+  "kind": "agent",
+  "to": "planner",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-code-review",
+  "kind": "agent",
+  "to": "researcher",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-code-review",
+  "kind": "skill",
+  "to": "ak-fix",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-code-review",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-code-review",
+  "kind": "skill",
+  "to": "ak-ship",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-codex-goal",
+  "kind": "skill",
+  "to": "ak-goal-warmup",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-competitor",
+  "kind": "agent",
+  "to": "attraction-specialist",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-competitor",
+  "kind": "agent",
+  "to": "researcher",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-competitor",
+  "kind": "agent",
+  "to": "sale-enabler",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-competitor",
+  "kind": "agent",
+  "to": "seo-specialist",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-content-hub",
+  "kind": "agent",
+  "to": "content-creator",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-content-hub",
+  "kind": "agent",
+  "to": "ui-ux-designer",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-content-marketing",
+  "kind": "agent",
+  "to": "attraction-specialist",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-content-marketing",
+  "kind": "agent",
+  "to": "campaign-manager",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-content-marketing",
+  "kind": "agent",
+  "to": "content-creator",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-cook",
+  "kind": "agent",
+  "to": "code-reviewer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-cook",
+  "kind": "agent",
+  "to": "code-simplifier",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-cook",
+  "kind": "agent",
+  "to": "debugger",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-cook",
+  "kind": "agent",
+  "to": "docs-manager",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-cook",
+  "kind": "agent",
+  "to": "fullstack-developer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-cook",
+  "kind": "agent",
+  "to": "git-manager",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-cook",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--advice"
+  ],
+  "n": 6
+ },
+ {
+  "from": "ak-cook",
+  "kind": "agent",
+  "to": "planner",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-cook",
+  "kind": "agent",
+  "to": "researcher",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-cook",
+  "kind": "agent",
+  "to": "scout",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-cook",
+  "kind": "agent",
+  "to": "tester",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-cook",
+  "kind": "agent",
+  "to": "ui-ux-designer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-cook",
+  "kind": "skill",
+  "to": "ak-brainstorm",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-cook",
+  "kind": "skill",
+  "to": "ak-code-review",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-cook",
+  "kind": "skill",
+  "to": "ak-debug",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-cook",
+  "kind": "skill",
+  "to": "ak-docs",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-cook",
+  "kind": "skill",
+  "to": "ak-fix",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--parallel"
+  ],
+  "n": 3
+ },
+ {
+  "from": "ak-cook",
+  "kind": "skill",
+  "to": "ak-frontend-development",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-cook",
+  "kind": "skill",
+  "to": "ak-issue-to-plan",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-cook",
+  "kind": "skill",
+  "to": "ak-journal",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-cook",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-cook",
+  "kind": "skill",
+  "to": "ak-preview",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-cook",
+  "kind": "skill",
+  "to": "ak-project-management",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-cook",
+  "kind": "skill",
+  "to": "ak-review-pr",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--parallel"
+  ],
+  "n": 2
+ },
+ {
+  "from": "ak-cook",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-cook",
+  "kind": "skill",
+  "to": "ak-ship",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-cook",
+  "kind": "skill",
+  "to": "ak-test",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-cti-expert",
+  "kind": "skill",
+  "to": "ak-agent-browser",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-cti-expert",
+  "kind": "skill",
+  "to": "ak-diagram",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-cti-expert",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-debug",
+  "kind": "agent",
+  "to": "debugger",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-debug",
+  "kind": "skill",
+  "to": "ak-agent-browser",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-debug",
+  "kind": "skill",
+  "to": "ak-brainstorm",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-debug",
+  "kind": "skill",
+  "to": "ak-chrome-profile",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 6
+ },
+ {
+  "from": "ak-debug",
+  "kind": "skill",
+  "to": "ak-docs-seeker",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-debug",
+  "kind": "skill",
+  "to": "ak-fix",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-debug",
+  "kind": "skill",
+  "to": "ak-problem-solving",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-debug",
+  "kind": "skill",
+  "to": "ak-repomix",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-debug",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 6
+ },
+ {
+  "from": "ak-deploy",
+  "kind": "skill",
+  "to": "ak-devops",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-deploy",
+  "kind": "skill",
+  "to": "ak-docs",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-design",
+  "kind": "skill",
+  "to": "ak-agent-browser",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 6
+ },
+ {
+  "from": "ak-design",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-design",
+  "kind": "skill",
+  "to": "ak-ui-ux-pro-max",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-design-system",
+  "kind": "agent",
+  "to": "ui-ux-designer",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-devops",
+  "kind": "skill",
+  "to": "ak-docs",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-diagram",
+  "kind": "skill",
+  "to": "ak-excalidraw",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-diagram",
+  "kind": "skill",
+  "to": "ak-mermaidjs-v11",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-diagram",
+  "kind": "skill",
+  "to": "ak-tech-graph",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-docs",
+  "kind": "agent",
+  "to": "docs-manager",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-docs",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 6
+ },
+ {
+  "from": "ak-docs",
+  "kind": "skill",
+  "to": "ak-cook",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-docs",
+  "kind": "skill",
+  "to": "ak-diagram",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-docs",
+  "kind": "skill",
+  "to": "ak-fix",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-docs",
+  "kind": "skill",
+  "to": "ak-folder-context",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-docs",
+  "kind": "skill",
+  "to": "ak-journal",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-docs",
+  "kind": "skill",
+  "to": "ak-llms",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-docs",
+  "kind": "skill",
+  "to": "ak-preview",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-docs",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 6
+ },
+ {
+  "from": "ak-docs",
+  "kind": "skill",
+  "to": "ak-tech-graph",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-email",
+  "kind": "agent",
+  "to": "copywriter",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-email",
+  "kind": "agent",
+  "to": "email-wizard",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-excalidraw",
+  "kind": "skill",
+  "to": "ak-tech-graph",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-explain",
+  "kind": "skill",
+  "to": "ak-bro",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-explain",
+  "kind": "skill",
+  "to": "ak-diagram",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--html"
+  ],
+  "n": 5
+ },
+ {
+  "from": "ak-explain",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--html"
+  ],
+  "n": 2
+ },
+ {
+  "from": "ak-explain",
+  "kind": "skill",
+  "to": "ak-preview",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-fable-thinking",
+  "kind": "skill",
+  "to": "ak-brainstorm",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-fable-thinking",
+  "kind": "skill",
+  "to": "ak-fix",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-fable-thinking",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-fable-thinking",
+  "kind": "skill",
+  "to": "ak-problem-solving",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-fable-thinking",
+  "kind": "skill",
+  "to": "ak-skill-creator",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-advise",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-agent-browser",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-agentize",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-backend-development",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-better-auth",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-chrome-profile",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-codex-goal",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-context-engineering",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-cti-expert",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-databases",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-deep-swe",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-deploy",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-devops",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-diagram",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-docs",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-docs-seeker",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-excalidraw",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-folder-context",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-frontend-development",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-gkg",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-goal-warmup",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-google-adk-python",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-graphify",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-handoff",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-hyperframes",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-interview-docs",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-llms",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-mcp-builder",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-media-processing",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-mermaidjs-v11",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-mobile-development",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-payment-integration",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-preview",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-react-best-practices",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-repomix",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-research-prompt",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-security",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-shader",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-shopify",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-stitch",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-tanstack",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-tech-graph",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-test",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-threejs",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-ui-styling",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-ui-ux-pro-max",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-web-frameworks",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-web-testing",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-find-skills",
+  "kind": "skill",
+  "to": "ak-webmcp",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-fix",
+  "kind": "agent",
+  "to": "code-reviewer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 9
+ },
+ {
+  "from": "ak-fix",
+  "kind": "agent",
+  "to": "debugger",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-fix",
+  "kind": "agent",
+  "to": "docs-manager",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-fix",
+  "kind": "agent",
+  "to": "explore",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 11
+ },
+ {
+  "from": "ak-fix",
+  "kind": "agent",
+  "to": "fullstack-developer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-fix",
+  "kind": "agent",
+  "to": "git-manager",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-fix",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--advice"
+  ],
+  "n": 12
+ },
+ {
+  "from": "ak-fix",
+  "kind": "agent",
+  "to": "planner",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-fix",
+  "kind": "agent",
+  "to": "researcher",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-fix",
+  "kind": "agent",
+  "to": "tester",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-fix",
+  "kind": "skill",
+  "to": "ak-agent-browser",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-fix",
+  "kind": "skill",
+  "to": "ak-ai-multimodal",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-fix",
+  "kind": "skill",
+  "to": "ak-brainstorm",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-fix",
+  "kind": "skill",
+  "to": "ak-context-engineering",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-fix",
+  "kind": "skill",
+  "to": "ak-debug",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-fix",
+  "kind": "skill",
+  "to": "ak-fable-thinking",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 8
+ },
+ {
+  "from": "ak-fix",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-fix",
+  "kind": "skill",
+  "to": "ak-journal",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--skip-journal"
+  ],
+  "n": 6
+ },
+ {
+  "from": "ak-fix",
+  "kind": "skill",
+  "to": "ak-problem-solving",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 8
+ },
+ {
+  "from": "ak-fix",
+  "kind": "skill",
+  "to": "ak-project-management",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-fix",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-fix",
+  "kind": "skill",
+  "to": "ak-ui-ux-pro-max",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-folder-context",
+  "kind": "skill",
+  "to": "ak-docs",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-frontend-design",
+  "kind": "agent",
+  "to": "researcher",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-frontend-design",
+  "kind": "agent",
+  "to": "ui-ux-designer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 7
+ },
+ {
+  "from": "ak-frontend-design",
+  "kind": "skill",
+  "to": "ak-agent-browser",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-frontend-design",
+  "kind": "skill",
+  "to": "ak-ai-multimodal",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 19
+ },
+ {
+  "from": "ak-frontend-design",
+  "kind": "skill",
+  "to": "ak-media-processing",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 7
+ },
+ {
+  "from": "ak-frontend-design",
+  "kind": "skill",
+  "to": "ak-threejs",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-frontend-design",
+  "kind": "skill",
+  "to": "ak-ui-ux-pro-max",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 9
+ },
+ {
+  "from": "ak-git",
+  "kind": "agent",
+  "to": "git-manager",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-git",
+  "kind": "skill",
+  "to": "ak-fix",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-git",
+  "kind": "skill",
+  "to": "ak-review-pr",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-github",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "core"
+  ],
+  "flags": [
+   "--advice"
+  ],
+  "n": 2
+ },
+ {
+  "from": "ak-github",
+  "kind": "skill",
+  "to": "ak-fix",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-github",
+  "kind": "skill",
+  "to": "ak-git",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-github",
+  "kind": "skill",
+  "to": "ak-review-pr",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-github",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-github",
+  "kind": "skill",
+  "to": "ak-security",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-goal-warmup",
+  "kind": "skill",
+  "to": "ak-advise",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-goal-warmup",
+  "kind": "skill",
+  "to": "ak-codex-goal",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-goal-warmup",
+  "kind": "skill",
+  "to": "ak-issue-to-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-goal-warmup",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 9
+ },
+ {
+  "from": "ak-goal-warmup",
+  "kind": "skill",
+  "to": "ak-vibe",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-graphify",
+  "kind": "skill",
+  "to": "ak-gkg",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-graphify",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-graphify",
+  "kind": "skill",
+  "to": "ak-repomix",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-graphify",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-handoff",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-handoff",
+  "kind": "agent",
+  "to": "scout",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-handoff",
+  "kind": "skill",
+  "to": "ak-advise",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-handoff",
+  "kind": "skill",
+  "to": "ak-orchestrate",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--model"
+  ],
+  "n": 20
+ },
+ {
+  "from": "ak-handoff",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-handoff",
+  "kind": "skill",
+  "to": "ak-watzup",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-hyperframes",
+  "kind": "skill",
+  "to": "ak-agent-browser",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-hyperframes",
+  "kind": "skill",
+  "to": "ak-media-processing",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-hyperframes",
+  "kind": "skill",
+  "to": "ak-remotion",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-issue-to-plan",
+  "kind": "skill",
+  "to": "ak-brainstorm",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-issue-to-plan",
+  "kind": "skill",
+  "to": "ak-diagram",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-issue-to-plan",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-issue-to-plan",
+  "kind": "skill",
+  "to": "ak-git",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-issue-to-plan",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 12
+ },
+ {
+  "from": "ak-issue-to-plan",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-journal",
+  "kind": "agent",
+  "to": "journal-writer",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-journal",
+  "kind": "skill",
+  "to": "ak-bootstrap",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-journal",
+  "kind": "skill",
+  "to": "ak-cook",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-journal",
+  "kind": "skill",
+  "to": "ak-fix",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-journal",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-journal",
+  "kind": "skill",
+  "to": "ak-ship",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-loop",
+  "kind": "skill",
+  "to": "ak-autoresearch",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-loop",
+  "kind": "skill",
+  "to": "ak-cook",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-loop",
+  "kind": "skill",
+  "to": "ak-debug",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-loop",
+  "kind": "skill",
+  "to": "ak-fix",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-markdown-novel-viewer",
+  "kind": "skill",
+  "to": "ak-preview",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-mermaidjs-v11",
+  "kind": "skill",
+  "to": "ak-tech-graph",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-mintlify",
+  "kind": "skill",
+  "to": "ak-docs",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-motion-design",
+  "kind": "skill",
+  "to": "ak-banner-design",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-motion-design",
+  "kind": "skill",
+  "to": "ak-design",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-motion-design",
+  "kind": "skill",
+  "to": "ak-design-system",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-motion-design",
+  "kind": "skill",
+  "to": "ak-elevenlabs",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-motion-design",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-motion-design",
+  "kind": "skill",
+  "to": "ak-video",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-ads-management",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-analytics",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-brand",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-copywriting",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-design-system",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-elevenlabs",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-frontend-development",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-hyperframes",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-logo-design",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-marketing-dashboard",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-media-processing",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-mermaidjs-v11",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-paid-ads",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-remotion",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-shader",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-threejs",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-ui-styling",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-ui-ux-pro-max",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-video",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-motion-graphics",
+  "kind": "skill",
+  "to": "ak-youtube-thumbnail-design",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-orchestrate",
+  "kind": "agent",
+  "to": "scout",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-plan",
+  "kind": "agent",
+  "to": "code-reviewer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-plan",
+  "kind": "agent",
+  "to": "debugger",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-plan",
+  "kind": "agent",
+  "to": "journal-writer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-plan",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--advice"
+  ],
+  "n": 8
+ },
+ {
+  "from": "ak-plan",
+  "kind": "agent",
+  "to": "planner",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--debate",
+   "--two"
+  ],
+  "n": 6
+ },
+ {
+  "from": "ak-plan",
+  "kind": "agent",
+  "to": "researcher",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--hard"
+  ],
+  "n": 4
+ },
+ {
+  "from": "ak-plan",
+  "kind": "agent",
+  "to": "scout",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-plan",
+  "kind": "skill",
+  "to": "ak-cook",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--advice",
+   "--debate",
+   "--deep",
+   "--fast",
+   "--hard",
+   "--parallel",
+   "--two",
+   "--ultra"
+  ],
+  "n": 8
+ },
+ {
+  "from": "ak-plan",
+  "kind": "skill",
+  "to": "ak-diagram",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--html"
+  ],
+  "n": 5
+ },
+ {
+  "from": "ak-plan",
+  "kind": "skill",
+  "to": "ak-docs-seeker",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-plan",
+  "kind": "skill",
+  "to": "ak-fable-thinking",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-plan",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--html"
+  ],
+  "n": 3
+ },
+ {
+  "from": "ak-plan",
+  "kind": "skill",
+  "to": "ak-git",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-plan",
+  "kind": "skill",
+  "to": "ak-journal",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--skip-journal"
+  ],
+  "n": 4
+ },
+ {
+  "from": "ak-plan",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-play",
+  "kind": "agent",
+  "to": "analytics-analyst",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-play",
+  "kind": "agent",
+  "to": "campaign-manager",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-play",
+  "kind": "agent",
+  "to": "content-creator",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-play",
+  "kind": "agent",
+  "to": "content-reviewer",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-play",
+  "kind": "agent",
+  "to": "copywriter",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-play",
+  "kind": "agent",
+  "to": "email-wizard",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-play",
+  "kind": "agent",
+  "to": "researcher",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-play",
+  "kind": "agent",
+  "to": "seo-specialist",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-play",
+  "kind": "agent",
+  "to": "social-media-manager",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-play",
+  "kind": "skill",
+  "to": "ak-analytics",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-play",
+  "kind": "skill",
+  "to": "ak-payment-integration",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-play",
+  "kind": "skill",
+  "to": "ak-seo",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-predict",
+  "kind": "skill",
+  "to": "ak-autoresearch",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-predict",
+  "kind": "skill",
+  "to": "ak-cook",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-predict",
+  "kind": "skill",
+  "to": "ak-debug",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-predict",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-predict",
+  "kind": "skill",
+  "to": "ak-scenario",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-preview",
+  "kind": "skill",
+  "to": "ak-advise",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--html",
+   "--no-antv",
+   "--no-diagram-design",
+   "--no-editorial-visuals"
+  ],
+  "n": 3
+ },
+ {
+  "from": "ak-preview",
+  "kind": "skill",
+  "to": "ak-ai-multimodal",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 6
+ },
+ {
+  "from": "ak-preview",
+  "kind": "skill",
+  "to": "ak-brainstorm",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--html",
+   "--no-antv",
+   "--no-diagram-design",
+   "--no-editorial-visuals"
+  ],
+  "n": 3
+ },
+ {
+  "from": "ak-preview",
+  "kind": "skill",
+  "to": "ak-cti-expert",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--html",
+   "--no-antv",
+   "--no-diagram-design",
+   "--no-editorial-visuals"
+  ],
+  "n": 3
+ },
+ {
+  "from": "ak-preview",
+  "kind": "skill",
+  "to": "ak-diagram",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-preview",
+  "kind": "skill",
+  "to": "ak-docs",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-preview",
+  "kind": "skill",
+  "to": "ak-explain",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--html"
+  ],
+  "n": 1
+ },
+ {
+  "from": "ak-preview",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-preview",
+  "kind": "skill",
+  "to": "ak-issue-to-plan",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--html"
+  ],
+  "n": 1
+ },
+ {
+  "from": "ak-preview",
+  "kind": "skill",
+  "to": "ak-mermaidjs-v11",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-preview",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--html",
+   "--no-antv",
+   "--no-diagram-design",
+   "--no-editorial-visuals"
+  ],
+  "n": 4
+ },
+ {
+  "from": "ak-preview",
+  "kind": "skill",
+  "to": "ak-retro",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--html",
+   "--no-antv",
+   "--no-diagram-design",
+   "--no-editorial-visuals"
+  ],
+  "n": 2
+ },
+ {
+  "from": "ak-preview",
+  "kind": "skill",
+  "to": "ak-show-off",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--html",
+   "--no-antv",
+   "--no-diagram-design",
+   "--no-editorial-visuals"
+  ],
+  "n": 2
+ },
+ {
+  "from": "ak-preview",
+  "kind": "skill",
+  "to": "ak-tech-graph",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-preview",
+  "kind": "skill",
+  "to": "ak-ui-ux-pro-max",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--slides"
+  ],
+  "n": 5
+ },
+ {
+  "from": "ak-project-management",
+  "kind": "agent",
+  "to": "code-reviewer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-project-management",
+  "kind": "agent",
+  "to": "docs-manager",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-project-management",
+  "kind": "agent",
+  "to": "project-manager",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-project-management",
+  "kind": "agent",
+  "to": "tester",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-project-management",
+  "kind": "skill",
+  "to": "ak-cook",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-project-management",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-project-organization",
+  "kind": "agent",
+  "to": "code-reviewer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-project-organization",
+  "kind": "agent",
+  "to": "docs-manager",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-project-organization",
+  "kind": "agent",
+  "to": "scout",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-project-organization",
+  "kind": "agent",
+  "to": "ui-ux-designer",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-research",
+  "kind": "skill",
+  "to": "ak-docs-seeker",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-retro",
+  "kind": "skill",
+  "to": "ak-diagram",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-retro",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-review-pr",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--advice",
+   "--merge",
+   "--reply"
+  ],
+  "n": 10
+ },
+ {
+  "from": "ak-review-pr",
+  "kind": "skill",
+  "to": "ak-fix",
+  "where": [
+   "ref"
+  ],
+  "flags": [
+   "--advice"
+  ],
+  "n": 10
+ },
+ {
+  "from": "ak-review-pr",
+  "kind": "skill",
+  "to": "ak-git",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--merge"
+  ],
+  "n": 10
+ },
+ {
+  "from": "ak-review-pr",
+  "kind": "skill",
+  "to": "ak-ship",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-scenario",
+  "kind": "skill",
+  "to": "ak-autoresearch",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-scenario",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-scenario",
+  "kind": "skill",
+  "to": "ak-predict",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-scenario",
+  "kind": "skill",
+  "to": "ak-test",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-scout",
+  "kind": "agent",
+  "to": "explore",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 8
+ },
+ {
+  "from": "ak-scout",
+  "kind": "skill",
+  "to": "ak-brainstorm",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-scout",
+  "kind": "skill",
+  "to": "ak-code-review",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-scout",
+  "kind": "skill",
+  "to": "ak-debug",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-scout",
+  "kind": "skill",
+  "to": "ak-fix",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-scout",
+  "kind": "skill",
+  "to": "ak-project-organization",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-security",
+  "kind": "skill",
+  "to": "ak-autoresearch",
+  "where": [
+   "core"
+  ],
+  "flags": [
+   "--iterations"
+  ],
+  "n": 2
+ },
+ {
+  "from": "ak-security",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-security",
+  "kind": "skill",
+  "to": "ak-predict",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-security",
+  "kind": "skill",
+  "to": "ak-scenario",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-seo",
+  "kind": "agent",
+  "to": "attraction-specialist",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-seo",
+  "kind": "agent",
+  "to": "content-creator",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-seo",
+  "kind": "agent",
+  "to": "seo-specialist",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 7
+ },
+ {
+  "from": "ak-seo",
+  "kind": "skill",
+  "to": "ak-agent-browser",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 6
+ },
+ {
+  "from": "ak-ship",
+  "kind": "agent",
+  "to": "code-reviewer",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-ship",
+  "kind": "agent",
+  "to": "docs-manager",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-ship",
+  "kind": "agent",
+  "to": "journal-writer",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-ship",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--advice",
+   "--dry-run"
+  ],
+  "n": 4
+ },
+ {
+  "from": "ak-ship",
+  "kind": "agent",
+  "to": "tester",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-ship",
+  "kind": "skill",
+  "to": "ak-code-review",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-ship",
+  "kind": "skill",
+  "to": "ak-docs",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--skip-docs"
+  ],
+  "n": 2
+ },
+ {
+  "from": "ak-ship",
+  "kind": "skill",
+  "to": "ak-journal",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--skip-journal"
+  ],
+  "n": 4
+ },
+ {
+  "from": "ak-ship",
+  "kind": "skill",
+  "to": "ak-review-pr",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--advice",
+   "--dry-run",
+   "--merge",
+   "--skip-review"
+  ],
+  "n": 10
+ },
+ {
+  "from": "ak-ship",
+  "kind": "skill",
+  "to": "ak-test",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-show-off",
+  "kind": "skill",
+  "to": "ak-diagram",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-show-off",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "core"
+  ],
+  "flags": [
+   "--no-antv",
+   "--no-diagram-design",
+   "--no-editorial-visuals"
+  ],
+  "n": 3
+ },
+ {
+  "from": "ak-show-off",
+  "kind": "skill",
+  "to": "ak-project-management",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-skill-creator",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--advice"
+  ],
+  "n": 3
+ },
+ {
+  "from": "ak-skill-creator",
+  "kind": "skill",
+  "to": "ak-ak",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-skill-creator",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-social",
+  "kind": "agent",
+  "to": "content-creator",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-social",
+  "kind": "agent",
+  "to": "copywriter",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-social",
+  "kind": "agent",
+  "to": "social-media-manager",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-social",
+  "kind": "skill",
+  "to": "ak-copywriting",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-stitch",
+  "kind": "skill",
+  "to": "ak-frontend-design",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-stitch",
+  "kind": "skill",
+  "to": "ak-ui-styling",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-stitch",
+  "kind": "skill",
+  "to": "ak-ui-ux-pro-max",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 7
+ },
+ {
+  "from": "ak-team",
+  "kind": "skill",
+  "to": "ak-journal",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-tech-graph",
+  "kind": "skill",
+  "to": "ak-mermaidjs-v11",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-tech-graph",
+  "kind": "skill",
+  "to": "ak-preview",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-test",
+  "kind": "agent",
+  "to": "explore",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-test",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--advice"
+  ],
+  "n": 6
+ },
+ {
+  "from": "ak-test",
+  "kind": "agent",
+  "to": "tester",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-test",
+  "kind": "skill",
+  "to": "ak-agent-browser",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-test",
+  "kind": "skill",
+  "to": "ak-ai-multimodal",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-test",
+  "kind": "skill",
+  "to": "ak-chrome-profile",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-test",
+  "kind": "skill",
+  "to": "ak-cook",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-test",
+  "kind": "skill",
+  "to": "ak-debug",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-test",
+  "kind": "skill",
+  "to": "ak-fable-thinking",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-test",
+  "kind": "skill",
+  "to": "ak-fix",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-test",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-test",
+  "kind": "skill",
+  "to": "ak-preview",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-test",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-test",
+  "kind": "skill",
+  "to": "ak-web-testing",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-vibe",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "core"
+  ],
+  "flags": [
+   "--advice"
+  ],
+  "n": 7
+ },
+ {
+  "from": "ak-vibe",
+  "kind": "skill",
+  "to": "ak-code-review",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--advice",
+   "--ultra"
+  ],
+  "n": 6
+ },
+ {
+  "from": "ak-vibe",
+  "kind": "skill",
+  "to": "ak-cook",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--advice"
+  ],
+  "n": 9
+ },
+ {
+  "from": "ak-vibe",
+  "kind": "skill",
+  "to": "ak-debug",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 6
+ },
+ {
+  "from": "ak-vibe",
+  "kind": "skill",
+  "to": "ak-docs",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--advice"
+  ],
+  "n": 8
+ },
+ {
+  "from": "ak-vibe",
+  "kind": "skill",
+  "to": "ak-fix",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--advice"
+  ],
+  "n": 14
+ },
+ {
+  "from": "ak-vibe",
+  "kind": "skill",
+  "to": "ak-orchestrate",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-vibe",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--advice",
+   "--ultra"
+  ],
+  "n": 14
+ },
+ {
+  "from": "ak-vibe",
+  "kind": "skill",
+  "to": "ak-research",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 6
+ },
+ {
+  "from": "ak-vibe",
+  "kind": "skill",
+  "to": "ak-review-pr",
+  "where": [
+   "core"
+  ],
+  "flags": [
+   "--advice",
+   "--both"
+  ],
+  "n": 5
+ },
+ {
+  "from": "ak-vibe",
+  "kind": "skill",
+  "to": "ak-ship",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--advice",
+   "--beta"
+  ],
+  "n": 12
+ },
+ {
+  "from": "ak-vibe",
+  "kind": "skill",
+  "to": "ak-team",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-vibe",
+  "kind": "skill",
+  "to": "ak-test",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [
+   "--advice"
+  ],
+  "n": 5
+ },
+ {
+  "from": "ak-vibe",
+  "kind": "skill",
+  "to": "ak-worktree",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-video",
+  "kind": "agent",
+  "to": "content-creator",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-video",
+  "kind": "agent",
+  "to": "copywriter",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-video",
+  "kind": "agent",
+  "to": "planner",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-video",
+  "kind": "agent",
+  "to": "researcher",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-webmcp",
+  "kind": "skill",
+  "to": "ak-agent-browser",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-webmcp",
+  "kind": "skill",
+  "to": "ak-agentize",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-webmcp",
+  "kind": "skill",
+  "to": "ak-chrome-profile",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-webmcp",
+  "kind": "skill",
+  "to": "ak-mcp-builder",
+  "where": [
+   "core",
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-worktree",
+  "kind": "skill",
+  "to": "ak-cook",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-worktree",
+  "kind": "skill",
+  "to": "ak-fix",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-write",
+  "kind": "agent",
+  "to": "content-creator",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-write",
+  "kind": "agent",
+  "to": "content-reviewer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-write",
+  "kind": "agent",
+  "to": "copywriter",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 7
+ },
+ {
+  "from": "ak-write",
+  "kind": "agent",
+  "to": "planner",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-write",
+  "kind": "agent",
+  "to": "researcher",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 4
+ },
+ {
+  "from": "ak-write",
+  "kind": "agent",
+  "to": "seo-specialist",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 5
+ },
+ {
+  "from": "ak-write",
+  "kind": "skill",
+  "to": "ak-design",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ak-xia",
+  "kind": "agent",
+  "to": "brainstormer",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-xia",
+  "kind": "agent",
+  "to": "planner",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-xia",
+  "kind": "agent",
+  "to": "researcher",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-xia",
+  "kind": "agent",
+  "to": "scout",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-xia",
+  "kind": "skill",
+  "to": "ak-bootstrap",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-xia",
+  "kind": "skill",
+  "to": "ak-brainstorm",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-xia",
+  "kind": "skill",
+  "to": "ak-cook",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-xia",
+  "kind": "skill",
+  "to": "ak-fable-thinking",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-xia",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-xia",
+  "kind": "skill",
+  "to": "ak-repomix",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-xia",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-youtube",
+  "kind": "agent",
+  "to": "content-creator",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-youtube",
+  "kind": "agent",
+  "to": "copywriter",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "ak-youtube",
+  "kind": "agent",
+  "to": "seo-specialist",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-youtube",
+  "kind": "agent",
+  "to": "social-media-manager",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ak-youtube",
+  "kind": "agent",
+  "to": "ui-ux-designer",
+  "where": [
+   "ref"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "brainstormer",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "brainstormer",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "code-reviewer",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "code-reviewer",
+  "kind": "skill",
+  "to": "ak-ship",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "code-simplifier",
+  "kind": "agent",
+  "to": "explore",
+  "where": [
+   "tools"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "cook-after-plan-reminder.cjs",
+  "kind": "skill",
+  "to": "ak-cook",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "debugger",
+  "kind": "agent",
+  "to": "explore",
+  "where": [
+   "tools"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "debugger",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "tools"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "debugger",
+  "kind": "skill",
+  "to": "ak-scout",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 2
+ },
+ {
+  "from": "docs-manager",
+  "kind": "agent",
+  "to": "explore",
+  "where": [
+   "tools"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "fullstack-developer",
+  "kind": "agent",
+  "to": "explore",
+  "where": [
+   "tools"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "fullstack-developer",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "tools"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "fullstack-developer",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "kongming",
+  "kind": "agent",
+  "to": "explore",
+  "where": [
+   "tools"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "planner",
+  "kind": "agent",
+  "to": "explore",
+  "where": [
+   "tools"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "planner",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "tools"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "planner",
+  "kind": "agent",
+  "to": "researcher",
+  "where": [
+   "tools"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "session-init.cjs",
+  "kind": "skill",
+  "to": "ak-plan",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "session-init.cjs",
+  "kind": "skill",
+  "to": "ak-team",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "tester",
+  "kind": "agent",
+  "to": "explore",
+  "where": [
+   "tools"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "tester",
+  "kind": "agent",
+  "to": "kongming",
+  "where": [
+   "tools"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ui-ux-designer",
+  "kind": "agent",
+  "to": "explore",
+  "where": [
+   "tools"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ui-ux-designer",
+  "kind": "agent",
+  "to": "researcher",
+  "where": [
+   "tools"
+  ],
+  "flags": [],
+  "n": 1
+ },
+ {
+  "from": "ui-ux-designer",
+  "kind": "skill",
+  "to": "ak-agent-browser",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 3
+ },
+ {
+  "from": "ui-ux-designer",
+  "kind": "skill",
+  "to": "ak-ai-multimodal",
+  "where": [
+   "core"
+  ],
+  "flags": [],
+  "n": 1
+ }
+]

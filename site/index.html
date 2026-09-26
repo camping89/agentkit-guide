@@ -7,7 +7,7 @@
 <meta name="description" content="A concise guide to the AgentKit Engineer Kit: layers, the life of a prompt, hooks, rules, agents, 102 skills with parameters, workflows by task, and tips. English and Vietnamese.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%237c9cff%22/%3E%3Ctext x=%2216%22 y=%2222%22 font-size=%2215%22 text-anchor=%22middle%22 font-family=%22sans-serif%22 font-weight=%22bold%22 fill=%22%230e1117%22%3EAK%3C/text%3E%3C/svg%3E">
 <style>html[data-lang="en"] [lang="vi"], html[data-lang="vi"] [lang="en"] { display: none !important; }</style>
-<link rel="stylesheet" href="styles.css?v=5c19d8cfe0">
+<link rel="stylesheet" href="styles.css?v=8b43570c83">
 </head>
 <body>
 <header class="topbar">
@@ -31,6 +31,7 @@
   <a href="#/hooks">Hooks</a>
   <a href="#/rules">Rules</a>
   <a href="#/agents">Agents</a>
+  <a href="#/map"><span lang="en">Relationship map</span><span lang="vi">Sơ đồ quan hệ</span></a>
   <div class="nav-group"><span lang="en">Using it</span><span lang="vi">Sử dụng</span></div>
   <a href="#/skills"><span lang="en">Skills</span><span lang="vi">Skills (tra cứu)</span></a>
   <a href="#/flags"><span lang="en">Shared flags</span><span lang="vi">Flag chung &amp; ma trận</span></a>
@@ -515,6 +516,62 @@ CK_SIMPLIFY_DISABLED=1 claude</code></pre>
   <div id="agentsGrid" class="cards"></div>
 </section>
 
+<!-- ================= RELATIONSHIP MAP ================= -->
+<section data-page="map">
+  <div lang="en">
+  <h1>Relationship map</h1>
+  <p>Which skill hands off to which skill, which agents it spawns, what those agents delegate to, and which hooks point at a skill. <code>scripts/extract.py</code> finds every link in the installed kit source. A link counts when a file names the target: <code>/ak:x</code>, <code>ak:x</code>, "the engineer x skill", <code>subagent_type="x"</code>, a backticked agent name, or <code>Task(x)</code> in an agent's tools.</p>
+  <ul>
+    <li><b>Solid line:</b> named in <code>SKILL.md</code>, so it's always in context.</li>
+    <li><b>Dashed line:</b> named in <code>references/</code>, which loads only when that step runs.</li>
+    <li><b>Flag on a line</b> (e.g. <code>--advice</code>): the link only applies with that flag.</li>
+    <li>A link means "this file tells the model to use it", not a hard-wired call. The model still decides at runtime.</li>
+  </ul>
+  <h2>Example: <code>/ak:cook</code></h2>
+  <ul>
+    <li>Frontmatter puts it after <code>/ak:plan</code> and before <code>/ak:test</code>. The <code>cook-after-plan-reminder</code> hook suggests it once a plan is done.</li>
+    <li><code>SKILL.md</code> itself names only <code>/ak:journal</code> (the finalize step). Everything else sits in references.</li>
+    <li><code>references/subagent-patterns.md</code> lists the agents: researcher, scout, planner, ui-ux-designer, fullstack-developer, tester, debugger, code-reviewer, code-simplifier, docs-manager, git-manager.</li>
+    <li><code>kongming</code> joins only with <code>--advice</code> (<code>references/advisory-supervision-checkpoints.md</code>).</li>
+    <li><code>references/workflow-routing.md</code> sends other intents elsewhere: bugs to <code>/ak:fix</code>, investigation to <code>/ak:scout</code> → <code>/ak:debug</code> → <code>/ak:brainstorm</code> → <code>/ak:plan</code>, visuals to <code>/ak:preview</code>, docs to <code>/ak:docs</code>.</li>
+  </ul>
+  <h2>Whole kit</h2>
+  <p class="muted small">Outer ring: skills, colored by group. Inner ring: agents and hooks. Hover a node to trace its links: green lines are what it uses, amber lines are what points at it. Click it to see its diagram below.</p>
+  </div>
+  <div lang="vi">
+  <h1>Sơ đồ quan hệ</h1>
+  <p>Skill nào chuyển tiếp sang skill nào, spawn agent nào, agent đó lại giao việc cho ai, và hook nào trỏ tới skill nào. Mọi liên kết do <code>scripts/extract.py</code> quét từ source kit đã cài. Một liên kết được tính khi file có nhắc đích danh: <code>/ak:x</code>, <code>ak:x</code>, "the engineer x skill", <code>subagent_type="x"</code>, tên agent trong dấu backtick, hoặc <code>Task(x)</code> trong tools của agent.</p>
+  <ul>
+    <li><b>Nét liền:</b> nhắc trong <code>SKILL.md</code>, nên luôn có trong context.</li>
+    <li><b>Nét đứt:</b> nhắc trong <code>references/</code>, chỉ được nạp khi tới bước đó.</li>
+    <li><b>Flag trên đường nối</b> (ví dụ <code>--advice</code>): liên kết chỉ áp dụng khi có flag đó.</li>
+    <li>Liên kết nghĩa là "file này bảo model dùng nó", không phải lời gọi cứng. Lúc chạy, model vẫn là bên quyết định.</li>
+  </ul>
+  <h2>Ví dụ: <code>/ak:cook</code></h2>
+  <ul>
+    <li>Frontmatter đặt cook sau <code>/ak:plan</code> và trước <code>/ak:test</code>. Hook <code>cook-after-plan-reminder</code> gợi ý cook khi plan xong.</li>
+    <li>Bản thân <code>SKILL.md</code> chỉ nhắc <code>/ak:journal</code> (bước finalize). Mọi thứ khác nằm trong references.</li>
+    <li><code>references/subagent-patterns.md</code> liệt kê agent: researcher, scout, planner, ui-ux-designer, fullstack-developer, tester, debugger, code-reviewer, code-simplifier, docs-manager, git-manager.</li>
+    <li><code>kongming</code> chỉ tham gia khi có <code>--advice</code> (<code>references/advisory-supervision-checkpoints.md</code>).</li>
+    <li><code>references/workflow-routing.md</code> chuyển ý định khác sang nơi khác: bug sang <code>/ak:fix</code>, điều tra theo chuỗi <code>/ak:scout</code> → <code>/ak:debug</code> → <code>/ak:brainstorm</code> → <code>/ak:plan</code>, trực quan sang <code>/ak:preview</code>, tài liệu sang <code>/ak:docs</code>.</li>
+  </ul>
+  <h2>Toàn bộ kit</h2>
+  <p class="muted small">Vòng ngoài là skill, tô màu theo nhóm. Vòng trong là agent và hook. Rê chuột vào một nút để lần theo liên kết: đường xanh là thứ nó dùng, đường vàng cam là nơi trỏ tới nó. Bấm để xem sơ đồ riêng bên dưới.</p>
+  </div>
+  <div class="filters" id="mapControls">
+    <label><input type="checkbox" id="map-kSkill" checked> skill → skill</label>
+    <label><input type="checkbox" id="map-kAgent" checked> skill → agent</label>
+    <label><input type="checkbox" id="map-kOther" checked> agent / hook</label>
+    <label><input type="checkbox" id="map-coreOnly"> <span lang="en">SKILL.md only</span><span lang="vi">Chỉ SKILL.md</span></label>
+    <label><input type="checkbox" id="map-hideCat" checked> <span lang="en">Hide catalog skills (find-skills, agentkit, help)</span><span lang="vi">Ẩn skill danh mục (find-skills, agentkit, help)</span></label>
+  </div>
+  <div id="mapGraph" class="rwrap"></div>
+  <div id="mapEgo"></div>
+  <h2><span lang="en">Hubs</span><span lang="vi">Các nút trung tâm</span></h2>
+  <p class="muted small"><span lang="en">Most connected skills (catalog skills excluded), and which skills spawn each agent.</span><span lang="vi">Các skill có nhiều liên kết nhất (không tính skill danh mục), và skill nào spawn từng agent.</span></p>
+  <div id="mapHubs"></div>
+</section>
+
 <!-- ================= SKILLS ================= -->
 <section data-page="skills">
   <div lang="en">
@@ -927,9 +984,10 @@ python3 -m http.server 8765 -d site   # hoặc mở thẳng site/index.html
   <footer class="site-footer" id="siteFooter"></footer>
 </main>
 <div id="overlay" class="overlay" hidden></div>
-<script src="data.js?v=3ebf8ad621"></script>
+<script src="data.js?v=d77f373d5f"></script>
 <script src="content-en.js?v=e92498f713"></script>
 <script src="content-vi.js?v=2a5307b140"></script>
-<script src="app.js?v=e71ca356e8"></script>
+<script src="relations.js?v=a66b097626"></script>
+<script src="app.js?v=5e9f2f57a9"></script>
 </body>
 </html>

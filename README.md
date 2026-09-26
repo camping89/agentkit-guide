@@ -1,6 +1,6 @@
 # AgentKit Guide (Engineer Kit)
 
-A concise guide to the AgentKit Engineer Kit: layers, the life of a prompt, hooks, rules, agents, 102 skills with parameters, workflows by task, and tips. English by default, Vietnamese via the **VI** toggle.
+A concise guide to the AgentKit Engineer Kit: layers, the life of a prompt, hooks, rules, agents, a relationship map, 102 skills with parameters, workflows by task, and tips. English by default, Vietnamese via the **VI** toggle.
 
 **Site:** https://camping89.github.io/agentkit-guide/ (`?lang=vi` opens Vietnamese)
 
@@ -8,6 +8,7 @@ A concise guide to the AgentKit Engineer Kit: layers, the life of a prompt, hook
 
 - `site/`: static site (plain HTML/CSS/JS). Opening `site/index.html` directly also works.
 - `data/skills.json`, `data/agents.json`, `data/groups.json`, `data/meta.json`: metadata extracted from an AgentKit install.
+- `data/relations.json`: skill/agent/hook links found in the kit source (drawn by `site/relations.js` on each skill page and on the relationship map).
 - `data/detail-en/*.json`, `data/detail/*.json`: per-skill explanations (English, Vietnamese).
 - `site/content-en.js`, `site/content-vi.js`: workflows, skill chooser, CLI tables.
 - `scripts/extract.py`: extract metadata from `~/.claude` on a machine with AgentKit.

@@ -72,6 +72,58 @@ for ev, arr in hj.items():
             hooks.append({'event': ev, 'matcher': m.get('matcher'), 'script': script, 'doc': doc})
 
 rules = [{'id': f.stem, 'text': f.read_text()} for f in sorted((HOME / 'rules').glob('*.md'))]
+
+def relations():
+    """Cạnh skill→skill, skill→agent, agent→agent, agent→skill, hook→skill tìm thấy trong source kit.
+    Mỗi cạnh ghi nơi xuất hiện (core = SKILL.md, ref = references/) và flag của skill nguồn nằm cùng dòng."""
+    skill_ids = {s['id'] for s in skills}
+    agent_ids = {a['id'] for a in agents}
+    alt = '|'.join(sorted(agent_ids | {'Explore'}, key=len, reverse=True))
+    agent_pats = [re.compile(p % alt) for p in (
+        r'subagent_type\s*[=:]\s*["\']?(%s)\b', r'`(%s)`', r'Task\(\s*["\']?(%s)\b',
+        r'\b(%s)\s+(?:agent|subagent)s?\b')]
+    # Tên agent có gạch nối không trùng từ thường, nên nhận cả khi viết trơn.
+    plain = re.compile(r'(?<![\w/-])(%s)(?![\w-])' % '|'.join(sorted((a for a in agent_ids if '-' in a), key=len, reverse=True)))
+    skill_pats = [re.compile(r'\bak[:](\w[\w-]*)'), re.compile(r'the (?:engineer|installed) ([a-z0-9-]+) skill')]
+    edges = {}
+    def add(src, kind, dst, where, flags):
+        e = edges.setdefault((src, kind, dst), {'from': src, 'kind': kind, 'to': dst, 'where': set(), 'flags': set(), 'n': 0})
+        e['where'].add(where); e['flags'].update(flags); e['n'] += 1
+    def scan(src, text, where, own_flags, want_agents=True):
+        for line in text.splitlines():
+            flags = [f for f in re.findall(r'--[a-z][a-z0-9-]*', line) if f in own_flags]
+            for p in skill_pats:
+                for m in p.findall(line):
+                    dst = 'ak-' + m.rstrip('-')
+                    if dst in skill_ids and dst != src:
+                        add(src, 'skill', dst, where, flags)
+            if want_agents:
+                found = {m for p in agent_pats + [plain] for m in p.findall(line)}
+                for m in found:
+                    add(src, 'agent', 'explore' if m == 'Explore' else m, where, flags)
+    for s in skills:
+        if not s['id'].startswith('ak-'):
+            continue
+        d = HOME / 'skills' / s['id']
+        own = set(s['flags'])
+        scan(s['id'], (d / 'SKILL.md').read_text(errors='ignore'), 'core', own)
+        for f in sorted(d.glob('references/**/*.md')):
+            scan(s['id'], f.read_text(errors='ignore'), 'ref', own)
+    for a in agents:
+        text = (HOME / 'agents' / f"{a['id']}.md").read_text(errors='ignore')
+        for m in re.findall(r'Task\(([\w-]+)\)', a['tools']):
+            add(a['id'], 'agent', m.lower(), 'tools', [])
+        scan(a['id'], text, 'core', set(), want_agents=False)
+    for h in {h['script'] for h in hooks}:
+        src = HOME / 'hooks' / h
+        if src.exists():
+            scan(h, src.read_text(errors='ignore'), 'core', set(), want_agents=False)
+    out = []
+    for e in edges.values():
+        if e['from'] == e['to']:
+            continue
+        out.append({**e, 'where': sorted(e['where']), 'flags': sorted(e['flags'])})
+    return sorted(out, key=lambda e: (e['from'], e['kind'], e['to']))
 def ak_meta():
     """Phiên bản ak CLI và Engineer Kit đang cài, cùng thời điểm trích dữ liệu."""
     meta = {'extractedAt': datetime.datetime.now().astimezone().isoformat(timespec='minutes')}
@@ -88,6 +140,6 @@ def ak_meta():
 
 OUT.mkdir(exist_ok=True)
 (OUT / 'meta.json').write_text(json.dumps(ak_meta(), ensure_ascii=False, indent=1))
-for n, d in [('skills', skills), ('agents', agents), ('hooks', hooks), ('rules', rules)]:
+for n, d in [('skills', skills), ('agents', agents), ('hooks', hooks), ('rules', rules), ('relations', relations())]:
     (OUT / f'{n}.json').write_text(json.dumps(d, ensure_ascii=False, indent=1))
 print(len(skills), 'skills', len(agents), 'agents', len(hooks), 'hooks', len(rules), 'rules')

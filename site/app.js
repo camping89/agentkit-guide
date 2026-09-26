@@ -25,6 +25,7 @@
       userInv: 'callable with /', modelInv: 'model can auto-invoke', manualOnly: 'manual only', lines: 'lines in SKILL.md',
       syntax: 'Syntax', chainLabel: 'Position in workflow', overview: 'Overview', original: 'Original description (frontmatter)',
       how: 'How it works', params: 'Parameters', examples: 'Examples', useWhen: 'Use when', avoidWhen: 'Avoid when', tips: 'Tips',
+      rel: 'Relationships', relNote: 'Every link below was found in the installed kit source by scripts/extract.py, not written by hand.',
       agents: 'Subagents spawned', artifacts: 'Artifacts produced', related: 'Related skills', refFiles: 'Reference files', sections: 'Sections in SKILL.md',
       matrixNote: 'Only flags used by 2+ skills. See each skill page for its own flags.',
       levels: { '': 'All levels', easy: 'Easy', medium: 'Medium', advanced: 'Advanced' }, steps: 'steps', when: 'Use when', options: 'Options',
@@ -48,6 +49,7 @@
       userInv: 'bạn gọi được bằng /', modelInv: 'model tự kích hoạt được', manualOnly: 'chỉ gọi thủ công', lines: 'dòng SKILL.md',
       syntax: 'Cú pháp', chainLabel: 'Vị trí trong workflow', overview: 'Tổng quan', original: 'Mô tả gốc (frontmatter)',
       how: 'Cách hoạt động', params: 'Tham số', examples: 'Ví dụ', useWhen: 'Nên dùng khi', avoidWhen: 'Không nên dùng khi', tips: 'Mẹo',
+      rel: 'Sơ đồ quan hệ', relNote: 'Mọi liên kết dưới đây do scripts/extract.py tìm thấy trong source kit đã cài, không viết tay.',
       agents: 'Subagent được spawn', artifacts: 'Artifact tạo ra', related: 'Skill liên quan', refFiles: 'File references', sections: 'Các mục trong SKILL.md',
       matrixNote: 'Chỉ hiện flag có ở từ 2 skill trở lên. Flag riêng của từng skill xem ở trang chi tiết.',
       levels: { '': 'Mọi mức', easy: 'Dễ', medium: 'Vừa', advanced: 'Nâng cao' }, steps: 'bước', when: 'Dùng khi', options: 'Tùy chọn',
@@ -125,6 +127,7 @@
   });
   const uniqueHooks = Object.keys(byScript).length;
 
+  let REL;
   const usedBy = {};
   Object.entries(D.detail.vi).forEach(([sid, d]) => (d.agents || []).forEach((a) => {
     const k = String(a).toLowerCase().replace(/[`\s].*$/, '');
@@ -193,7 +196,7 @@
     $('#agentsGrid').innerHTML = D.agents
       .filter((a) => !q || (a.id + a.description + a.model).toLowerCase().includes(q))
       .map((a) => {
-        const users = [...(usedBy[a.id] || [])];
+        const users = [...new Set([...REL.spawnedBy(a.id), ...(usedBy[a.id] || [])])].sort();
         return `<div class="card agent"><div class="row"><h3>${esc(a.id)}</h3><span class="model m-${esc(a.model)}">${esc(a.model || 'inherit')}</span></div>
         <p>${esc(a.description.replace(/\s*Examples?:.*$/s, '').slice(0, 420))}</p>
         ${a.tools ? `<p class="muted small">${t().tools}: ${esc(a.tools)}</p>` : ''}
@@ -263,9 +266,34 @@
         <div><h2>${L.artifacts}</h2>${bullets(d.artifacts)}</div>
       </div>
       ${d.related && d.related.length ? `<h2>${L.related}</h2><p class="related">${d.related.map(skillLink).join(' · ')}</p>` : ''}
+      <h2>${L.rel}</h2><p class="muted small">${L.relNote}</p>${REL.ego(id)}
       ${s.references.length ? `<details><summary>${L.refFiles} (${s.references.length})</summary><p class="small">${s.references.map(code).join(' ')}</p></details>` : ''}
       ${s.sections.length ? `<details><summary>${L.sections}</summary><p class="small">${s.sections.map(esc).join(' · ')}</p></details>` : ''}`;
+    REL.bindHover($('#skillDetail'));
   };
+
+  // ---------- Relationship map ----------
+  let mapFocus = 'ak-cook';
+  const renderMap = () => {
+    const opt = Object.fromEntries(['kSkill', 'kAgent', 'kOther', 'coreOnly', 'hideCat'].map((k) => [k, $('#map-' + k).checked]));
+    $('#mapGraph').innerHTML = REL.mapSvg(opt);
+    $('#mapHubs').innerHTML = REL.hubTables();
+    renderMapEgo();
+    REL.bindHover($('#mapGraph'));
+  };
+  const renderMapEgo = () => {
+    const isSkill = REL.kindOf(mapFocus) === 'skill';
+    $('#mapEgo').innerHTML = `<h2>${esc(REL.label(mapFocus))}${isSkill ? ` <a class="small" href="#/skill/${mapFocus}">${REL.L.open} →</a>` : ''}</h2>${REL.ego(mapFocus)}`;
+    REL.bindHover($('#mapEgo'));
+  };
+  $('#mapGraph').addEventListener('click', (e) => {
+    const n = e.target.closest('[data-id]');
+    if (!n) return;
+    mapFocus = n.dataset.id;
+    renderMapEgo();
+    $('#mapEgo').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  document.querySelectorAll('#mapControls input').forEach((i) => i.addEventListener('input', renderMap));
 
   const renderWf = () => {
     const lv = $('#wfLevel').value, L = t();
@@ -315,7 +343,10 @@
     if (!keepScroll) window.scrollTo(0, 0);
   };
 
-  const renderAll = () => { renderChrome(); renderStatic(); renderAgents(); renderSkills(); renderWf(); };
+  const renderAll = () => {
+    REL = window.AK_REL({ D, esc, cmd, skillById, groupOf, groupLabel, lang });
+    renderChrome(); renderMap(); renderStatic(); renderAgents(); renderSkills(); renderWf();
+  };
   $('#agentFilter').addEventListener('input', renderAgents);
   ['skillFilter', 'groupFilter', 'kitFilter', 'commonOnly'].forEach((id) => $('#' + id).addEventListener('input', renderSkills));
   $('#wfLevel').addEventListener('input', renderWf);
