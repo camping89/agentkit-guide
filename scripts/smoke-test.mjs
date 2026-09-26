@@ -17,11 +17,14 @@ for (const r of routes) {
 }
 const lang0 = await page.evaluate(() => document.documentElement.dataset.lang);
 await page.goto(`${base}#/home`);
-await page.click('#langBtn');
+await page.click('#langSwitch [data-l="vi"]');
 const lang1 = await page.evaluate(() => document.documentElement.dataset.lang);
 const viText = await page.$eval('section[data-page="home"]', (s) => s.innerText.slice(0, 40));
 if (process.env.SHOTS) await page.screenshot({ path: '/tmp/akg-home-vi.png' });
-await page.click('#langBtn');
+const leakVi = await page.$$eval('[lang="en"]', (els) => els.filter((e) => e !== document.documentElement && e.offsetParent !== null).length);
+await page.click('#langSwitch [data-l="en"]');
+const leakEn = await page.$$eval('[lang="vi"]', (els) => els.filter((e) => e.offsetParent !== null).length);
+if (leakVi || leakEn) errors.push(`language leak: ${leakEn} vi visible in EN, ${leakVi} en visible in VI`);
 console.log('lang default', lang0, '-> toggled', lang1, '|', viText.replace(/\n/g, ' '));
 await page.fill('#globalSearch', '--tdd');
 console.log('search hits', await page.$$eval('#searchResults a', (a) => a.length));

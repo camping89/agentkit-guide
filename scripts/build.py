@@ -31,6 +31,15 @@ bundle['rules'] = [{'id': r['id']} for r in bundle['rules']]
 for h in bundle['hooks']:
     h['doc'] = ''
 (ROOT / 'site' / 'data.js').write_text('window.AK_DATA=' + json.dumps(bundle, ensure_ascii=False) + ';\n')
+
+# Cache-busting: gắn ?v=<hash nội dung> cho asset để trình duyệt không dùng lại JS/CSS cũ sau mỗi lần deploy.
+import hashlib, re
+index = ROOT / 'site' / 'index.html'
+html = index.read_text()
+for asset in ['styles.css', 'data.js', 'content-en.js', 'content-vi.js', 'app.js']:
+    digest = hashlib.sha256((ROOT / 'site' / asset).read_bytes()).hexdigest()[:10]
+    html = re.sub(r'(["\'])' + re.escape(asset) + r'(\?v=[0-9a-f]+)?\1', lambda m: f'{m.group(1)}{asset}?v={digest}{m.group(1)}', html)
+index.write_text(html)
 ak = bundle['skills']
 missing = [s['id'] for s in ak if s['id'] not in detail]
 missing_en = [s['id'] for s in ak if s['id'] not in detail_en]

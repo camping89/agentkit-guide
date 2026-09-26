@@ -30,7 +30,6 @@
       levels: { '': 'All levels', easy: 'Easy', medium: 'Medium', advanced: 'Advanced' }, steps: 'steps', when: 'Use when', options: 'Options',
       chooserCols: ['I want to…', 'Use', 'Look-alikes / alternatives'], cliCols: ['Command', 'What it does', 'Subcommands / flags'],
       buildInfo: (a, d, ag, h, r) => `Data: ${a} Engineer skills (${d} with detailed explanations), ${ag} agents, ${h} hooks, ${r} rules.`,
-      langBtn: 'VI', groups: {},
     },
     vi: {
       menu: 'Mở menu', search: 'Tìm skill, flag, agent, hook…  (phím /)', noResults: 'Không có kết quả',
@@ -54,7 +53,6 @@
       levels: { '': 'Mọi mức', easy: 'Dễ', medium: 'Vừa', advanced: 'Nâng cao' }, steps: 'bước', when: 'Dùng khi', options: 'Tùy chọn',
       chooserCols: ['Tôi muốn…', 'Dùng', 'Phân biệt / thay thế'], cliCols: ['Lệnh', 'Làm gì', 'Subcommand / flag'],
       buildInfo: (a, d, ag, h, r) => `Dữ liệu: ${a} skills Engineer (${d} có diễn giải chi tiết), ${ag} agents, ${h} hooks, ${r} rules.`,
-      langBtn: 'EN', groups: null,
     },
   };
   const GROUP_EN = { start: 'Start here (essentials)', plan: 'Plan & research', build: 'Build & ship', git: 'Git, PRs & worktrees', session: 'Sessions, orchestration & knowledge', docs: 'Docs & diagrams', frontend: 'Frontend, design & media' };
@@ -137,7 +135,7 @@
   const renderChrome = () => {
     document.documentElement.lang = lang;
     document.documentElement.dataset.lang = lang;
-    $('#langBtn').textContent = t().langBtn;
+    document.querySelectorAll('#langSwitch button').forEach((b) => b.classList.toggle('active', b.dataset.l === lang));
     $('#menuBtn').setAttribute('aria-label', t().menu);
     $('#globalSearch').placeholder = t().search;
     $('#agentFilter').placeholder = t().agentFilter;
@@ -321,8 +319,10 @@
   $('#agentFilter').addEventListener('input', renderAgents);
   ['skillFilter', 'groupFilter', 'kitFilter', 'commonOnly'].forEach((id) => $('#' + id).addEventListener('input', renderSkills));
   $('#wfLevel').addEventListener('input', renderWf);
-  $('#langBtn').addEventListener('click', () => {
-    lang = lang === 'en' ? 'vi' : 'en';
+  $('#langSwitch').addEventListener('click', (e) => {
+    const next = e.target.dataset && e.target.dataset.l;
+    if (!next || next === lang) return;
+    lang = next;
     localStorage.setItem('ak-lang', lang);
     renderAll();
     route(true);

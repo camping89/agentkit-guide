@@ -6,7 +6,8 @@
 <title>AgentKit Guide: layers, skills, flags, workflows</title>
 <meta name="description" content="A concise guide to the AgentKit Engineer Kit: layers, the life of a prompt, hooks, rules, agents, 102 skills with parameters, workflows by task, and tips. English and Vietnamese.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%237c9cff%22/%3E%3Ctext x=%2216%22 y=%2222%22 font-size=%2215%22 text-anchor=%22middle%22 font-family=%22sans-serif%22 font-weight=%22bold%22 fill=%22%230e1117%22%3EAK%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="styles.css">
+<style>html[data-lang="en"] [lang="vi"], html[data-lang="vi"] [lang="en"] { display: none !important; }</style>
+<link rel="stylesheet" href="styles.css?v=5c19d8cfe0">
 </head>
 <body>
 <header class="topbar">
@@ -16,7 +17,7 @@
     <input id="globalSearch" type="search" placeholder="Tìm skill, flag, agent, hook…  (phím /)" autocomplete="off">
     <div id="searchResults" class="search-results" hidden></div>
   </div>
-  <button class="lang-btn" id="langBtn" title="Switch language / Đổi ngôn ngữ">VI</button>
+  <div class="lang-switch" id="langSwitch" role="group" aria-label="Language / Ngôn ngữ"><button data-l="en">EN</button><button data-l="vi">VI</button></div>
   <span class="ver" id="verBadge" title="Phiên bản AgentKit mà site đang mô tả"></span>
 </header>
 
@@ -926,9 +927,9 @@ python3 -m http.server 8765 -d site   # hoặc mở thẳng site/index.html
   <footer class="site-footer" id="siteFooter"></footer>
 </main>
 <div id="overlay" class="overlay" hidden></div>
-<script src="data.js"></script>
-<script src="content-en.js"></script>
-<script src="content-vi.js"></script>
-<script src="app.js"></script>
+<script src="data.js?v=c1ba23672d"></script>
+<script src="content-en.js?v=e92498f713"></script>
+<script src="content-vi.js?v=2a5307b140"></script>
+<script src="app.js?v=e71ca356e8"></script>
 </body>
 </html>
