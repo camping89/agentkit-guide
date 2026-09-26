@@ -1,5 +1,5 @@
 """Trích metadata AgentKit đã cài (~/.claude) thành data/*.json cho website."""
-import json, re, pathlib
+import json, re, pathlib, subprocess, datetime
 HOME = pathlib.Path.home() / '.claude'
 OUT = pathlib.Path(__file__).resolve().parent.parent / 'data'
 
@@ -72,7 +72,22 @@ for ev, arr in hj.items():
             hooks.append({'event': ev, 'matcher': m.get('matcher'), 'script': script, 'doc': doc})
 
 rules = [{'id': f.stem, 'text': f.read_text()} for f in sorted((HOME / 'rules').glob('*.md'))]
+def ak_meta():
+    """Phiên bản ak CLI và Engineer Kit đang cài, cùng thời điểm trích dữ liệu."""
+    meta = {'extractedAt': datetime.datetime.now().astimezone().isoformat(timespec='minutes')}
+    try:
+        v = json.loads(subprocess.run(['ak', 'versions', '--json', '--local-only'], capture_output=True, text=True, timeout=30).stdout)
+        b = v['data']['binary']
+        meta.update(akVersion=b.get('version', ''), akBuildDate=b.get('date', '')[:10])
+    except Exception:
+        pass
+    manifest = pathlib.Path.home() / '.agentkit/adapters/claude-code/engineer/.agentkit/install-manifest.json'
+    if manifest.exists():
+        meta['engineerKitVersion'] = json.loads(manifest.read_text()).get('kit_version', '')
+    return meta
+
 OUT.mkdir(exist_ok=True)
+(OUT / 'meta.json').write_text(json.dumps(ak_meta(), ensure_ascii=False, indent=1))
 for n, d in [('skills', skills), ('agents', agents), ('hooks', hooks), ('rules', rules)]:
     (OUT / f'{n}.json').write_text(json.dumps(d, ensure_ascii=False, indent=1))
 print(len(skills), 'skills', len(agents), 'agents', len(hooks), 'hooks', len(rules), 'rules')

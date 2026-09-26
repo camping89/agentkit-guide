@@ -20,14 +20,25 @@
   // ---------- Home stats ----------
   const uniqueHooks = new Set(D.hooks.map((h) => h.script)).size;
   $('#homeStats').innerHTML = [
-    [akSkills.length, 'skills AgentKit'],
+    [akSkills.length, 'skills Engineer'],
     [D.agents.length, 'agents'],
     [uniqueHooks, 'hook scripts'],
     [new Set(D.hooks.map((h) => h.event)).size, 'sự kiện lifecycle'],
     [D.rules.length, 'rules'],
     [new Set(akSkills.flatMap((s) => s.flags)).size, 'flag khác nhau'],
   ].map(([n, l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
-  $('#verBadge').textContent = `${akSkills.length} skills`;
+  const M = D.meta || {};
+  const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '?');
+  const updated = fmtDate(M.extractedAt);
+  $('#verBadge').textContent = `ak ${M.akVersion || '?'} · Engineer ${M.engineerKitVersion || '?'} · cập nhật ${updated}`;
+  $('#versionLine').innerHTML = `Nội dung ứng với <b>ak CLI ${esc(M.akVersion || '?')}</b> (build ${esc(fmtDate(M.akBuildDate))}), <b>Engineer Kit ${esc(M.engineerKitVersion || '?')}</b>. Cập nhật lần cuối: <b>${esc(updated)}</b>.`;
+  $('#versionTable').innerHTML = `<table>
+    <tr><th>Thành phần</th><th>Phiên bản</th></tr>
+    <tr><td>ak CLI</td><td>${code(M.akVersion || '?')} (build ${esc(fmtDate(M.akBuildDate))})</td></tr>
+    <tr><td>Engineer Kit</td><td>${code(M.engineerKitVersion || '?')}</td></tr>
+    <tr><td>Dữ liệu trích lúc</td><td>${esc(M.extractedAt ? new Date(M.extractedAt).toLocaleString('vi-VN') : '?')}</td></tr>
+  </table><p class="small muted">Kiểm tra phiên bản trên máy bạn: ${code('ak --version')} và ${code('ak versions')}. Nếu bản của bạn mới hơn, có thể vài flag hoặc skill đã thay đổi.</p>`;
+  $('#siteFooter').innerHTML = `AgentKit Guide · ak ${esc(M.akVersion || '?')} · Engineer Kit ${esc(M.engineerKitVersion || '?')} · Cập nhật ${esc(updated)} · <a href="#/sources">Nguồn &amp; cách cập nhật</a>`;
 
   // ---------- Hooks ----------
   const byScript = {};

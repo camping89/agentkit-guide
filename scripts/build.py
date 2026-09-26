@@ -5,7 +5,7 @@ D = ROOT / 'data'
 detail = {}
 for f in sorted((D / 'detail').glob('*.json')):
     detail.update(json.loads(f.read_text()))
-bundle = {n: json.loads((D / f'{n}.json').read_text()) for n in ['skills', 'agents', 'hooks', 'rules', 'groups']}
+bundle = {n: json.loads((D / f'{n}.json').read_text()) for n in ['skills', 'agents', 'hooks', 'rules', 'groups', 'meta']}
 # Site chỉ phủ Engineer Kit: bỏ nhóm marketing, agent marketing và skill riêng ngoài AgentKit.
 MARKETING_AGENTS = {'analytics-analyst', 'attraction-specialist', 'campaign-debugger', 'campaign-manager',
                     'community-manager', 'content-creator', 'content-reviewer', 'continuity-specialist',

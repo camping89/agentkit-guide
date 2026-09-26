@@ -40,7 +40,9 @@ input[type=search]:focus, select:focus { outline: 2px solid var(--accent); borde
 .search-results a:hover { background: var(--panel2); text-decoration: none; }
 .search-results a span { display: block; color: var(--muted); font-size: .85em; }
 .search-results .muted { padding: 12px; }
-.ver { color: var(--muted); font-size: .85em; white-space: nowrap; }
+.ver { color: var(--muted); font-size: .8em; white-space: nowrap; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; }
+.version-line { color: var(--muted); font-size: .92em; margin: 0; }
+.site-footer { margin-top: 60px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: .85em; }
 .sidebar { position: fixed; top: var(--top); bottom: 0; left: 0; width: var(--side); overflow-y: auto; padding: 14px 10px 40px; border-right: 1px solid var(--line); background: var(--bg); z-index: 15; }
 .sidebar a { display: block; padding: 6px 12px; border-radius: 7px; color: var(--text); font-size: .94em; }
 .sidebar a:hover { background: var(--panel); text-decoration: none; }

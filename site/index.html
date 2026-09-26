@@ -16,7 +16,7 @@
     <input id="globalSearch" type="search" placeholder="Tìm skill, flag, agent, hook…  (phím /)" autocomplete="off">
     <div id="searchResults" class="search-results" hidden></div>
   </div>
-  <span class="ver" id="verBadge"></span>
+  <span class="ver" id="verBadge" title="Phiên bản AgentKit mà site đang mô tả"></span>
 </header>
 
 <nav class="sidebar" id="sidebar">
@@ -49,6 +49,7 @@
   <div class="hero">
     <h1>AgentKit, giải thích từng layer</h1>
     <p class="lead">AgentKit là bộ workflow cài vào coding agent (Claude Code, Codex, Cursor…). Nó thêm các <b>skill</b> (quy trình có tên như <code>/ak:plan</code>, <code>/ak:cook</code>), các <b>agent</b> chuyên trách, <b>hook</b> chạy theo sự kiện, và <b>rule</b> định hướng hành vi. Trang này giải thích mỗi phần nằm ở đâu, chạy khi nào, xử lý ra sao, và khi nào nên dùng skill nào với tham số gì.</p>
+    <p class="version-line" id="versionLine"></p>
     <div class="stats" id="homeStats"></div>
   </div>
 
@@ -490,9 +491,12 @@ python3 scripts/build.py
 # Xem thử site
 python3 -m http.server 8765 -d site   # hoặc mở thẳng site/index.html
 # Push lên main sẽ tự deploy GitHub Pages</code></pre>
+  <h2>Phiên bản đang mô tả</h2>
+  <div id="versionTable"></div>
   <p class="muted" id="buildInfo"></p>
 </section>
 
+  <footer class="site-footer" id="siteFooter"></footer>
 </main>
 <div id="overlay" class="overlay" hidden></div>
 <script src="data.js"></script>
