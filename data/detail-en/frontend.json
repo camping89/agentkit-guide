@@ -1,41 +1,29 @@
 {
  "ak-frontend-design": {
-  "tagline": "Build polished frontend UI from prompts, screenshots, videos, or components.",
-  "summary": "ak:frontend-design produces working UI that fits the purpose, brand, and references: clear hierarchy, responsive layout, accessible controls, and full interaction states. Input is a prompt, an image/video path, or a component; output is runnable UI code on the project's real stack, checked at mobile and desktop sizes. It picks a design contract first and underpins ak:show-off and the ak:stitch handoff.",
+  "tagline": "Build polished UI from prompts, screenshots, videos, or components.",
+  "summary": "ak:frontend-design turns a prompt, image/video path, or component into runnable UI code on the project's real stack, with responsive layout, accessible controls, and full interaction states. It picks a design contract first and underpins ak:show-off and the ak:stitch handoff.",
   "howItWorks": [
-   "Picks a design contract by intent: keep/improve existing UI, replicate screenshot, replicate video, describe only, new UI, 3D/WebGL, quick, or immersive.",
-   "Each contract has its own workflow file (workflow-screenshot.md, workflow-video.md, workflow-describe.md, workflow-3d.md, workflow-quick.md, workflow-immersive.md).",
-   "New UI defines purpose, audience, content, and art direction; aesthetic-recipes.md is optional.",
-   "Uses the real stack and existing design system; asks only when a missing decision changes the result significantly.",
-   "For replication, ak:ai-multimodal extracts fonts, hex colors, radius, spacing, and shadows; ak:ui-ux-pro-max is activated.",
-   "The ui-ux-designer subagent writes plan.md and phases, then implements them.",
-   "Uses real content and assets; never invents stats or testimonials.",
-   "Defines consistent typography, color, and spacing, plus default, hover, focus-visible, active, disabled, loading, and error/success states.",
-   "Ensures semantic controls, keyboard support, visible focus, contrast, touch targets, and reduced-motion fallbacks.",
-   "Content stays visible if JS or animation fails.",
-   "Checks real rendering at mobile and desktop sizes and compares against the source when replicating.",
-   "Checks overflow, text wrap, assets, interactions, build, and tests; fixes issues and reports unverified parts honestly.",
-   "Uses ../ak-design/references/handoff-gate.md for the final artifact handoff when needed."
+   "Picks a design contract: improve existing UI, replicate screenshot/video, describe only, new UI, 3D/WebGL, quick, or immersive.",
+   "For replication, ak:ai-multimodal extracts fonts, colors, radius, spacing, and shadows; ak:ui-ux-pro-max is activated.",
+   "The ui-ux-designer subagent writes plan.md and phases, then implements them on the real stack and design system.",
+   "Uses real content, all interaction states, and accessible controls; never invents stats or testimonials.",
+   "Checks rendering at mobile and desktop sizes, build, and tests; reports unverified parts honestly."
   ],
   "useWhen": [
    "You have a UI screenshot or video and want an exact replica.",
    "You need a new landing page or component with its own art direction.",
-   "You want a quick prototype to demo an idea.",
-   "You are building an immersive or 3D/WebGL web experience.",
-   "You need a detailed design description (design extraction) without code."
+   "You want a quick prototype or an immersive 3D/WebGL experience."
   ],
   "avoidWhen": [
-   "The work is mostly React/TypeScript logic, data fetching, or routing: use ak-frontend-development.",
-   "You only need a shadcn component or a Tailwind theme tweak: use ak-ui-styling.",
-   "You need UX strategy, style/palette/font choice, or an a11y review: use ak-ui-ux-pro-max.",
-   "You need a logo, banner, or brand identity: use ak-design.",
-   "You are optimizing React/Next.js performance: use ak-react-best-practices."
+   "Mostly React/TypeScript logic, data fetching, or routing: use ak-frontend-development.",
+   "Only a shadcn component or Tailwind theme tweak: use ak-ui-styling.",
+   "Logo, banner, or brand identity: use ak-design."
   ],
   "params": [
    {
     "name": "[prompt|image-path|component]",
     "kind": "arg",
-    "desc": "A UI prompt, an image/video path to replicate, or a component to build or improve; determines the design contract."
+    "desc": "UI prompt, image/video path to replicate, or component to improve; determines the design contract."
    }
   ],
   "examples": [
@@ -48,25 +36,14 @@
     "note": "New UI with art direction."
    },
    {
-    "cmd": "/ak:frontend-design ./recordings/onboarding.mp4",
-    "note": "Replicate motion and states from a video."
-   },
-   {
     "cmd": "/ak:frontend-design PricingCard",
-    "note": "Improve an existing component while keeping current tokens."
-   },
-   {
-    "cmd": "/ak:frontend-design rotatable 3D headphone product hero",
-    "note": "3D/WebGL workflow."
+    "note": "Improve an existing component, keeping current tokens."
    }
   ],
   "tips": [
-   "When replicating, identify the actual font (Google Fonts); avoid defaulting to Inter or Poppins.",
+   "When replicating, identify the actual font; avoid defaulting to Inter or Poppins.",
    "With no framework specified, the screenshot workflow defaults to HTML/CSS/JS.",
-   "Generate image assets with ak:ai-multimodal and process them with ak:media-processing.",
-   "For motion, see motion-craft.md (GSAP/Motion) or animejs.md.",
-   "Seeded variation, layout quotas, and motion are exploration techniques; they must not override accepted taste.",
-   "design-quality-preflight.md is the shared anti-'AI slop' preflight for other design skills."
+   "Generate image assets with ak:ai-multimodal and process them with ak:media-processing."
   ],
   "related": [
    "ak-ui-ux-pro-max",
@@ -83,67 +60,51 @@
    "researcher"
   ],
   "artifacts": [
-   "UI code (HTML/CSS/JS or components on the project stack)",
-   "plan.md and phase-XX-*.md in the plan folder (screenshot/video/3D workflows)",
+   "UI code (HTML/CSS/JS or project-stack components)",
+   "plan.md and phase-XX-*.md (screenshot/video/3D workflows)",
    "Generated image assets when needed"
   ]
  },
  "ak-frontend-development": {
-  "tagline": "Implement React/TypeScript frontends with modern patterns, on the project's own stack.",
-  "summary": "ak:frontend-development covers components, data fetching, routing, loading/error states, performance, and TypeScript for React frontends. Input is a component or feature; output is React/TS code checked in the real router, with build and types passing. It respects the existing stack: a Next.js/shadcn task never gets MUI or TanStack Router installed.",
+  "tagline": "Implement React/TypeScript frontends with modern patterns on your stack.",
+  "summary": "ak:frontend-development builds React/TS components, data fetching, routing, and loading/error states, verified in the real router with build and types passing. It respects the existing stack and never installs MUI or TanStack Router into a project that lacks them.",
   "howItWorks": [
-   "Inspects the package manifest, router/data libraries, component conventions, tsconfig aliases, and styling before editing.",
-   "Keeps the project stack and uses only APIs the installed versions support.",
-   "Picks a topic guide via references/topic-guides.md or the Navigation table (components, data fetching, routing, styling, performance, TypeScript, and more).",
-   "Implements typed prop/data boundaries, accessible semantic controls, correct hooks, and effect cleanup.",
-   "Covers loading, error, and empty states and responsive layout.",
-   "Chooses memo or lazy loading based on real cost.",
-   "Follows existing exports, folders, and aliases; uses references/stack-recipes.md only if the project already uses MUI/TanStack.",
-   "Tests components in the real router, verifies build, types, and interactions, and reports untested runtime behavior."
+   "Inspects package manifest, router/data libraries, conventions, aliases, and styling before editing.",
+   "Implements typed boundaries, accessible controls, correct hooks, effect cleanup, and loading/error/empty states.",
+   "Uses references/stack-recipes.md only if the project already uses MUI/TanStack.",
+   "Tests in the real router, verifies build and types, and reports untested runtime behavior."
   ],
   "useWhen": [
    "Writing a new React/TypeScript component that follows project conventions.",
-   "Adding Suspense/useSuspenseQuery data fetching in a project that already uses TanStack Query.",
-   "Setting up routes, lazy loading, and loading/error boundaries.",
-   "Standardizing TypeScript types and feature folder layout."
+   "Adding Suspense/useSuspenseQuery data fetching where TanStack Query already exists.",
+   "Setting up routes, lazy loading, and loading/error boundaries."
   ],
   "avoidWhen": [
-   "Visual fidelity and polished UI are the focus: use ak-frontend-design.",
-   "You have a measured React/Next.js performance problem: use ak-react-best-practices.",
-   "Next.js App Router, RSC, SSR, ISR, or Turborepo work: use ak-web-frameworks.",
-   "TanStack Start, Form, or AI: use ak-tanstack.",
-   "Styling only with shadcn/Tailwind: use ak-ui-styling."
+   "Visual fidelity is the focus: use ak-frontend-design.",
+   "Measured React/Next.js performance problem: use ak-react-best-practices.",
+   "Next.js App Router, SSR, or Turborepo work: use ak-web-frameworks."
   ],
   "params": [
    {
     "name": "[component or feature]",
     "kind": "arg",
-    "desc": "The frontend component or feature to implement or fix."
+    "desc": "Frontend component or feature to implement or fix."
    }
   ],
   "examples": [
    {
     "cmd": "/ak:frontend-development UserProfileCard",
-    "note": "Create a component with typed props and all states."
+    "note": "Component with typed props and all states."
    },
    {
     "cmd": "/ak:frontend-development paginated order list page",
     "note": "Data fetching plus loading/error/empty states."
-   },
-   {
-    "cmd": "/ak:frontend-development lazy load the admin page",
-    "note": "Route-level code splitting with Suspense."
-   },
-   {
-    "cmd": "/ak:frontend-development sign-up form with validation",
-    "note": "Uses common-patterns for Forms/Auth."
    }
   ],
   "tips": [
-   "Do not add MUI or TanStack Router if the project does not use them; skill recipes are examples only.",
-   "Do not memoize everything; choose memo/lazy based on actual cost.",
-   "Always test components inside the real router, not only in isolation.",
-   "Clean up effects (listeners, subscriptions, timers) to avoid leaks."
+   "Skill recipes for MUI/TanStack Router are examples only; do not add them to other stacks.",
+   "Choose memo/lazy by actual cost; do not memoize everything.",
+   "Clean up listeners, subscriptions, and timers in effects to avoid leaks."
   ],
   "related": [
    "ak-frontend-design",
@@ -155,38 +116,32 @@
   ],
   "agents": [],
   "artifacts": [
-   "React TypeScript component/hook/route files in the project structure"
+   "React TypeScript component/hook/route files"
   ]
  },
  "ak-react-best-practices": {
-  "tagline": "45 React/Next.js performance rules from Vercel Engineering, ranked by impact.",
-  "summary": "ak:react-best-practices is Vercel's React and Next.js performance guide: 45 rules in 8 priority-ordered groups, from eliminating waterfalls and bundle size to re-renders and advanced patterns. Input is a component or pattern with a performance issue; output is a rule-based refactor with before/after metrics. Use it for measured or identified bottlenecks, not blanket memoization.",
+  "tagline": "45 Vercel React/Next.js performance rules, ranked by impact.",
+  "summary": "ak:react-best-practices applies Vercel's 45 React/Next.js performance rules in 8 priority groups, from waterfalls and bundle size to re-renders. Use it on a measured bottleneck to get a rule-based refactor with before/after metrics.",
   "howItWorks": [
-   "Identifies an observed bottleneck (profile, network waterfall, bundle, render).",
-   "Picks relevant rules by group prefix: async-, bundle-, server-, client-, rerender-, rendering-, js-, advanced-.",
-   "Reads the individual rule file in rules/ (e.g. rules/async-parallel.md): explanation, bad example, good example, extra context.",
-   "Verifies APIs against the project's React/Next.js version.",
-   "Applies the change and compares network, render, or bundle metrics before and after.",
-   "Reads AGENTS.md (the compiled guide) only for a broad audit."
+   "Starts from an observed bottleneck: profile, waterfall, bundle, or render.",
+   "Picks rules by prefix (async-, bundle-, rerender-, ...), reads each rules/ file, and checks version support.",
+   "Applies the change and compares metrics before and after; reads AGENTS.md only for broad audits."
   ],
   "useWhen": [
-   "Request waterfalls in server components or API routes (async-parallel, async-defer-await).",
-   "Bundles bloated by barrel imports or heavy libraries (bundle-barrel-imports, bundle-dynamic-imports).",
-   "Excess re-renders measured with the profiler (rerender-*).",
-   "Reviewing React/Next.js code for performance before release.",
-   "Long lists that render slowly (rendering-content-visibility)."
+   "Request waterfalls in server components or API routes (async-parallel).",
+   "Bundles bloated by barrel imports or heavy libraries.",
+   "Excess re-renders measured with the profiler, or a pre-release performance review."
   ],
   "avoidWhen": [
-   "There is no evidence of a performance problem: do not apply rules wholesale.",
+   "No evidence of a performance problem: do not apply rules wholesale.",
    "Building ordinary React features: use ak-frontend-development.",
-   "Framework-level Next.js caching/SSR/ISR config: use ak-web-frameworks.",
-   "Measuring Core Web Vitals or load testing: use ak-web-testing."
+   "Next.js caching/SSR/ISR config: use ak-web-frameworks."
   ],
   "params": [
    {
     "name": "[component or pattern]",
     "kind": "arg",
-    "desc": "Component, page, or pattern to optimize or review for performance."
+    "desc": "Component, page, or pattern to optimize or review."
    }
   ],
   "examples": [
@@ -195,23 +150,14 @@
     "note": "Remove fetch waterfalls in a server component."
    },
    {
-    "cmd": "/ak:react-best-practices barrel imports in components/index.ts",
-    "note": "Reduce bundle size."
-   },
-   {
-    "cmd": "/ak:react-best-practices ProductList re-render",
-    "note": "Fix re-renders measured with React Profiler."
-   },
-   {
     "cmd": "/ak:react-best-practices audit the whole app",
     "note": "Broad audit; only then read AGENTS.md."
    }
   ],
   "tips": [
-   "Priority labels (CRITICAL, HIGH...) describe potential impact; you need not apply every rule.",
-   "The CRITICAL groups are waterfalls and bundle size; they usually pay off most.",
-   "Some rules depend on version (e.g. after(), the Activity component, React.cache()); check first.",
-   "Always re-measure after a fix to prove the improvement."
+   "CRITICAL groups (waterfalls, bundle size) usually pay off most; you need not apply every rule.",
+   "Some rules are version-specific (after(), Activity, React.cache()); check first.",
+   "Re-measure after every fix to prove the improvement."
   ],
   "related": [
    "ak-frontend-development",
@@ -225,29 +171,22 @@
   ]
  },
  "ak-ui-styling": {
-  "tagline": "Style UIs with shadcn/ui and Tailwind: accessible components, themes, dark mode.",
-  "summary": "ak:ui-styling combines shadcn/ui (accessible Radix-based components), Tailwind CSS, and a canvas-style visual design layer. Input is a component or layout; output is added or edited components, themes, dark mode, Tailwind config, and consistent tokens. It inspects existing config and changes only what you ask, never re-initializing an existing app.",
+  "tagline": "Style UIs with shadcn/ui and Tailwind: components, themes, dark mode.",
+  "summary": "ak:ui-styling adds or edits shadcn/ui components, Tailwind config, themes, dark mode, and tokens. It inspects existing config and changes only what you ask, never re-initializing an existing app.",
   "howItWorks": [
-   "Inspects package versions, components.json, Tailwind config, tokens, and component conventions.",
-   "Classifies the change: add a component, change the theme, fix accessibility, or migrate a requested part.",
-   "Loads references/setup-recipes.md only for new or missing setup.",
-   "Loads topic references: shadcn components, theming, and accessibility; Tailwind utilities, responsive, and customization; canvas design system; common patterns.",
-   "python scripts/shadcn_add.py <component...> adds components with their dependencies.",
-   "python scripts/tailwind_config_gen.py --colors --fonts generates tailwind.config.js.",
-   "Preserves existing design decisions and focus/keyboard behavior."
+   "Inspects package versions, components.json, Tailwind config, and tokens.",
+   "Loads only the relevant shadcn/Tailwind/theming references; setup recipes only for new setup.",
+   "Runs scripts/shadcn_add.py or scripts/tailwind_config_gen.py as needed, preserving existing design and focus behavior."
   ],
   "useWhen": [
-   "Adding shadcn components such as Dialog, Data Table, or Command palette to a React app.",
+   "Adding shadcn components such as Dialog, Data Table, or Command palette.",
    "Implementing dark mode with next-themes and CSS variables.",
-   "Customizing Tailwind tokens (@theme, colors, fonts, breakpoints).",
-   "Building mobile-first responsive layouts.",
-   "Building validated forms with react-hook-form + zod on shadcn primitives."
+   "Customizing Tailwind tokens (@theme, colors, fonts, breakpoints)."
   ],
   "avoidWhen": [
-   "You need art direction and high visual fidelity: use ak-frontend-design.",
-   "You need style/palette/font choices or a UX review: use ak-ui-ux-pro-max.",
-   "React logic or data fetching: use ak-frontend-development.",
-   "Brand identity, posters, or logos: use ak-design."
+   "Art direction and high visual fidelity: use ak-frontend-design.",
+   "Style/palette/font choices or a UX review: use ak-ui-ux-pro-max.",
+   "React logic or data fetching: use ak-frontend-development."
   ],
   "params": [
    {
@@ -259,26 +198,17 @@
   "examples": [
    {
     "cmd": "/ak:ui-styling add a delete confirmation dialog",
-    "note": "Add an accessible shadcn Dialog."
+    "note": "Accessible shadcn Dialog."
    },
    {
     "cmd": "/ak:ui-styling dark mode for the whole app",
-    "note": "Set up a theme toggle and CSS variables."
-   },
-   {
-    "cmd": "/ak:ui-styling data table with sort and filter",
-    "note": "Complex data table pattern."
-   },
-   {
-    "cmd": "/ak:ui-styling change the brand color to teal",
-    "note": "Customize theme color tokens."
+    "note": "Theme toggle and CSS variables."
    }
   ],
   "tips": [
-   "Scripts need Python (own requirements.txt); latest docs are at https://ui.shadcn.com/llms.txt.",
-   "Avoid dynamic Tailwind class names because they get purged; write full class names.",
-   "Apply dark variants to every themed element to avoid color mismatches.",
-   "Do not re-init shadcn when components.json exists; add only the components you need."
+   "Write full Tailwind class names; dynamic ones get purged.",
+   "Apply dark variants to every themed element.",
+   "Do not re-init shadcn when components.json exists; add only needed components."
   ],
   "related": [
    "ak-frontend-design",
@@ -288,43 +218,29 @@
   ],
   "agents": [],
   "artifacts": [
-   "shadcn components in the codebase (e.g. components/ui/*)",
+   "shadcn components (e.g. components/ui/*)",
    "tailwind.config.js / CSS theme variables",
-   "components.json (on new setup)"
+   "components.json (new setup only)"
   ]
  },
  "ak-ui-ux-pro-max": {
   "tagline": "Searchable UI/UX design intelligence plus guideline reviews of existing UI.",
-  "summary": "ak:ui-ux-pro-max is a web and mobile design guide backed by a searchable database: 50+ styles, 161 palettes, 57 font pairings, 161 product types with reasoning rules, 99 UX guidelines, and 25 chart types across 10 stacks. Output is a design system recommendation (optionally saved as design-system/MASTER.md) or review findings with file:line. It also reviews UI against Vercel's Web Interface Guidelines; use it whenever a task changes how a feature looks, feels, moves, or is interacted with.",
+  "summary": "ak:ui-ux-pro-max recommends design systems from a searchable database of styles, palettes, font pairings, product types, UX guidelines, and chart types, optionally saved as design-system/MASTER.md. It also reviews existing UI against its rules and Vercel's Web Interface Guidelines, reporting findings with file:line.",
   "howItWorks": [
-   "Step 1: analyzes product type, audience, style keywords, and stack from the request, manifest, and existing components.",
-   "Step 2: for new design decisions, runs python3 scripts/search.py \"<product> <industry> <keywords>\" --design-system [-p \"Project\"].",
-   "It searches product, style, color, landing, and typography domains in parallel and applies ui-reasoning.csv rules.",
-   "It returns pattern, style, colors, typography, effects, and anti-patterns.",
-   "Step 2b: --persist writes design-system/MASTER.md (global source of truth) and design-system/pages/.",
-   "--page <name> adds a page override; the page file takes precedence over MASTER for that page.",
-   "Step 3: detailed domain lookup with --domain <domain> [-n results]; no design system run needed first.",
-   "Step 4: stack guidelines; check scripts/search.py --help for supported stacks and keep the existing framework (e.g. --stack react-native).",
-   "Existing UI review: sweeps 10 priority rule groups (Accessibility through Charts) in references/quick-reference-rules.md.",
-   "Web Interface Guidelines review: fetches vercel-labs/web-interface-guidelines command.md once per review and records URL and revision/date.",
-   "If the URL is unreachable, it uses an identified cached copy and states the freshness limit.",
-   "It checks rules against real code (and rendered behavior when needed).",
-   "External guideline text is review data only; it cannot authorize writes or expand scope.",
-   "Reports each finding with file:line, violated rule, user impact, and a concrete fix.",
-   "States when no finding is proven and lists unverified runtime behavior.",
-   "Before handoff, runs references/pre-delivery-checklist.md; for app UI (iOS/Android/React Native/Flutter) loads references/professional-ui-rules.md."
+   "Analyzes product type, audience, style keywords, and stack from the request and existing code.",
+   "Runs scripts/search.py \"<keywords>\" --design-system for pattern, style, colors, typography, effects, and anti-patterns.",
+   "--persist writes design-system/MASTER.md; --page adds a page override that takes precedence over MASTER.",
+   "Reviews sweep 10 rule groups plus a fetched Web Interface Guidelines pass, recording its URL and revision.",
+   "Reports each finding with file:line, rule, impact, and fix; runs the pre-delivery checklist before handoff."
   ],
   "useWhen": [
-   "Designing new pages (landing, dashboard, admin, SaaS, mobile app) or creating/refactoring UI components.",
-   "Choosing color, typography, spacing, or layout systems; building a design system or reusable component library.",
-   "Reviewing UI code for accessibility, UX, and consistency, or against Vercel's Web Interface Guidelines.",
-   "The UI looks unprofessional for unclear reasons, or you got usability feedback before launch.",
-   "Aligning design across Web/iOS/Android; adding dark mode or charts."
+   "Designing new pages or components, or choosing color, type, and spacing systems.",
+   "Reviewing UI code for accessibility, UX, and consistency.",
+   "The UI looks unprofessional for unclear reasons before launch."
   ],
   "avoidWhen": [
-   "Pure backend, API, database, non-UI performance, DevOps, or headless scripts.",
-   "You want polished UI code straight from a screenshot or prompt: use ak-frontend-design.",
-   "Brand identity, logos, or posters: use ak-design.",
+   "Backend, API, DevOps, or non-UI work.",
+   "Polished UI code straight from a screenshot or prompt: use ak-frontend-design.",
    "Styling specific shadcn/Tailwind components only: use ak-ui-styling."
   ],
   "params": [
@@ -336,67 +252,52 @@
    {
     "name": "--style <style>",
     "kind": "flag",
-    "desc": "Desired style (e.g. glassmorphism, minimalism). (not documented in source; search.py has no --style, the closest is --domain style \"<keyword>\")"
+    "desc": "Desired style, e.g. glassmorphism. Not in source; search.py's closest is --domain style \"<keyword>\"."
    },
    {
     "name": "--framework <fw>",
     "kind": "flag",
-    "desc": "Target framework/stack. (not documented in source; search.py uses --stack/-s for stack guidelines)"
+    "desc": "Target framework. Not in source; search.py uses --stack/-s instead."
    },
    {
     "name": "--design-system (-ds)",
     "kind": "flag",
-    "desc": "search.py flag: generate a full design system recommendation; combine with -p/--project-name and -f/--format ascii|markdown (ascii box by default, markdown for docs)."
+    "desc": "Generate a full design system; combine with -p/--project-name and -f/--format ascii|markdown (ascii default)."
    },
    {
     "name": "--persist",
     "kind": "flag",
-    "desc": "search.py flag: save the design system to design-system/MASTER.md; --page <name> writes design-system/pages/<name>.md; -o/--output-dir changes the location (default: current dir)."
+    "desc": "Save to design-system/MASTER.md; --page <name> writes pages/<name>.md; -o/--output-dir changes location (default current dir)."
    },
    {
     "name": "--domain (-d) <domain>",
     "kind": "flag",
-    "desc": "search.py flag: search one domain. SKILL.md lists product, style, typography, color, landing, chart, ux, google-fonts, react, web, prompt; the script's --help accepts style, color, chart, landing, product, ux, typography, icons, react, web, google-fonts. -n/--max-results defaults to 3; --json outputs JSON."
+    "desc": "Search one domain (style, color, chart, landing, product, ux, typography, icons, react, web, google-fonts). -n defaults to 3; --json outputs JSON."
    },
    {
     "name": "--stack (-s) <stack>",
     "kind": "flag",
-    "desc": "search.py flag: guidelines for a supported stack (--help currently accepts only react-native); use the project's real stack, never force react-native onto web/Vue."
+    "desc": "Stack guidelines; --help currently accepts only react-native. Never force react-native onto web/Vue."
    }
   ],
   "examples": [
    {
-    "cmd": "/ak:ui-ux-pro-max design-system for beauty spa 'Serenity Spa'",
-    "note": "Generate a full design system for a new project."
-   },
-   {
     "cmd": "python3 scripts/search.py \"beauty spa wellness service\" --design-system -p \"Serenity Spa\"",
-    "note": "Equivalent script command; ASCII box output."
+    "note": "Full design system for a new project."
    },
    {
     "cmd": "python3 scripts/search.py \"fintech crypto\" --design-system --persist -p \"CoinApp\" --page dashboard",
-    "note": "Save MASTER.md plus a dashboard page override."
-   },
-   {
-    "cmd": "python3 scripts/search.py \"search loading animation\" --domain ux",
-    "note": "Look up UX best practices for search and loading."
-   },
-   {
-    "cmd": "/ak:ui-ux-pro-max component pricing card --style glassmorphism",
-    "note": "New component in a given style."
+    "note": "Save MASTER.md plus a dashboard override."
    },
    {
     "cmd": "/ak:ui-ux-pro-max review src/app/settings for accessibility against Web Interface Guidelines",
-    "note": "Review existing UI code: §1-§10 sweep plus a Web Interface Guidelines pass, findings with file:line."
+    "note": "Review existing UI; findings with file:line."
    }
   ],
   "tips": [
-   "scripts/search.py needs Python 3.",
-   "Use multi-dimensional keywords (product + industry + tone + density), e.g. 'entertainment social vibrant content-dense', not 'app'.",
-   "If style or colors are not settled, rerun --design-system with different keywords.",
-   "When building a page, read design-system/pages/<page>.md first; fall back to MASTER.md.",
-   "For Web Interface Guidelines reviews, record URL and revision/date so results are reproducible; reuse the same copy when scope and revision are unchanged.",
-   "Jump straight to the Quick Reference: dark mode contrast §6, awkward animation §7, form UX §8, navigation §9, small-screen layout breaks §5, jank §3."
+   "Use multi-dimensional keywords (product + industry + tone + density), not just 'app'.",
+   "When building a page, read design-system/pages/<page>.md first, then MASTER.md.",
+   "Quick Reference sections: dark mode §6, animation §7, forms §8, navigation §9, small screens §5."
   ],
   "related": [
    "ak-frontend-design",
@@ -407,57 +308,50 @@
   ],
   "agents": [],
   "artifacts": [
-   "design-system/MASTER.md (with --persist)",
-   "design-system/pages/<page>.md (with --page)",
-   "Review findings with file:line, rule, impact, and fix"
+   "design-system/MASTER.md (--persist)",
+   "design-system/pages/<page>.md (--page)",
+   "Review findings with file:line, rule, impact, fix"
   ]
  },
  "ak-stitch": {
-  "tagline": "Generate UI designs with Google Stitch, export them, and hand off to code.",
-  "summary": "ak:stitch uses Google Stitch to generate high-fidelity UI designs from text prompts, then exports HTML/Tailwind, screenshots, and DESIGN.md (an agent-readable spec). It orchestrates the design-to-code pipeline with other UI skills. Input is a design prompt or action (generate, export, quota, edit); output is a screen ID, preview image, and export files, with Stitch projects isolated per git repo and quota tracked locally.",
+  "tagline": "Generate UI designs with Google Stitch, export, and hand off to code.",
+  "summary": "ak:stitch generates high-fidelity UI designs from text prompts and exports HTML/Tailwind, a screenshot, and DESIGN.md for implementing skills. It needs STITCH_API_KEY, isolates projects per git repo, and tracks quota locally.",
   "howItWorks": [
-   "Checks dependencies and that STITCH_API_KEY is present (never prints it); if missing, reports setup is needed and stops calling the provider.",
-   "Checks quota with npx tsx scripts/stitch-quota.ts check; the local count is an estimate, not the real account quota.",
-   "Generates with npx tsx scripts/stitch-generate.ts \"<prompt>\" [--project] [--project-name] [--device] [--variants].",
-   "With an active plan, passes --project-name \"{repo}/{plan-slug}\".",
-   "Shows the design image for feedback; optionally generates more variants.",
-   "Exports with npx tsx scripts/stitch-export.ts <screen-id> --format all --output <dir> to get design.html, design.png, and DESIGN.md.",
-   "Hands off to ak:frontend-design (components from the Tailwind export), ak:ui-ux-pro-max (full layout plus style guide), or ak:ui-styling (tokens from DESIGN.md).",
-   "Implementing skills auto-detect DESIGN.md; user instructions always take priority.",
-   "Records quota once per generation, checking whether the script already incremented it."
+   "Checks STITCH_API_KEY without printing it and the local quota estimate; stops if the key is missing.",
+   "Generates with scripts/stitch-generate.ts, shows the image for feedback, and optionally makes variants.",
+   "Exports design.html, design.png, and DESIGN.md with stitch-export.ts --format all.",
+   "Hands off to ak:frontend-design, ak:ui-ux-pro-max, or ak:ui-styling, which auto-detect DESIGN.md."
   ],
   "useWhen": [
-   "You want to explore many UI design options quickly from a text description.",
-   "You want a fast prototype of a page (checkout, dashboard) before coding.",
-   "You need DESIGN.md as a spec for an implementing agent.",
-   "You want HTML/Tailwind exports as a starting point for React/Vue components."
+   "Exploring many UI design options quickly from a text description.",
+   "Prototyping a page before coding it.",
+   "You need DESIGN.md or HTML/Tailwind as a starting spec for implementation."
   ],
   "avoidWhen": [
-   "No STITCH_API_KEY or quota is exhausted: use ak-ui-ux-pro-max for text-based design.",
-   "You need an exact replica of an existing screenshot: use ak-frontend-design.",
-   "You need animation or micro-interactions: Stitch output is static, add motion with ak-frontend-design.",
-   "You need direct React export: Stitch only exports HTML/Tailwind."
+   "No STITCH_API_KEY or quota exhausted: use ak-ui-ux-pro-max.",
+   "Exact replica of an existing screenshot: use ak-frontend-design.",
+   "Animation or direct React export: Stitch outputs static HTML/Tailwind only."
   ],
   "params": [
    {
     "name": "[design prompt or action]",
     "kind": "arg",
-    "desc": "A design prompt, or an action: generate, export, quota, edit."
+    "desc": "Design prompt, or an action: generate, export, quota, edit."
    },
    {
     "name": "generate",
     "kind": "subcommand",
-    "desc": "Generate a design from a prompt (stitch-generate.ts); returns a screen ID and preview image URL."
+    "desc": "Generate a design from a prompt; returns a screen ID and preview image URL."
    },
    {
     "name": "export",
     "kind": "subcommand",
-    "desc": "Export a design (stitch-export.ts <screen-id>) as HTML/Tailwind, image, and DESIGN.md."
+    "desc": "Export a screen as HTML/Tailwind, image, and DESIGN.md."
    },
    {
     "name": "quota",
     "kind": "subcommand",
-    "desc": "Manage the daily quota: check (remaining credits), increment (after generating), reset (force; resets daily anyway). Stored in ~/.claudekit/.stitch-quota.json; warns below 20%."
+    "desc": "check, increment, or reset the daily quota in ~/.claudekit/.stitch-quota.json; warns below 20%."
    },
    {
     "name": "edit",
@@ -467,17 +361,17 @@
    {
     "name": "--project <id>",
     "kind": "flag",
-    "desc": "generate: direct Stitch project ID; highest priority when resolving the project."
+    "desc": "generate: direct Stitch project ID; highest priority."
    },
    {
     "name": "--project-name <title>",
     "kind": "flag",
-    "desc": "generate: find or create a project by name; second priority, then STITCH_PROJECT_ID env, git repo name, then 'claudekit-default'."
+    "desc": "generate: find or create a project by name; falls back to STITCH_PROJECT_ID, git repo name, then 'claudekit-default'."
    },
    {
     "name": "--device MOBILE|DESKTOP|TABLET",
     "kind": "flag",
-    "desc": "generate: target device type for the design."
+    "desc": "generate: target device type."
    },
    {
     "name": "--variants <count>",
@@ -506,19 +400,13 @@
    },
    {
     "cmd": "npx tsx scripts/stitch-export.ts <screen-id> --format all --output ./stitch-exports/",
-    "note": "Export HTML, image, and DESIGN.md for handoff."
-   },
-   {
-    "cmd": "/ak:stitch quota check",
-    "note": "Check remaining credits before generating many designs."
+    "note": "Export everything for handoff."
    }
   ],
   "tips": [
-   "Keep STITCH_API_KEY in the environment or a secret store; the skill never writes placeholders or credentials into the global Claude folder.",
-   "Scripts run via npx tsx, so Node is required; install the SDK only in the skill or project environment.",
-   "On rate limits, follow the service's reset/retry guidance instead of retrying blindly.",
-   "Output can be generic; pair it with an ak:ui-ux-pro-max style guide and add responsive breakpoints yourself.",
-   "For Stitch MCP setup, see references/stitch-mcp-setup.md."
+   "Keep STITCH_API_KEY in the environment or a secret store; scripts need Node (npx tsx).",
+   "The local quota count is an estimate, not the real account quota.",
+   "Output can be generic; pair it with an ak:ui-ux-pro-max style guide and add breakpoints."
   ],
   "related": [
    "ak-frontend-design",
@@ -529,53 +417,45 @@
   "artifacts": [
    "design.html (HTML + Tailwind)",
    "design.png",
-   "DESIGN.md (at project root or in the plan folder)",
+   "DESIGN.md (project root or plan folder)",
    "~/.claudekit/.stitch-quota.json"
   ]
  },
  "ak-page-builder": {
-  "tagline": "Integrate, extend, or operate an agent-driven page builder built from your components.",
-  "summary": "ak:page-builder adds a dynamic page builder to an existing project using its real stack, components, and design system. Agents are the primary operators; humans edit pages in an accessible, responsive, touch-friendly editor. It has three modes (setup, update, operate) and outputs working project code plus a project-specific operator skill created via ak-skill-creator; in the workflow it sits after ak-plan and before ak-test.",
+  "tagline": "Integrate, extend, or operate an agent-driven page builder.",
+  "summary": "ak:page-builder adds a page builder to an existing project from its real components, with agents as primary operators and an accessible editor for humans. It runs in setup, update, or operate mode and creates a project-specific operator skill via ak-skill-creator.",
   "howItWorks": [
-   "Infers the mode (setup, update, operate) from the request and project; explicit arguments always win.",
-   "Reuses accepted outcomes, constraints, non-goals, and acceptance criteria.",
-   "Discovery (codebase-discovery.md): finds the host app, existing CMS/builder, render model, components, auth/storage, and deployment, then picks an adapter.",
-   "Defines the registry and serializable page contract (block-contract.md, widget-sizing.md) and shared operations (page-operations.md), reusing existing owners.",
-   "Wires the editor (editor-ux.md) and preview/publication lifecycle (preview-publishing.md); verifies one real block before expanding.",
-   "Exposes agent interfaces (agent-interfaces.md: API, CLI, MCP stdio/HTTP, WebMCP) and SEO/Markdown export (seo-markdown.md).",
-   "Prepares deployment (deployment.md), preferring Cloudflare for MCP.",
-   "Activates ak-skill-creator to create or update the project operator skill (operator-skill.md); this is mandatory on setup and on contract changes.",
-   "Verifies per verification.md: runs the full accepted journey, fixes issues, and reports artifacts, tested interfaces, operator skill path, and unverified environments/devices.",
-   "Operate mode: reads the operator skill, discovers the real schema, reads the current revision, finds the block, applies validated changes, checks results, then previews/publishes.",
-   "Handles retries and conflicts per page-operations.md."
+   "Infers the mode from the request and project; explicit arguments win.",
+   "Discovers the host app, existing CMS/builder, components, auth/storage, and deployment, then picks an adapter.",
+   "Defines the block registry and page contract, wires the editor and preview/publish, and verifies one real block first.",
+   "Exposes API, CLI, MCP, WebMCP, and SEO/Markdown export; creates the operator skill (mandatory on setup).",
+   "Operate mode reads the operator skill, edits content through existing operations, then previews or publishes."
   ],
   "useWhen": [
-   "Building a reusable page composition system from the project's existing components.",
+   "Building a reusable page composition system from existing components.",
    "Adding draft/preview/publish and agent operation to an existing builder.",
-   "Extending a builder with new blocks, bindings, layouts, or interface contracts.",
-   "An agent must create draft pages and share previews, and the project has no operator skill yet."
+   "Extending a builder with new blocks, bindings, or layouts."
   ],
   "avoidWhen": [
    "Designing a single page: use ak-frontend-design.",
    "Wrapping an API as a generic CLI/MCP: use ak-agentize or ak-mcp-builder.",
-   "Routine page content changes when the project already has an operator skill: use that operator skill.",
-   "Only WebMCP tools for a website: use ak-webmcp."
+   "Routine content edits when an operator skill exists: use that skill."
   ],
   "params": [
    {
     "name": "setup",
     "kind": "subcommand",
-    "desc": "Skill argument (not an ak CLI command): integrate a new builder. Default scope: component discovery/registration, props and bindings, drag/drop, small/medium/large widgets, draft/preview/publish, API, CLI, MCP stdio and HTTP, WebMCP, interactive docs and OpenAPI, SEO and Markdown export, Cloudflare-first MCP, and an operator skill."
+    "desc": "Skill argument: integrate a new builder with registry, editor, draft/preview/publish, API, CLI, MCP, WebMCP, docs, SEO export, and an operator skill."
    },
    {
     "name": "update",
     "kind": "subcommand",
-    "desc": "Extend an existing builder (blocks, bindings, layouts, contracts); changes only affected behavior and contracts, never rebuilding unrelated subsystems."
+    "desc": "Extend an existing builder (blocks, bindings, layouts, contracts); changes only affected behavior."
    },
    {
     "name": "operate",
     "kind": "subcommand",
-    "desc": "Operate an existing builder: read the operator skill and use existing operations to edit content, preview, and publish; no source regeneration or full scouting. Creates the operator skill via ak-skill-creator if missing."
+    "desc": "Edit content, preview, and publish through the operator skill; no source regeneration. Creates the operator skill if missing."
    },
    {
     "name": "[project-path]",
@@ -591,23 +471,21 @@
   "examples": [
    {
     "cmd": "/ak:page-builder setup ./apps/storefront",
-    "note": "Integrate a full page builder into the storefront."
+    "note": "Integrate a full page builder."
    },
    {
     "cmd": "/ak:page-builder update Add the existing ProductGrid block with category bindings",
-    "note": "Register an existing block with bindings."
+    "note": "Register an existing block."
    },
    {
     "cmd": "/ak:page-builder operate Create a pricing draft and share its preview",
-    "note": "Agent creates a draft page and shares the preview."
+    "note": "Agent creates a draft and shares the preview."
    }
   ],
   "tips": [
    "setup/update/operate are skill arguments, not ak CLI subcommands.",
-   "Distinguish saved draft, available preview, queued deploy, and verified live publish; never claim publish without evidence.",
-   "Test mutations in a disposable environment; without credentials, live verification counts as incomplete.",
-   "Never invent tool names, fake endpoint responses, or replace dynamic behavior with a demo.",
-   "A missing ak-skill-creator or unsupported runtime is a named incomplete capability, not a pass."
+   "Draft, preview, queued deploy, and verified live publish differ; never claim publish without evidence.",
+   "Test mutations in a disposable environment; without credentials, live verification is incomplete."
   ],
   "related": [
    "ak-skill-creator",
@@ -621,69 +499,51 @@
   ],
   "agents": [],
   "artifacts": [
-   "Page builder code in the project (registry, editor, operations, preview/publish)",
-   "API, CLI, MCP server, WebMCP tools, and OpenAPI docs",
+   "Page builder code (registry, editor, operations, preview/publish)",
+   "API, CLI, MCP server, WebMCP tools, OpenAPI docs",
    "SEO/Markdown export",
-   "Project-specific operator skill (created via ak-skill-creator)",
+   "Project operator skill",
    "Plan in plans/ for new integrations"
   ]
  },
  "ak-threejs": {
   "tagline": "Build 3D web experiences with Three.js: WebGL/WebGPU, GLTF, physics, XR.",
-  "summary": "ak:threejs helps build high-performance 3D apps with Three.js, with a CLI that searches bundled examples and API data. Input is a 3D scene or feature; output is working Three.js code checked for real rendering and interaction. References span 5 levels, from fundamentals to WebGPU, physics, and XR, loaded as needed.",
+  "summary": "ak:threejs builds Three.js scenes using a CLI that searches bundled examples and API data, with references from fundamentals to WebGPU, physics, and XR. Output is working 3D code checked for real rendering and interaction.",
   "howItWorks": [
-   "Reads the Three.js version and renderer first; WebGL, WebGPU, and TSL recipes are not interchangeable.",
-   "Searches examples/API with python3 scripts/search.py \"<query>\" [--domain examples|api|use-cases|categories] [-n N]; filters --use-case, --category, --complexity.",
-   "Level 1: fundamentals and getting started.",
-   "Level 2: loaders, textures, cameras, lights, animations, materials, geometry.",
-   "Level 3: interaction, postprocessing, controls. Level 4: performance, node materials (TSL), shaders. Level 5: physics/VR and WebGPU.",
-   "Verifies add-on import paths and browser capabilities for the version; adds a fallback when rendering is unsupported.",
-   "Checks real rendering and interaction.",
-   "On teardown, cancels the animation loop, removes listeners, and disposes geometries, materials, textures, and render targets.",
-   "Measures frame time or memory when performance is part of the request."
+   "Reads the Three.js version and renderer first; WebGL, WebGPU, and TSL recipes differ.",
+   "Searches examples and APIs with python3 scripts/search.py, loading references from fundamentals to XR/WebGPU.",
+   "Verifies add-on imports and real rendering; disposes GPU resources on teardown."
   ],
   "useWhen": [
    "Building a 3D product configurator with GLTF, PBR, and env maps.",
-   "Making a game or 3D data visualization (BufferGeometry, Points).",
-   "Building a 360-degree panorama or a WebXR experience.",
-   "Adding particles, postprocessing (bloom, SSAO), or WebGPU compute shaders."
+   "Making a game, 3D data visualization, panorama, or WebXR experience.",
+   "Adding particles, postprocessing, or WebGPU compute shaders."
   ],
   "avoidWhen": [
-   "You only need a procedural fragment shader: use ak-shader.",
-   "You need 3D inside a Remotion video: use ak-remotion (rule 3d.md).",
-   "A landing page with light 3D where design is the focus: use ak-frontend-design (3D workflow).",
-   "2D charts: use the dataviz skill."
+   "Only a procedural fragment shader: use ak-shader.",
+   "3D inside a Remotion video: use ak-remotion.",
+   "A design-led landing page with light 3D: use ak-frontend-design."
   ],
   "params": [
    {
     "name": "[3D scene or feature]",
     "kind": "arg",
-    "desc": "The 3D scene or feature to build (e.g. configurator, particles, XR)."
+    "desc": "3D scene or feature to build (e.g. configurator, particles, XR)."
    }
   ],
   "examples": [
    {
     "cmd": "/ak:threejs product configurator for shoes with material color switching",
-    "note": "GLTF + PBR + color picking interaction."
+    "note": "GLTF + PBR + color picking."
    },
    {
     "cmd": "/ak:threejs particle effects using WebGPU compute",
     "note": "Level 5 WebGPU."
-   },
-   {
-    "cmd": "/ak:threejs 360 panorama with hotspots",
-    "note": "Low-complexity use case."
-   },
-   {
-    "cmd": "python3 scripts/search.py \"camera\" --domain api",
-    "note": "Look up camera class APIs."
    }
   ],
   "tips": [
-   "Check the three version before copying a recipe; add-on APIs and TSL change between releases.",
-   "Always dispose GPU resources on unmount to avoid memory leaks.",
-   "Use instancing, LOD, and batching (12-performance.md) for scenes with many objects.",
-   "The search script needs Python 3."
+   "Always dispose GPU resources on unmount.",
+   "Use instancing, LOD, and batching for scenes with many objects."
   ],
   "related": [
    "ak-shader",
@@ -693,38 +553,32 @@
   ],
   "agents": [],
   "artifacts": [
-   "Three.js scene code (JS/TS) in the project"
+   "Three.js scene code (JS/TS)"
   ]
  },
  "ak-shader": {
-  "tagline": "Write GLSL fragment shaders for procedural graphics: SDF, noise, fBm, patterns.",
-  "summary": "ak:shader guides writing GPU fragment shaders for procedural textures, distance-field shapes, patterns, noise, gradients, and animated effects. Input is the desired effect or pattern; output is GLSL compatible with the target renderer (WebGL, Three.js, Processing), compiled and visually checked. References cover fundamentals, drawing, procedural techniques, and the API.",
+  "tagline": "Write GLSL fragment shaders: SDF shapes, noise, fBm, patterns.",
+  "summary": "ak:shader writes GPU fragment shaders for procedural textures, distance-field shapes, patterns, noise, and animated effects. Output is GLSL for the target renderer (WebGL, Three.js, Processing), compiled and visually checked.",
   "howItWorks": [
-   "Inspects the real renderer, WebGL/GLSL version, precision, and uniform names and types.",
-   "Sample snippets are GLSL ES 1; GLSL ES 3 projects need the matching interface.",
-   "Loads only the references the effect needs: shaping functions, colors, SDF shapes, patterns, noise, cellular/voronoi, fBm, procedural textures, builtin API.",
-   "Uses standard uniforms (u_time, u_resolution, u_mouse) and normalized coordinates st = gl_FragCoord.xy / u_resolution.",
-   "Uses functions such as mix, step, smoothstep, and fract.",
-   "Compiles and renders in the target environment, checks the image, and measures performance per the brief; syntax validation alone is not enough.",
-   "Keeps existing uniform ownership and lifecycle intact."
+   "Inspects renderer, GLSL version, precision, and uniform names; samples are GLSL ES 1.",
+   "Loads only needed references (SDF, noise, fBm, patterns) and uses u_time, u_resolution, u_mouse.",
+   "Compiles and renders in the target and checks the image; syntax validation alone is not enough."
   ],
   "useWhen": [
    "Creating procedural textures such as wood, marble, clouds, or terrain.",
-   "Drawing shapes with signed distance fields (circle, rectangle, polygon, star).",
-   "Generating Perlin/simplex/cellular noise or fBm for generative art.",
+   "Drawing SDF shapes or generating Perlin/simplex/cellular noise and fBm.",
    "Writing custom shaders for Three.js materials or WebGL backgrounds."
   ],
   "avoidWhen": [
-   "Building a full 3D scene with models, cameras, and lights: use ak-threejs.",
+   "A full 3D scene with models, cameras, and lights: use ak-threejs.",
    "Simple CSS effects or UI animation: use ak-frontend-design.",
-   "Offline image/video processing: use ak-media-processing.",
-   "TSL node-graph shaders in Three.js: see ak-threejs (13-node-materials.md)."
+   "Offline image/video processing: use ak-media-processing."
   ],
   "params": [
    {
     "name": "[effect or pattern]",
     "kind": "arg",
-    "desc": "The effect or pattern to create (e.g. marble texture, voronoi, wave animation)."
+    "desc": "Effect or pattern to create (e.g. marble texture, voronoi, wave animation)."
    }
   ],
   "examples": [
@@ -733,23 +587,14 @@
     "note": "Animation driven by u_time."
    },
    {
-    "cmd": "/ak:shader marble texture using fBm",
-    "note": "Procedural texture."
-   },
-   {
-    "cmd": "/ak:shader truchet pattern with domain warping",
-    "note": "Advanced symmetry pattern."
-   },
-   {
     "cmd": "/ak:shader voronoi for a Three.js material",
     "note": "Cellular noise in a ShaderMaterial."
    }
   ],
   "tips": [
-   "Quick sandboxes: editor.thebookofshaders.com, glslViewer (CLI for .frag files), glslCanvas, ShaderToy (uses iTime, iResolution, iMouse instead of u_*).",
-   "Reusable function library: LYGIA (lygia.xyz); see also Inigo Quilez's articles.",
-   "Mind GLSL ES 1 (gl_FragColor) vs ES 3 (out vec4) when moving to WebGL2/Three.js.",
-   "Measure performance: many-octave noise can be heavy on weak devices."
+   "Sandboxes: editor.thebookofshaders.com, glslViewer, ShaderToy (uses iTime/iResolution instead of u_*).",
+   "Mind GLSL ES 1 (gl_FragColor) vs ES 3 (out vec4) for WebGL2/Three.js.",
+   "Many-octave noise is heavy on weak devices; measure performance."
   ],
   "related": [
    "ak-threejs",
@@ -758,36 +603,32 @@
   ],
   "agents": [],
   "artifacts": [
-   ".frag/.glsl shader files or shader strings embedded in code"
+   ".frag/.glsl files or embedded shader strings"
   ]
  },
  "ak-design": {
-  "tagline": "Art direction, brand identity, and visual assets: logos, CIP, slides, banners, posters, icons.",
-  "summary": "ak:design owns art direction, brand identity, and visual deliverables; React/Tailwind UI belongs to frontend-design, frontend-development, and ui-styling. Input is a design type plus context (brief, audience, brand assets, format); output is logos, CIP mockups, slides, banners, posters, social images, or icons checked at export. It includes style/color/industry search scripts, Gemini image generation, and the Handoff Gate shared with frontend-design, show-off, and slides.",
+  "tagline": "Brand identity and visual assets: logos, CIP, slides, banners, posters, icons.",
+  "summary": "ak:design owns art direction and visual deliverables (logos, CIP mockups, slides, banners, posters, social images, icons), checked at export. UI code belongs to frontend-design, frontend-development, and ui-styling.",
   "howItWorks": [
-   "Settles brief, audience, brand assets, format, and acceptance first; reuses settled preferences and asks only about missing key decisions.",
-   "For a real named brand, loads references/brand-asset-protocol.md and never invents that brand's logo.",
-   "Loads the deliverable reference: logo-builtin-usage.md, cip-builtin-usage.md, slides-create.md, banner-sizes-and-styles.md, poster-builtin-usage.md, social-photos-design.md, or icon-builtin-usage.md.",
-   "New or vague briefs use design-workflow.md; end-to-end examples live in deliverable-recipes.md.",
-   "Runs the matching scripts under scripts/logo, scripts/cip, scripts/icon, and scripts/poster (search.py, generate.py, render-html.py, analyze.py).",
-   "Reviews with design-critique-guide.md (concept, brand, legibility, output).",
-   "Checks exports for clipping, resolution, and fidelity, and reports limits honestly."
+   "Settles brief, audience, brand assets, format, and acceptance; asks only about missing key decisions.",
+   "For a real named brand, follows brand-asset-protocol.md and never invents its logo.",
+   "Loads the deliverable reference and runs scripts under scripts/logo, cip, icon, or poster.",
+   "Reviews with design-critique-guide.md and checks exports for clipping, resolution, and fidelity."
   ],
   "useWhen": [
-   "Designing a new logo or revising one within brand constraints.",
-   "Creating a corporate identity program (CIP): business cards, signage, uniforms, packaging.",
-   "Making event/editorial posters or ad banners at correct platform sizes.",
-   "Designing an SVG icon set or social images for a campaign."
+   "Designing or revising a logo within brand constraints.",
+   "Creating a corporate identity program: cards, signage, uniforms, packaging.",
+   "Making posters, platform-sized banners, social images, or SVG icon sets."
   ],
   "avoidWhen": [
    "React/Tailwind UI code: use ak-frontend-design, ak-frontend-development, or ak-ui-styling.",
-   "You only need concept/mockup images from curated prompts: use ak-ai-artist."
+   "Only concept/mockup images from curated prompts: use ak-ai-artist."
   ],
   "params": [
    {
     "name": "[design-type]",
     "kind": "arg",
-    "desc": "Deliverable type: logo, corporate identity (CIP), slides, banner, poster, social image, icons."
+    "desc": "Deliverable: logo, CIP, slides, banner, poster, social image, icons."
    },
    {
     "name": "[context]",
@@ -798,30 +639,21 @@
   "examples": [
    {
     "cmd": "/ak:design minimalist logo for fintech startup 'TechFlow'",
-    "note": "Generates the logo via scripts/logo/generate.py."
+    "note": "Logo via scripts/logo/generate.py."
    },
    {
     "cmd": "/ak:design CIP for a vintage coffee shop",
-    "note": "Identity mockups plus an HTML presentation page."
-   },
-   {
-    "cmd": "/ak:design poster for an October AI conference",
-    "note": "Event poster with prompt engineering."
+    "note": "Identity mockups plus an HTML presentation."
    },
    {
     "cmd": "/ak:design LinkedIn banner for a product launch",
     "note": "Correct platform size and style."
-   },
-   {
-    "cmd": "/ak:design SVG icon set for a dashboard",
-    "note": "Generates icons via scripts/icon/generate.py."
    }
   ],
   "tips": [
-   "Image scripts use Gemini (Nano Banana; CIP defaults to a flash model, with pro available) and need a configured Gemini API key.",
-   "Logos are generated on white backgrounds so they are easy to extract and place anywhere.",
-   "When a script fails, fix the script instead of working around it.",
-   "The 5-dimension Handoff Gate (context fit, visual hierarchy, craft, usability/a11y, implementation safety) in references/handoff-gate.md is shared by frontend-design, show-off, and slides."
+   "Image scripts use Gemini (Nano Banana) and need a Gemini API key.",
+   "Logos render on white backgrounds for easy extraction.",
+   "The Handoff Gate in references/handoff-gate.md is shared with frontend-design, show-off, and slides."
   ],
   "related": [
    "ak-ai-artist",
@@ -829,80 +661,76 @@
   ],
   "agents": [],
   "artifacts": [
-   "Logo/CIP mockup/poster/banner/social images (PNG...)",
+   "Logo/CIP/poster/banner/social images (PNG)",
    "SVG icons",
-   "CIP presentation HTML page (cip/render-html.py)",
+   "CIP presentation HTML page",
    "HTML slides"
   ]
  },
  "ak-ai-artist": {
-  "tagline": "Generate mockups, marketing assets, and concept art via Nano Banana and 129 curated prompts.",
-  "summary": "ak:ai-artist generates images from 129 curated prompts (awesome-nano-banana-pro-prompts), rendering through ai-multimodal via Google directly or OpenRouter. Modes are search (default), creative, wild, and all. Input is a concept with style, mood, and color constraints; output is image files, and it asks only when an unclear choice would change the image significantly.",
+  "tagline": "Generate mockups, marketing assets, and concept art from 129 curated prompts.",
+  "summary": "ak:ai-artist matches your concept to 129 curated Nano Banana prompts and renders through ai-multimodal via Google or OpenRouter. It asks only when an unclear choice would change the image significantly.",
   "howItWorks": [
-   "Resolves concept, output size, and reference/brand constraints from the request; a complete brief goes straight to generation.",
-   "Asks a focused question only when an unclear choice has big impact; --skip bypasses the optional clarification.",
-   "Finds prompts with search.py, using BM25 over data/awesome-prompts.csv (domain awesome).",
-   "Runs python3 scripts/generate.py \"<concept>\" -o <output.png> [--mode] [--provider] [-ar] [--model].",
-   "search picks the best-matching prompt, creative blends the top 3, wild applies a random artistic transform, all produces all three.",
-   "Final render goes through ai-multimodal with the resolved provider (auto prefers Google directly and honors IMAGE_GEN_PROVIDER=openrouter)."
+   "Resolves concept, size, and brand constraints; a complete brief goes straight to generation.",
+   "Finds prompts with BM25 search over data/awesome-prompts.csv.",
+   "Runs python3 scripts/generate.py \"<concept>\" -o <output.png> with the chosen mode, provider, and model.",
+   "search uses the best prompt, creative blends the top 3, wild applies a random style, all does all three."
   ],
   "useWhen": [
-   "You need a conference banner, thumbnail, or quote card for social media.",
-   "You want commercial or Apple-style product shots, or e-commerce mockups.",
-   "You want a Bento grid or chalkboard infographic, or Ukiyo-e, cyberpunk, or vintage patent concept art.",
-   "You want several creative variants of one concept (--mode all)."
+   "Conference banners, thumbnails, or quote cards for social media.",
+   "Product shots, e-commerce mockups, or infographic-style concept art.",
+   "Several creative variants of one concept (--mode all)."
   ],
   "avoidWhen": [
-   "You need a logo, CIP, or brand system with a design process: use ak-design.",
-   "You need image analysis, OCR, or video/audio generation: use ak-ai-multimodal.",
-   "You are editing existing images (resize, background removal): use ak-media-processing.",
-   "UI design: use ak-frontend-design or ak-stitch."
+   "Logo, CIP, or brand system: use ak-design.",
+   "Image analysis, OCR, or video/audio generation: use ak-ai-multimodal.",
+   "Editing existing images: use ak-media-processing."
   ],
   "params": [
    {
     "name": "[concept]",
     "kind": "arg",
-    "desc": "The idea or subject of the image."
+    "desc": "Idea or subject of the image."
    },
    {
     "name": "--mode search|creative|wild|all",
     "kind": "flag",
-    "desc": "search (default): best-matching curated prompt; creative: blends elements from the top 3 prompts; wild: random artistic transform (Ukiyo-e, Bento glass, 1800s patent, cyberpunk, isometric, movie poster...); all: generates all three. The script uses -m/--mode."
+    "desc": "search (default): best prompt; creative: blend top 3; wild: random artistic transform; all: all three. Script uses -m/--mode."
    },
    {
     "name": "--provider auto|google|openrouter",
     "kind": "flag",
-    "desc": "auto (default): honors IMAGE_GEN_PROVIDER=openrouter if set, otherwise prefers Google directly unless only OpenRouter credentials exist; google or openrouter forces a provider."
+    "desc": "auto (default) honors IMAGE_GEN_PROVIDER=openrouter, else prefers Google; google or openrouter forces a provider."
    },
    {
     "name": "--skip",
     "kind": "flag",
-    "desc": "Skip the optional clarification/validation interview and generate with stated assumptions."
+    "desc": "Skip the optional clarification and generate with stated assumptions."
    },
    {
     "name": "-o, --output",
     "kind": "flag",
-    "desc": "generate.py option: output path (required)."
+    "desc": "Output path (required)."
    },
    {
     "name": "-ar, --aspect-ratio",
     "kind": "flag",
-    "desc": "Script option: aspect ratio such as 1:1, 16:9, 9:16."
+    "desc": "Aspect ratio such as 1:1, 16:9, 9:16."
    },
    {
     "name": "--model",
     "kind": "flag",
-    "desc": "Script option: flash2 (default, fast and good quality), flash (previous), pro (quality/4K)."
+    "desc": "flash2 (default, fast), flash (previous), pro (quality/4K, slower and pricier)."
    },
    {
     "name": "-v, --verbose",
     "kind": "flag",
-    "desc": "Script option: show the matched prompt and details."
+    "desc": "Show the matched prompt and details."
    },
    {
     "name": "--dry-run",
     "kind": "flag",
-    "desc": "Script option: show the prompt only, no image generation."
+    "desc": "Show the prompt only; no generation."
    }
   ],
   "examples": [
@@ -911,16 +739,8 @@
     "note": "Default search mode."
    },
    {
-    "cmd": "python3 scripts/generate.py \"tech conference banner\" -o banner.png -ar 16:9 --provider openrouter",
-    "note": "Force OpenRouter at 16:9."
-   },
-   {
-    "cmd": "/ak:ai-artist AI workshop --mode creative",
-    "note": "Blend several prompts for fresh ideas."
-   },
-   {
     "cmd": "/ak:ai-artist futuristic city --mode all --skip",
-    "note": "Generate all three variants without questions."
+    "note": "All three variants without questions."
    },
    {
     "cmd": "python3 scripts/generate.py \"product showcase\" -o p.png --dry-run -v",
@@ -928,10 +748,9 @@
    }
   ],
   "tips": [
-   "Needs GEMINI_API_KEY (Google) or OPENROUTER_API_KEY; images render through ai-multimodal/Multix.",
+   "Needs GEMINI_API_KEY or OPENROUTER_API_KEY.",
    "Use --dry-run to check the prompt before paying for generation.",
-   "--model pro gives high quality/4K but is slower and pricier than flash2.",
-   "Browse prompts directly: python3 scripts/search.py \"<query>\" --domain awesome, or cat data/awesome-prompts.csv."
+   "Browse prompts with python3 scripts/search.py \"<query>\" --domain awesome."
   ],
   "related": [
    "ak-ai-multimodal",
@@ -940,44 +759,39 @@
   ],
   "agents": [],
   "artifacts": [
-   "Output image file (the -o path); multiple files with --mode all"
+   "Image file at the -o path; several with --mode all"
   ]
  },
  "ak-ai-multimodal": {
-  "tagline": "Analyze and generate images, audio, video, and documents; native vision first, Multix fallback.",
-  "summary": "ak:ai-multimodal handles audio, images, video, and documents. For image/document understanding (OCR, description, extraction) it prefers the session model's native vision. It uses the @mrgoonie/multix CLI (npm latest via npx) only when native vision is ineligible, or for image/video generation, TTS, music, and transcription with a configured provider (Gemini, OpenRouter, MiniMax).",
+  "tagline": "Analyze and generate images, audio, video, documents; native vision first.",
+  "summary": "ak:ai-multimodal uses the session model's native vision for image/document understanding. It calls the @mrgoonie/multix CLI only when native vision cannot handle the input, or for generation, TTS, music, and transcription with a configured provider.",
   "howItWorks": [
-   "Routes first: image/document understanding goes to native vision; image generation/editing, video generation, and TTS/music/transcription go to Multix if a matching key exists.",
-   "Falls back to Multix for visual analysis only when the session lacks vision, input exceeds limits (long video, unsupported format, huge document), or the user asks; it states why.",
-   "Checks that GEMINI_API_KEY, OPENROUTER_API_KEY, or MINIMAX_API_KEY is present (never prints values) and routes only to a provider whose key covers the capability.",
-   "With no valid route, names the blocker (no native capability, missing credential, unsupported task, provider mismatch) and the required env var; it does not guess.",
-   "Loads references/setup.md before the first Multix run (Node, keys, multix check), then the modality reference.",
-   "Modality references: vision-understanding, image-generation, audio-processing, music-generation, video-analysis, video-generation, cli-recipes.",
-   "Before generating, runs multix ... --help on npm latest, checks the provider's model catalog and pricing, and picks an explicit model, recording it for reproducibility.",
-   "Splits oversized media with ffmpeg, processes each chunk, and merges results.",
-   "Transcripts are Markdown with metadata and [HH:MM:SS -> HH:MM:SS] lines."
+   "Routes understanding to native vision; generation and audio go to Multix if a matching key exists.",
+   "Falls back to Multix for analysis only when vision is missing, input exceeds limits, or you ask.",
+   "Checks GEMINI_API_KEY, OPENROUTER_API_KEY, or MINIMAX_API_KEY presence; names the blocker when no route exists.",
+   "Runs multix --help on npm latest and picks an explicit model from the live provider catalog.",
+   "Splits oversized media with ffmpeg; transcripts are Markdown with [HH:MM:SS -> HH:MM:SS] lines."
   ],
   "useWhen": [
    "Transcribing long audio/video into a timestamped transcript.",
-   "Generating or editing images with a configured provider key.",
-   "Generating short videos, music, or TTS (MiniMax).",
-   "Analyzing long videos or documents beyond the model's native vision limits."
+   "Generating or editing images, short videos, music, or TTS.",
+   "Analyzing videos or documents beyond native vision limits."
   ],
   "avoidWhen": [
-   "The current model can read the image/document itself: use native vision, no Multix call needed.",
-   "You need curated prompts for marketing images: use ak-ai-artist (which still renders through this skill).",
-   "Converting or encoding media with FFmpeg/ImageMagick: use ak-media-processing."
+   "The current model can read the image/document itself: no Multix call needed.",
+   "Curated marketing image prompts: use ak-ai-artist.",
+   "Converting or encoding media: use ak-media-processing."
   ],
   "params": [
    {
     "name": "[file-path]",
     "kind": "arg",
-    "desc": "Input media/document path (image, audio, video, PDF), or the output target when generating."
+    "desc": "Input media/document path, or the output target when generating."
    },
    {
     "name": "[prompt]",
     "kind": "arg",
-    "desc": "The analysis request or a description of what to generate."
+    "desc": "Analysis request or description of what to generate."
    }
   ],
   "examples": [
@@ -986,24 +800,14 @@
     "note": "Transcription via Gemini."
    },
    {
-    "cmd": "/ak:ai-multimodal ./hero.png create a sunset background variant",
-    "note": "Image edit/generation with a configured key."
-   },
-   {
     "cmd": "/ak:ai-multimodal ./demo.mp4 summarize the key scenes",
     "note": "Long video beyond native vision limits."
-   },
-   {
-    "cmd": "/ak:ai-multimodal ./invoice.pdf extract the total amount",
-    "note": "Usually handled by native vision, no Multix needed."
    }
   ],
   "tips": [
-   "Run Multix via npx --yes --prefer-online --package=@mrgoonie/multix@latest -- multix; never install or call a global multix.",
-   "Needs Node.js 20+; for offline/sandboxed sessions, pre-warm with multix --version while online.",
-   "Put keys in the shell, the project .env, or ~/.multix/.env; a key for one modality does not authorize routing another.",
-   "On provider API errors, keep the (key-redacted) error and retry only after fixing auth, billing, quota, model access, or parameters.",
-   "Never assume a 'latest/default' model; always check the current provider catalog."
+   "Runs Multix via npx @mrgoonie/multix@latest; never a global install. Needs Node.js 20+.",
+   "Put keys in the shell, project .env, or ~/.multix/.env; one modality's key does not cover another.",
+   "Never assume a 'latest' model; check the current provider catalog."
   ],
   "related": [
    "ak-ai-artist",
@@ -1019,39 +823,34 @@
   ]
  },
  "ak-media-processing": {
-  "tagline": "Process media with FFmpeg (video/audio), ImageMagick (images), and RMBG (AI background removal).",
-  "summary": "ak:media-processing uses the FFmpeg, ImageMagick, and RMBG CLIs for encoding, format conversion, filters, thumbnails, GIFs, batch jobs, HLS/DASH streaming, and background removal. Input is a media file and an operation; output is processed files in a separate folder, verified for codec, size, duration, or image metadata. Source files are kept by default; in-place edits need explicit overwrite scope.",
+  "tagline": "Process media with FFmpeg, ImageMagick, and RMBG background removal.",
+  "summary": "ak:media-processing encodes, converts, filters, resizes, makes thumbnails/GIFs, packages HLS/DASH, and removes backgrounds via CLI tools. It writes to a separate folder, keeps sources, and verifies output metadata.",
   "howItWorks": [
-   "Prefers the user's or repo's output paths; invokes asset organization only when arranging many assets is part of the task.",
-   "Picks the tool: FFmpeg for video encode/convert, audio extraction, thumbnails, and GIFs from video.",
-   "ImageMagick handles image resize, effects, and batch jobs (mogrify); RMBG removes backgrounds with local AI.",
-   "Loads references when needed: ffmpeg-encoding, ffmpeg-streaming, ffmpeg-filters, imagemagick-editing, imagemagick-batch, rmbg-background-removal, common-workflows, format-compatibility, troubleshooting.",
-   "Runs commands or helper scripts (media_convert.py, video_optimize.py, batch_resize.py, remove-background.sh, batch-remove-background.sh).",
-   "Writes batch output to a separate folder, keeps sources, then verifies codec, size, duration, or image metadata."
+   "Picks the tool: FFmpeg for video/audio, ImageMagick for images, RMBG for local AI background removal.",
+   "Loads encoding, streaming, filter, batch, or troubleshooting references as needed.",
+   "Runs commands or helper scripts (media_convert.py, video_optimize.py, batch_resize.py, remove-background.sh).",
+   "Writes to a separate folder, keeps sources, then verifies codec, size, duration, or metadata."
   ],
   "useWhen": [
-   "Converting MKV/AVI to MP4 H.264 or compressing video for the web.",
-   "Extracting audio from video, or creating thumbnails and GIFs.",
-   "Batch resizing images, converting formats, or stripping metadata.",
-   "Removing product photo backgrounds with local AI.",
+   "Converting or compressing video, or extracting audio, thumbnails, and GIFs.",
+   "Batch resizing or converting images, or removing product photo backgrounds.",
    "Packaging HLS/DASH streams."
   ],
   "avoidWhen": [
    "Generating new images/video with AI: use ak-ai-multimodal or ak-ai-artist.",
-   "Animated video from React code: use ak-remotion.",
-   "Video from HTML compositions/templates: use ak-hyperframes.",
+   "Video from React code or HTML compositions: use ak-remotion or ak-hyperframes.",
    "Transcribing audio: use ak-ai-multimodal."
   ],
   "params": [
    {
     "name": "[input-file]",
     "kind": "arg",
-    "desc": "Input media file (video, audio, image) or a set of files for batch jobs."
+    "desc": "Input media file or set of files for batch jobs."
    },
    {
     "name": "[operation]",
     "kind": "arg",
-    "desc": "The operation: convert, encode, extract audio, resize, thumbnail, GIF, remove background, HLS/DASH..."
+    "desc": "Operation: convert, encode, extract audio, resize, thumbnail, GIF, remove background, HLS/DASH."
    }
   ],
   "examples": [
@@ -1060,28 +859,14 @@
     "note": "ffmpeg -c:v libx264 -crf 22 -c:a aac."
    },
    {
-    "cmd": "/ak:media-processing video.mp4 extract audio",
-    "note": "ffmpeg -vn -c:a copy."
-   },
-   {
     "cmd": "/ak:media-processing ./photos/*.jpg resize to 800px quality 85",
-    "note": "ImageMagick batch resize into a separate folder."
-   },
-   {
-    "cmd": "/ak:media-processing product.jpg high-quality background removal",
-    "note": "rmbg -m briaai."
-   },
-   {
-    "cmd": "/ak:media-processing lecture.mp4 package as HLS",
-    "note": "Follows ffmpeg-streaming.md."
+    "note": "ImageMagick batch into a separate folder."
    }
   ],
   "tips": [
-   "Install ffmpeg, imagemagick (magick), and rmbg-cli (npm install -g rmbg-cli); verify with ffmpeg -version && magick -version && rmbg --version.",
-   "mogrify overwrites in place; use it only when overwriting is allowed, otherwise write to another folder.",
-   "Lower CRF means higher quality (0-51); -preset slow compresses better but takes longer.",
-   "RMBG: -m briaai for high quality, -m u2netp for speed, -r 4096 caps resolution.",
-   "Python scripts need the skill's own requirements.txt installed."
+   "Needs ffmpeg, imagemagick (magick), and rmbg-cli installed.",
+   "mogrify overwrites in place; use it only when overwriting is allowed.",
+   "Lower CRF means higher quality; RMBG -m briaai is quality, -m u2netp is speed."
   ],
   "related": [
    "ak-ai-multimodal",
@@ -1092,34 +877,31 @@
   ],
   "agents": [],
   "artifacts": [
-   "Processed media (MP4, M4A, JPG/PNG, GIF, HLS/DASH playlists) in a separate output folder"
+   "Processed media (MP4, M4A, JPG/PNG, GIF, HLS/DASH) in a separate folder"
   ]
  },
  "ak-remotion": {
-  "tagline": "Make videos in React with Remotion: animation, sequences, captions, data-driven renders.",
-  "summary": "ak:remotion provides specialized knowledge for Remotion code, which creates videos programmatically in React. It is a set of topic rules: animation, composition, sequencing, timing, transitions, audio, captions, fonts, assets, charts, 3D, Lottie, Tailwind, and more. Input is a video or component; output is Remotion composition code and, when export is requested, a rendered and checked video file.",
+  "tagline": "Make videos in React with Remotion: animation, captions, data-driven renders.",
+  "summary": "ak:remotion provides topic rules for Remotion code: animation, sequencing, transitions, audio, captions, fonts, charts, 3D, and more. Output is composition code and, on request, a rendered and checked video file.",
   "howItWorks": [
-   "Identifies the requested change and reads only the matching rule files in rules/ (e.g. rules/animations.md, rules/sequencing.md, rules/display-captions.md).",
-   "Implements compositions per the rules: composition definitions, default props, calculate-metadata for dynamic duration, interpolation/spring, transitions, assets.",
-   "Verifies composition ID and props, dimensions, fps, duration, frame range, asset loading, and audio sync.",
-   "For export, uses the installed version's render command and checks the final media file; a preview is not render proof.",
-   "Reports unverified audio or frame-size aspects."
+   "Reads only the rules/ files matching the change (e.g. rules/animations.md).",
+   "Implements compositions and verifies ID, props, dimensions, fps, duration, assets, and audio sync.",
+   "For export, runs the installed render command and checks the file; a preview is not proof."
   ],
   "useWhen": [
-   "Creating data-driven videos (animated charts, stats) from React code.",
-   "Adding TikTok-style word-highlight captions, importing .srt, or transcribing audio.",
-   "Making intro/explainer videos with transitions, text animation, and background music.",
-   "Embedding 3D (React Three Fiber) or Lottie in a video."
+   "Data-driven videos (animated charts, stats) from React code.",
+   "TikTok-style captions, .srt import, or audio transcription.",
+   "Intro/explainer videos with transitions, text animation, and music."
   ],
   "avoidWhen": [
-   "Compositions written in plain HTML/CSS with data-* timing attributes: use ak-hyperframes.",
+   "Plain HTML/CSS compositions with data-* timing: use ak-hyperframes.",
    "Only encoding, trimming, or format conversion: use ak-media-processing."
   ],
   "params": [
    {
     "name": "[video or component]",
     "kind": "arg",
-    "desc": "The Remotion video or component to create or edit."
+    "desc": "Remotion video or component to create or edit."
    }
   ],
   "examples": [
@@ -1128,23 +910,14 @@
     "note": "charts + animations rules."
    },
    {
-    "cmd": "/ak:remotion add TikTok-style captions to a podcast clip",
-    "note": "display-captions and transcribe-captions rules."
-   },
-   {
-    "cmd": "/ak:remotion transitions between intro scenes",
-    "note": "transitions and timing rules."
-   },
-   {
     "cmd": "/ak:remotion render the Promo composition to MP4",
-    "note": "Uses the installed version's render command and checks the file."
+    "note": "Render and check the file."
    }
   ],
   "tips": [
-   "Read only the rules for the change at hand; no need to load all of rules/.",
-   "A Studio preview does not prove a successful render; always check the output file.",
-   "Use Mediabunny (rules get-video-duration, get-audio-duration, can-decode, extract-frames) for media metadata.",
-   "Load fonts correctly (rules/fonts.md) to avoid flicker during render."
+   "Load only the rules for the change at hand.",
+   "A Studio preview does not prove a successful render; check the output file.",
+   "Load fonts per rules/fonts.md to avoid render flicker."
   ],
   "related": [
    "ak-hyperframes",
@@ -1154,125 +927,99 @@
   "agents": [],
   "artifacts": [
    "Remotion composition code (React)",
-   "Rendered video file (MP4...) when export is requested"
+   "Rendered video file when export is requested"
   ]
  },
  "ak-hyperframes": {
-  "tagline": "Wrap HeyGen's HyperFrames CLI to render videos from HTML compositions.",
-  "summary": "ak:hyperframes is a docs-and-commands wrapper for HeyGen's hyperframes CLI: it vendors no HeyGen source or agent skills, and runs the npm package via npx at a pinned version (hyperframes@0.7.99, owned by references/render-workflow.md). A composition is plain HTML with data-composition-id, data-width, and data-height on the root, and data-start/data-duration/data-track-index plus class=\"clip\" on timed elements. Output is a local MP4 (or a cloud render with HEYGEN_API_KEY), done only when ffprobe confirms it; HyperFrames is the kit's default HTML video engine, with nexu-io/html-video as a documented alternative.",
+  "tagline": "Render videos from HTML compositions with HeyGen's HyperFrames CLI.",
+  "summary": "ak:hyperframes wraps the hyperframes CLI, run via npx at pinned hyperframes@0.7.99, to render plain-HTML compositions timed with data-* attributes. Output is a local MP4 (or cloud render with HEYGEN_API_KEY), done only when ffprobe confirms it.",
   "howItWorks": [
-   "Checks prerequisites with node scripts/verify-prereqs.mjs (--json for machine output): Node.js 22+ and FFmpeg on PATH.",
-   "It prints READY on success, otherwise platform-specific fix commands; the result is reused until the environment changes.",
-   "init: npx -y hyperframes@0.7.99 init <name> --resolution <preset> scaffolds a composition project; without --resolution the template size is kept (usually 1920x1080).",
-   "Edits the HTML composition directly per the data-* contract in references/composition-basics.md.",
-   "There is no compile step; the runtime shows and hides class=\"clip\" elements itself.",
-   "preview: npx -y hyperframes@0.7.99 preview <name> serves a local scrubbable timeline to check data-start/data-duration order before rendering.",
-   "Only preview processes started by this task get stopped.",
-   "lint always runs before render: npx -y hyperframes@0.7.99 lint <name>.",
-   "lint fails on a missing/duplicate data-composition-id, unparseable data-start/data-duration, or timed elements without class=\"clip\".",
-   "render: npx -y hyperframes@0.7.99 render <name> --output ./assets/videos/<name>.mp4.",
-   "Cloud rendering is a separate top-level command, hyperframes cloud render (needs HEYGEN_API_KEY); render has no --engine/cloud flag.",
-   "Verifies with ffprobe -v error -show_streams -show_format -of json <file>.mp4; done only when duration is non-zero and width/height match.",
-   "If the installed version differs from the pin, reports installed vs expected and fixes the invocation; never upgrades silently."
+   "Checks Node.js 22+ and FFmpeg with node scripts/verify-prereqs.mjs; prints READY or fix commands.",
+   "init scaffolds a project; you edit HTML with data-composition-id, data-start, data-duration, and class=\"clip\".",
+   "preview serves a scrubbable timeline; lint always runs and must pass before render.",
+   "render outputs MP4 locally; cloud render is a separate command needing HEYGEN_API_KEY.",
+   "Verifies with ffprobe (non-zero duration, matching size); reports version drift from the pin, never upgrades silently."
   ],
   "useWhen": [
-   "Short vertical social videos (1080x1920, 9:16) built from HTML/CSS.",
-   "Product launch clips, promo loops, or motion graphics written as HTML compositions instead of React components or a timeline editor.",
-   "The composition's source of truth is HTML markup with data-composition-id/data-start timing attributes.",
-   "You need HeyGen cloud rendering (hyperframes cloud render) or self-hosted distributed rendering via lambda (AWS) or cloudrun (GCP)."
+   "Short vertical social videos (1080x1920) built from HTML/CSS.",
+   "Launch clips, promo loops, or motion graphics authored as HTML.",
+   "You need HeyGen cloud rendering or distributed rendering on AWS/GCP."
   ],
   "avoidWhen": [
-   "React component trees, frame-exact interpolation, or Remotion's audio/caption ecosystem: use ak-remotion.",
-   "Only encoding, trimming, transcoding, thumbnails, HLS/DASH, or FFmpeg/ImageMagick batches: use ak-media-processing.",
-   "Static HTML previews, slides, docs, or demos with no MP4: use ak-preview or ak-show-off."
+   "React components, frame-exact interpolation, or Remotion captions: use ak-remotion.",
+   "Only encoding, trimming, or transcoding: use ak-media-processing.",
+   "Static HTML previews or slides with no MP4: use ak-preview or ak-show-off."
   ],
   "params": [
    {
     "name": "[composition or command]",
     "kind": "arg",
-    "desc": "Composition name/path or the HyperFrames command to run (init, preview, lint, render, cloud render...)."
+    "desc": "Composition name/path or HyperFrames command (init, preview, lint, render, cloud render)."
    },
    {
     "name": "init",
     "kind": "subcommand",
-    "desc": "Scaffold a new composition project, e.g. init my-composition --resolution portrait. Run init --help to confirm current flags; the list may lag upstream."
+    "desc": "Scaffold a composition project, e.g. init my-composition --resolution portrait; check init --help for current flags."
    },
    {
     "name": "--resolution <preset>",
     "kind": "flag",
-    "desc": "init flag: landscape (1920x1080), portrait (1080x1920), landscape-4k (3840x2160), portrait-4k (2160x3840), square (1080x1080), square-4k (2160x2160), plus aliases 1080p, 4k, uhd, 1080p-square, square-1080p, 4k-square."
+    "desc": "init: landscape (1920x1080), portrait (1080x1920), square (1080x1080), plus -4k variants and aliases like 1080p, 4k."
    },
    {
     "name": "preview",
     "kind": "subcommand",
-    "desc": "Serve the composition locally with a scrubbable timeline; open the printed local URL."
+    "desc": "Serve the composition locally with a scrubbable timeline."
    },
    {
     "name": "lint",
     "kind": "subcommand",
-    "desc": "Check data-* attributes and timing; must run and pass cleanly before render."
+    "desc": "Check data-* attributes and timing; must pass before render."
    },
    {
     "name": "render",
     "kind": "subcommand",
-    "desc": "Render an MP4 locally (Chromium capture, then FFmpeg encode) with --output <path>; no HEYGEN_API_KEY needed."
+    "desc": "Render MP4 locally (Chromium capture + FFmpeg) with --output; no HEYGEN_API_KEY needed."
    },
    {
     "name": "--output <path>",
     "kind": "flag",
-    "desc": "Output MP4 path for render and cloud render, e.g. ./assets/videos/<name>.mp4."
+    "desc": "MP4 output path for render and cloud render, e.g. ./assets/videos/<name>.mp4."
    },
    {
     "name": "cloud render",
     "kind": "subcommand",
-    "desc": "Render on HeyGen-managed cloud; a separate top-level command, not a render flag; needs HEYGEN_API_KEY. cloud list / cloud get / cloud delete manage past cloud renders. Run cloud render --help before relying on flag names."
+    "desc": "Render on HeyGen cloud; separate command, needs HEYGEN_API_KEY. cloud list/get/delete manage past renders."
    },
    {
     "name": "lambda / cloudrun",
     "kind": "subcommand",
-    "desc": "Top-level commands for self-hosted distributed rendering on AWS (lambda) or GCP (cloudrun). (not documented in source)"
+    "desc": "Self-hosted distributed rendering on AWS or GCP. Not documented in source."
    },
    {
     "name": "skills",
     "kind": "subcommand",
-    "desc": "npx -y hyperframes@0.7.99 skills installs HeyGen's 25 agent skills into ~/.agents/skills/; skills check checks freshness, skills update updates in place. There is no skills add subcommand."
+    "desc": "Install HeyGen's 25 agent skills into ~/.agents/skills/; skills check and skills update maintain them. No skills add."
    }
   ],
   "examples": [
    {
-    "cmd": "node scripts/verify-prereqs.mjs --json",
-    "note": "Check Node 22+ and FFmpeg before render work."
-   },
-   {
     "cmd": "npx -y hyperframes@0.7.99 init launch-clip --resolution portrait",
-    "note": "Scaffold a vertical 1080x1920 launch clip."
-   },
-   {
-    "cmd": "npx -y hyperframes@0.7.99 preview launch-clip",
-    "note": "Scrub the timeline to check clip order before rendering."
+    "note": "Scaffold a vertical launch clip."
    },
    {
     "cmd": "npx -y hyperframes@0.7.99 lint launch-clip",
-    "note": "Catch data-composition-id, data-start, and missing clip class errors."
+    "note": "Catch timing and clip class errors."
    },
    {
     "cmd": "npx -y hyperframes@0.7.99 render launch-clip --output ./assets/videos/launch-clip.mp4",
-    "note": "Render MP4 locally, then verify with ffprobe."
-   },
-   {
-    "cmd": "npx -y hyperframes@0.7.99 cloud render launch-clip --output ./assets/videos/launch-clip.mp4",
-    "note": "Render on HeyGen cloud once HEYGEN_API_KEY is set."
+    "note": "Render locally, then verify with ffprobe."
    }
   ],
   "tips": [
-   "Requires Node.js 22+ and FFmpeg on PATH; HEYGEN_API_KEY is only for cloud render.",
-   "Store HEYGEN_API_KEY per the project's secret convention (e.g. .agentkit/.env) and never log it.",
-   "A blank or oddly short MP4 usually means a wrong data-start or data-composition-id; running lint first catches most render errors.",
-   "Do not hand-write CSS opacity/visibility for data-start; the runtime handles every class=\"clip\" element.",
-   "Overlapping clips need different data-track-index values to set stacking order.",
-   "If the CLI reports an unknown flag, the pin may lag upstream: run the pinned command with --help before updating the pin.",
-   "For advanced techniques (keyframes, captions, product-launch templates), install HeyGen's agent skills with the skills command instead of rewriting them.",
-   "Consider nexu-io/html-video only if the user already has its binary/checkout or its template catalog fits; HyperFrames stays the default."
+   "A blank or short MP4 usually means a wrong data-start or data-composition-id; lint first.",
+   "Overlapping clips need different data-track-index values; never hand-write clip visibility CSS.",
+   "Unknown flag errors mean the pin may lag upstream; run the pinned command with --help."
   ],
   "related": [
    "ak-remotion",
@@ -1282,41 +1029,35 @@
   ],
   "agents": [],
   "artifacts": [
-   "HTML composition project folder (from init)",
+   "HTML composition project folder",
    "./assets/videos/<name>.mp4",
-   "ffprobe JSON output as render evidence"
+   "ffprobe JSON as render evidence"
   ]
  },
  "ak-agent-browser": {
-  "tagline": "Automate tool-managed browsers with agent-browser: snapshots, clicks, forms, tests.",
-  "summary": "ak:agent-browser uses the agent-browser CLI (Rust, by vercel-labs) to drive Chrome/Chromium over CDP with accessibility-tree snapshots and compact @eN element refs. Use it for browser testing, screenshots, form filling, scraping, exploratory QA, Electron apps, Slack, and cloud browsers. SKILL.md is only a discovery stub: the real instructions come from the installed binary via agent-browser skills get core.",
+  "tagline": "Automate tool-managed browsers: snapshots, clicks, forms, screenshots, QA.",
+  "summary": "ak:agent-browser drives Chrome/Chromium over CDP with the agent-browser CLI, using accessibility snapshots and @eN element refs. Real instructions come from the installed binary via agent-browser skills get core.",
   "howItWorks": [
-   "Decides first: tasks that need the real Chrome profile (cookies, signed-in accounts, workspaces) go to ak:chrome-profile; everything else stays here.",
-   "If the binary or browser is missing or needs an upgrade, loads references/setup-and-upgrade.md; reuses a working binary instead of reinstalling routinely.",
-   "Before any command, loads workflow content from the CLI: agent-browser skills get core (--full for the complete command reference and templates).",
-   "For special tasks, loads a specialized skill: electron, slack, dogfood (QA/bug hunting), vercel-sandbox, agentcore; list them with agent-browser skills list.",
-   "Executes: opens the page, snapshots (-i) to get @eN refs, clicks or fills forms, takes screenshots.",
-   "Re-runs snapshot after every page change.",
-   "Cloud browser: set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID, then agent-browser -p browserbase open <url>; monitor via the dashboard on port 4848."
+   "Routes tasks needing your real Chrome profile to ak:chrome-profile; everything else stays here.",
+   "Loads workflow content with agent-browser skills get core, or specialized skills (electron, slack, dogfood).",
+   "Opens the page, snapshots (-i) for @eN refs, clicks, fills forms, and screenshots.",
+   "Re-runs snapshot after every page change; cloud browsers use -p browserbase."
   ],
   "useWhen": [
-   "Quickly checking a freshly compiled page (self-verifying loop) or taking screenshots.",
-   "Filling forms, scraping, or multi-tab work that needs no real sign-in.",
-   "Exploratory QA or bug hunting with the dogfood skill.",
-   "Automating Electron apps (VS Code, Slack, Discord, Figma) or a Slack workspace.",
-   "Running browsers in CI via Browserbase or AWS AgentCore."
+   "Checking a freshly built page or taking screenshots.",
+   "Filling forms, scraping, or exploratory QA without real sign-in.",
+   "Automating Electron apps or running browsers in CI via Browserbase."
   ],
   "avoidWhen": [
-   "You need cookies, a Google account, or a tenant open in your everyday Chrome: use ak-chrome-profile.",
-   "Repeatable E2E tests in CI: use ak-web-testing or the project's Playwright.",
-   "OS-level control of native app windows: use the computer-use skill.",
-   "Low-level CDP diagnostics: use chrome-devtools-mcp if available."
+   "You need cookies or accounts from your everyday Chrome: use ak-chrome-profile.",
+   "Repeatable E2E tests in CI: use ak-web-testing or Playwright.",
+   "OS-level control of native windows: use the computer-use skill."
   ],
   "params": [
    {
     "name": "[url or task]",
     "kind": "arg",
-    "desc": "URL to open or a description of the browser task."
+    "desc": "URL to open or description of the browser task."
    }
   ],
   "examples": [
@@ -1325,23 +1066,18 @@
     "note": "Self-verify after a change."
    },
    {
-    "cmd": "/ak:agent-browser screenshot the pricing page at mobile and desktop sizes",
-    "note": "Multi-size screenshots."
-   },
-   {
     "cmd": "/ak:agent-browser dogfood the staging app to find bugs",
-    "note": "Exploratory QA with the dogfood skill."
+    "note": "Exploratory QA."
    },
    {
     "cmd": "agent-browser -p browserbase open https://example.com",
-    "note": "Run on a Browserbase cloud browser."
+    "note": "Browserbase cloud browser."
    }
   ],
   "tips": [
-   "Install with npm install -g agent-browser; missing Chromium: agent-browser install; missing Linux libraries: agent-browser install --with-deps.",
-   "Unknown or outdated commands/flags: update the binary, then run agent-browser skills get core --full, since instructions follow the installed version.",
-   "'Element not found': rerun agent-browser snapshot -i after the page changes; for a stuck session, run agent-browser close.",
-   "The observability dashboard is on port 4848; open only the dashboard origin, no per-session port exposure needed."
+   "Install with npm install -g agent-browser; missing Chromium: agent-browser install --with-deps.",
+   "'Element not found': rerun agent-browser snapshot -i after the page changes.",
+   "Unknown flags: update the binary, then rerun agent-browser skills get core --full."
   ],
   "related": [
    "ak-chrome-profile",
@@ -1351,73 +1087,69 @@
   ],
   "agents": [],
   "artifacts": [
-   "Screenshots, session recordings, extracted data (depending on the commands used)"
+   "Screenshots, recordings, or extracted data"
   ]
  },
  "ak-chrome-profile": {
-  "tagline": "Target the user's real Chrome profile for automation via Chrome DevTools MCP.",
-  "summary": "ak:chrome-profile provides the chrome-profile CLI, which opens a URL in the exact Chrome profile (Google account, cookies, workspace, tenant, session). It appends a #cdp-profile=<key>&cdp-open=<token> marker so the agent picks the exact tab from the Chrome DevTools MCP page list. Output is a bound tab ready for snapshot, click, evaluate, and screenshots; it is not the default for ordinary browser testing.",
+  "tagline": "Automate your real Chrome profile via Chrome DevTools MCP.",
+  "summary": "ak:chrome-profile opens a URL in an exact Chrome profile (account, cookies, tenant) and tags it with a #cdp-profile=<key>&cdp-open=<token> marker. The agent then binds that exact tab through Chrome DevTools MCP; it is not for ordinary browser testing.",
   "howItWorks": [
-   "Decides first whether the task needs the real Chrome profile; if not, uses ak:agent-browser, ak:web-testing, or plain Chrome DevTools MCP navigation.",
-   "Checks 3 readiness layers: chrome-profile list resolves the key; a live Chrome DevTools MCP probe can list and read pages; after opening, the page list contains the exact cdp-open=<token>.",
-   "Missing mapping: guides through chrome-profile setup.",
-   "Suspected bridge problems: runs chrome-profile doctor, then a live MCP probe (list pages), before asking the user to change config or restart Chrome.",
-   "Opens the tab with chrome-profile open --json <key> <url> and takes bind_selector from the JSON.",
-   "Lists pages via MCP, picks the tab whose URL contains the exact cdp-open=<token>, confirms cdp-profile=<key>, then snapshots, clicks, evaluates, or screenshots.",
-   "Never uses MCP new_page or navigate_page to create profile tabs; if an SPA rewrites the hash, saves the page ID right after opening."
+   "Uses ak:agent-browser or ak:web-testing instead when the real profile is not needed.",
+   "Checks readiness: chrome-profile list resolves the key and a live MCP probe can read pages.",
+   "Runs chrome-profile setup for missing mappings, or doctor plus a live probe for bridge problems.",
+   "Opens with chrome-profile open --json <key> <url> and binds the tab whose URL has the exact token.",
+   "Never creates profile tabs with MCP new_page or navigate_page."
   ],
   "useWhen": [
-   "Working in GitHub, Gmail, or Google Workspace with the exact signed-in account.",
-   "The user has several Chrome profiles and one must be targeted precisely.",
-   "The task needs cookies or a tenant open in everyday Chrome.",
-   "Opening a tab for the user in a specific profile (including background on macOS)."
+   "Working in GitHub, Gmail, or Google Workspace with the signed-in account.",
+   "Several Chrome profiles exist and one must be targeted exactly.",
+   "The task needs cookies or a tenant from everyday Chrome."
   ],
   "avoidWhen": [
-   "A fresh, tool-managed browser is enough: use ak-agent-browser.",
-   "Repeatable CI tests: use ak-web-testing or the project's Playwright.",
-   "The browser is not Google Chrome stable: the CLI does not support it.",
-   "OS-level app window control: use computer-use."
+   "A fresh tool-managed browser is enough: use ak-agent-browser.",
+   "Repeatable CI tests: use ak-web-testing or Playwright.",
+   "Non-Chrome-stable browsers: the CLI does not support them."
   ],
   "params": [
    {
     "name": "[url]",
     "kind": "arg",
-    "desc": "URL to open in the target profile (maps to the url argument of chrome-profile open)."
+    "desc": "URL to open in the target profile."
    },
    {
     "name": "--profile <name>",
     "kind": "flag",
-    "desc": "Profile key to target, resolved by Google account email or a display-name substring (maps to the key argument of chrome-profile open); never a folder name like 'Profile 17'."
+    "desc": "Profile key, resolved by account email or display-name substring; never a folder name like 'Profile 17'."
    },
    {
     "name": "--tab <title|url>",
     "kind": "flag",
-    "desc": "Select a tab by title or URL. (not documented in source; SKILL.md requires binding the tab via the cdp-open=<token> bind_selector rather than picking the newest tab)"
+    "desc": "Select a tab by title or URL. Not in source; bind via the cdp-open=<token> bind_selector instead."
    },
    {
     "name": "open",
     "kind": "subcommand",
-    "desc": "chrome-profile open <key> <url>: open a URL in the profile; --json prints bind data (bind_selector, opened_url, profile_key...); --force opens even without a detected readable bridge; --no-activate (macOS) returns focus to the previous app; --show-emails shows full emails."
+    "desc": "open <key> <url>: --json prints bind data; --force skips bridge check; --no-activate (macOS) keeps focus; --show-emails shows emails."
    },
    {
     "name": "setup",
     "kind": "subcommand",
-    "desc": "Discover profiles and write profiles.json ($XDG_CONFIG_HOME/chrome-profile/profiles.json); --yes/-y accepts inferred keys, --non-interactive."
+    "desc": "Discover profiles and write profiles.json; --yes accepts inferred keys, --non-interactive."
    },
    {
     "name": "list",
     "kind": "subcommand",
-    "desc": "Show configured keys and the profiles they resolve to on this machine."
+    "desc": "Show configured keys and their resolved profiles."
    },
    {
     "name": "discover",
     "kind": "subcommand",
-    "desc": "List every Chrome profile on the machine (no config needed)."
+    "desc": "List every Chrome profile on the machine; no config needed."
    },
    {
     "name": "doctor",
     "kind": "subcommand",
-    "desc": "Static heuristic for whether the agent can read opened tabs; --json for bridge status. Not the sole source of truth; always pair with a live MCP probe."
+    "desc": "Static check of whether tabs are readable; --json for bridge status. Always pair with a live MCP probe."
    }
   ],
   "examples": [
@@ -1427,23 +1159,17 @@
    },
    {
     "cmd": "chrome-profile open --json work \"https://mail.google.com\"",
-    "note": "Open Gmail in the right profile and get bind_selector."
+    "note": "Open Gmail and get bind_selector."
    },
    {
     "cmd": "chrome-profile setup --yes",
-    "note": "Create the profile mapping non-interactively."
-   },
-   {
-    "cmd": "chrome-profile doctor --json",
-    "note": "Check bridge status before the live probe."
+    "note": "Create the mapping non-interactively."
    }
   ],
   "tips": [
-   "Requires Python 3.9+ and Google Chrome stable; works on macOS, Linux, and Windows.",
-   "The first MCP call may trigger Chrome's remote-control permission dialog; ask the user to approve, then retry once.",
-   "An unresolved key means the Google account is not signed into a profile on this machine; sign in once via the Chrome UI.",
-   "The CLI reads only Local State metadata, never cookies or passwords; do not reveal email/profile mappings unless needed.",
-   "For background use on macOS, add --no-activate or set CHROME_PROFILE_NO_ACTIVATE=1."
+   "Requires Python 3.9+ and Google Chrome stable.",
+   "The first MCP call may show Chrome's remote-control dialog; approve it, then retry once.",
+   "The CLI reads only Local State metadata, never cookies or passwords."
   ],
   "related": [
    "ak-agent-browser",
@@ -1451,8 +1177,8 @@
   ],
   "agents": [],
   "artifacts": [
-   "$XDG_CONFIG_HOME/chrome-profile/profiles.json (per-machine config)",
-   "Chrome tab opened with the #cdp-profile=<key>&cdp-open=<token> marker"
+   "$XDG_CONFIG_HOME/chrome-profile/profiles.json",
+   "Chrome tab tagged with #cdp-profile=<key>&cdp-open=<token>"
   ]
  }
 }

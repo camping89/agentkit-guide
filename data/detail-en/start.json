@@ -1,41 +1,29 @@
 {
   "ak-agentkit": {
-    "tagline": "Task router: classifies work, picks installed skills, and chains the shortest workflow.",
-    "summary": "ak:agentkit classifies a task by workflow class plus size, risk, and domain count, then routes it to one installed owner skill. It outputs a routing record: main skill, chain when several owners are needed, subagent timing, and verification level. It always checks the live installed catalog, never a remembered list.",
+    "tagline": "Task router: classifies work and chains the shortest skill workflow.",
+    "summary": "ak:agentkit classifies a task by workflow class, size, risk, and domain count, then routes it to one installed owner skill. It returns a routing record: main skill, chain, subagent timing, and verification level.",
     "howItWorks": [
-      "Proportionality gate: a named skill or single obvious domain goes straight to its owner.",
-      "Plain conversation needs no workflow at all.",
-      "Ambiguous or multi-domain work is matched against the live installed catalog only.",
-      "Unclear tasks load references/task-taxonomy.md to pick one workflow class by the final deliverable.",
-      "Classes: build-feature, fix-defect, investigate-explain, review-audit, ship-release, create-content, discover-validate, plan-campaign, analyze-performance, design-visual, operate-infra, document, meta-capability.",
-      "Modifiers: size (trivial/standard/epic), risk (low/elevated/high, from the riskiest link), domain count (1 or 2+).",
-      "Routes start after the primary-workflow outcome gate; the router neither skips nor repeats it.",
-      "Multi-owner chains follow references/chaining-patterns.md: understand → decide → execute → verify → deliver, forward only.",
-      "Each link has entry/exit criteria and one owner; collapse and insertion rules shorten or extend the chain by modifier.",
-      "Epic adds decide and phased execute; elevated adds verify; high adds verify, independent review, and confirmation before irreversible steps.",
-      "Engineering chains use the sequence table in ak-cook/references/workflow-routing.md.",
-      "Risk sets verification depth; evidence is reused only for the same revision, and scores are not evidence.",
-      "Delegation follows references/subagent-timing.md with a 7-item contract; missing optional agents mean inline work with stated limits.",
-      "Headless cross-runtime work goes to the installed orchestration capability; failed routes change approach based on evidence."
+      "Named skills or one obvious domain go straight to the owner; plain conversation needs no workflow.",
+      "Ambiguous work is matched only against the live installed catalog, never a remembered list.",
+      "Picks one class (e.g. build-feature, fix-defect, review-audit) plus size, risk, and domain modifiers.",
+      "Chains run understand → decide → execute → verify → deliver; higher risk adds verify and review.",
+      "Delegates to subagents per references/subagent-timing.md; failed links detour, never advance."
     ],
     "useWhen": [
       "Starting multi-step or multi-domain work without knowing which skill goes first.",
-      "Unsure which skill or agent fits the current request.",
-      "Ordering several skills into one workflow, e.g. research → plan → cook → test → review.",
-      "A founder or product owner validating an idea or market without a clear offer (discover-validate).",
-      "Deciding whether and when to spawn subagents like tester, code-reviewer, researcher, or kongming."
+      "Ordering several skills into one workflow, e.g. research → plan → cook → review.",
+      "Deciding when to spawn subagents like tester, code-reviewer, or kongming."
     ],
     "avoidWhen": [
-      "You already know the skill: call it directly, e.g. /ak:fix or /ak:cook.",
+      "You already know the skill: call it directly, e.g. /ak:fix.",
       "Plain Q&A or explanation: use /ak:ask or /ak:explain.",
-      "Listing skills or commands: use /ak:help.",
-      "Coordinating parallel headless runtimes: use /ak:orchestrate."
+      "Listing skills or commands: use /ak:help."
     ],
     "params": [
       {
         "name": "[task to route]",
         "kind": "arg",
-        "desc": "Task description to route. The router classifies it and returns a route to the installed owner skill. No other flags exist."
+        "desc": "Task description to route; returns a route to the installed owner skill. No flags."
       }
     ],
     "examples": [
@@ -48,22 +36,14 @@
         "note": "fix-defect class: routes straight to /ak:fix; the debugger role joins only after two failed fixes."
       },
       {
-        "cmd": "/ak:agentkit plan a product launch campaign across email and social",
-        "note": "plan-campaign class: research → persona/funnel → brief → per-channel production → analytics, if installed."
-      },
-      {
         "cmd": "/ak:agentkit I want to understand why this service is slow, then decide whether to refactor",
         "note": "investigate-explain first with no change link; brainstorm/plan only if it becomes delivery."
       }
     ],
     "tips": [
-      "The router routes and stops; it does not repeat gates the owner skill already passed.",
-      "When two classes tie, it picks the shorter route and records why; upgrading later is cheaper.",
-      "Collapse links under ~5 minutes that produce no reused artifact; verify links never collapse at elevated/high risk.",
-      "The product discovery chain ends in a decision record, which feeds ak-brainstorm → ak-plan if the answer is build.",
-      "Spawn subagents only for fresh context, tool boundaries, real parallelism, or specialist prompts; keep 3-4 concurrent.",
-      "Pass artifact paths (plans/reports/...) between long-chain links instead of prose summaries.",
-      "A failed link never advances the chain: detour via fix/debug or narrower scope, then retry that link."
+      "The router routes and stops; it does not repeat gates the owner skill runs.",
+      "On a tie between classes, it picks the shorter route and records why.",
+      "Pass artifact paths between chain links instead of prose summaries."
     ],
     "related": [
       "ak-help",
@@ -97,39 +77,34 @@
       "database-admin"
     ],
     "artifacts": [
-      "Routing record in the conversation (class, modifiers, skill chain, reason for picking the shorter class when ambiguous)",
+      "Routing record in the conversation (class, modifiers, chain, reason)",
       "Subagent reports in plans/reports/ when the project uses that convention"
     ]
   },
   "ak-help": {
-    "tagline": "AgentKit help index: installed skills, commands, and fitting workflows.",
-    "summary": "ak:help answers how to use ak, which skills exist, and which workflow to run. It takes an optional topic, skill, or command and summarizes matches from the live installed catalog and `ak --help`. It never relies on bundled lists or remembered skill counts.",
+    "tagline": "AgentKit help index: installed skills, commands, and workflows.",
+    "summary": "ak:help answers how to use ak, which skills exist, and which workflow to run. It reads the live installed catalog and `ak --help`, never remembered lists.",
     "howItWorks": [
-      "Uses the runtime's installed-skill catalog; otherwise finds SKILL.md files in project and user skill roots.",
-      "Reads only the frontmatter of relevant candidates.",
-      "Summarizes only matching candidates and points to the most specific installed skill.",
-      "Says plainly when a mentioned skill is not installed.",
-      "For commands, reads `ak --help` or the specific command's help at question time.",
-      "Help text is not treated as a command registry.",
-      "When aliases collide or project skills shadow user skills, resolves the actual owner and scope first."
+      "Reads the installed-skill catalog, or only the frontmatter of SKILL.md files in skill roots.",
+      "Points to the most specific installed skill and says plainly when one is missing.",
+      "For commands, reads `ak --help` or the command's own help at question time.",
+      "Resolves the real owner when project skills shadow user skills."
     ],
     "useWhen": [
       "You are new to AgentKit and want to see available skills.",
-      "You need `ak` CLI syntax or subcommands, e.g. `ak plan` or `ak config`.",
-      "You want workflow suggestions before running anything.",
-      "Two skills share a name across project and user scope and you need the active one."
+      "You need `ak` CLI syntax, e.g. `ak plan` or `ak config`.",
+      "You want workflow suggestions before running anything."
     ],
     "avoidWhen": [
-      "You want automatic classification and skill chaining: use /ak:agentkit.",
-      "You need a skill that is not installed: use /ak:find-skills.",
-      "You need to install, update, or remove kits: use /ak:ak.",
-      "You need a technical concept explained: use /ak:explain."
+      "Automatic classification and skill chaining: use /ak:agentkit.",
+      "A skill that is not installed: use /ak:find-skills.",
+      "Installing or removing kits: use /ak:ak."
     ],
     "params": [
       {
         "name": "[topic|skill|command]",
         "kind": "arg",
-        "desc": "Optional topic, skill, or command. A command reads only its help; a skill reads only its frontmatter; empty opens the general index."
+        "desc": "Optional topic, skill, or command; empty opens the general index."
       }
     ],
     "examples": [
@@ -144,17 +119,12 @@
       {
         "cmd": "/ak:help workflow for fixing a CI bug",
         "note": "Points to the most specific installed skill, usually /ak:fix."
-      },
-      {
-        "cmd": "/ak:help ak config prefs",
-        "note": "Looks up one CLI command's syntax only."
       }
     ],
     "tips": [
-      "The skill may not appear as user-invocable, but the model activates it when you ask how to use ak.",
-      "Answers reflect current installs; ask again after installing or removing a kit.",
-      "Missing skills are reported, not faked; use /ak:find-skills to find them.",
-      "Narrow questions about one command cost far fewer tokens than the full catalog."
+      "Answers reflect current installs; ask again after changing kits.",
+      "Missing skills are reported, not faked.",
+      "Narrow questions cost far fewer tokens than the full catalog."
     ],
     "related": [
       "ak-agentkit",
@@ -166,43 +136,34 @@
   },
   "ak-coding-level": {
     "tagline": "Set your coding experience level (0-5) to tune explanation depth.",
-    "summary": "ak:coding-level sets experience from 0 (ELI5) to 5 (God Mode, default). It changes explanation depth, vocabulary, and examples, never scope, correctness, tests, or security. It applies to the current session and persists via `ak config prefs` when the runtime supports it.",
+    "summary": "ak:coding-level sets explanation depth from 0 (ELI5) to 5 (God Mode, default). It changes wording and examples, never scope, correctness, tests, or security.",
     "howItWorks": [
-      "Takes a level 0-5 from `/ak:coding-level [0-5]`.",
-      "Applies it immediately to explanations, vocabulary, and examples in the session.",
-      "Keeps implementation scope, correctness, tests, and security the same at every level.",
-      "For persistence, checks `ak config --help` and `ak config prefs --help`, then `ak config prefs resolve --json`.",
-      "Writes through the CLI's supported config path and scope, then re-checks the resolved `codingLevel`.",
-      "Never creates `.claude/.ck.json` on Codex or assumes cross-runtime hook injection.",
-      "Without persistence support, applies to the current session only and states that limit.",
-      "Optionally pick a matching Output style in Claude Code `/config` (coding-level-0-eli5 ... coding-level-5-god)."
+      "Applies the level immediately to explanations, vocabulary, and examples.",
+      "Persists via `ak config prefs` when supported, then re-checks the resolved `codingLevel`.",
+      "Without persistence support, applies to this session only and says so.",
+      "In Claude Code you can also pick a coding-level-N Output style in `/config`."
     ],
     "useWhen": [
-      "A beginner wants metaphors, no jargon, and step-by-step answers (level 0 or 1).",
-      "You want the agent to explain why, not just how, when reviewing junior code (level 1).",
-      "A tech lead wants answers focused on risk, business impact, and strategy (level 4).",
-      "You want the default, efficient, low-explanation mode back (level 5)."
+      "A beginner wants metaphors and step-by-step answers (level 0 or 1).",
+      "A tech lead wants answers on risk and business impact (level 4).",
+      "Returning to the default efficient mode (level 5)."
     ],
     "avoidWhen": [
-      "One simple explanation of a topic: use /ak:explain --eli5 instead of changing the session level.",
+      "One simple explanation: use /ak:explain --eli5.",
       "Rephrasing the last answer: use /ak:bro.",
-      "Expecting a low level to cut features or tests: it does not; use a skill's --yagni flag to cut scope."
+      "Cutting features or tests: use a skill's --yagni flag instead."
     ],
     "params": [
       {
         "name": "[0-5]",
         "kind": "arg",
-        "desc": "Experience level: 0 = ELI5 (metaphors, no jargon, step by step); 1 = Junior (0-2 yrs, concepts and reasons); 2 = Mid-Level (3-5 yrs, patterns, systems thinking); 3 = Senior (5-8 yrs, trade-offs, business context, architecture); 4 = Tech Lead (8-10 yrs, risk, business impact, strategy); 5 = God Mode (expert, default, max efficiency). Default is 5."
+        "desc": "0 ELI5, 1 Junior, 2 Mid-Level, 3 Senior (trade-offs), 4 Tech Lead (risk, strategy), 5 God Mode (expert, default)."
       }
     ],
     "examples": [
       {
         "cmd": "/ak:coding-level 0",
         "note": "Non-programmer: everyday metaphors, every term defined."
-      },
-      {
-        "cmd": "/ak:coding-level 1",
-        "note": "Junior: explains why the implementation works, still ships full production code and verification."
       },
       {
         "cmd": "/ak:coding-level 4",
@@ -214,11 +175,9 @@
       }
     ],
     "tips": [
-      "A lower level does not mean less code: scope, tests, and security stay the same.",
-      "Check `ak config prefs resolve --json` to confirm `codingLevel` was saved; otherwise it lasts only this session.",
-      "In Claude Code you can also pick the coding-level-N Output style in `/config`; verify it actually applies.",
-      "Lower levels produce longer answers and use more tokens; reset to 5 when you no longer need depth.",
-      "A same-named style you wrote yourself is kept with a warning; `ak update` usually does not overwrite it."
+      "A lower level never means less code, tests, or security.",
+      "Confirm persistence with `ak config prefs resolve --json`.",
+      "Lower levels use more tokens; reset to 5 when done."
     ],
     "related": [
       "ak-explain",
@@ -227,45 +186,38 @@
     ],
     "agents": [],
     "artifacts": [
-      "`codingLevel` preference in ak config (when the runtime supports persistence)"
+      "`codingLevel` preference in ak config (when supported)"
     ]
   },
   "ak-ask": {
-    "tagline": "One-shot architecture advice: analyze, compare options, recommend. No code.",
-    "summary": "ak:ask acts as a Senior Systems Architect for technical and architecture questions. It returns a blunt, concise analysis with recommendations, technology guidance, strategy, and next steps. It never implements and does not run a multi-round interview like ak:advise.",
+    "tagline": "One-shot architecture advice: analyze, compare, recommend. No code.",
+    "summary": "ak:ask answers technical and architecture questions as a senior architect, with blunt analysis and next steps. It never implements and does not interview you like ak:advise.",
     "howItWorks": [
-      "Reads repo instruction files and the root README, then follows existing docs navigation.",
-      "Checks doc claims against current source, tests, config, and runtime evidence.",
-      "Does not assume every project has the same docs folder.",
-      "Understands the problem and gathers context; scouts with ak:scout when information is missing.",
-      "Picks relevant lenses: Systems Designer, Technology Strategist, Scalability Consultant, Risk Analyst.",
-      "The Risk Analyst lens states when the recommendation stops holding.",
-      "Synthesizes architecture guidance, then validates it against business goals and technical constraints.",
-      "Outputs an honest, direct answer; small questions may get one paragraph. Implements nothing."
+      "Reads repo instructions and docs, then checks their claims against source and config.",
+      "Scouts with ak:scout when context is missing.",
+      "Applies relevant lenses: systems design, technology strategy, scalability, and risk.",
+      "States when the recommendation stops holding; small questions may get one paragraph."
     ],
     "useWhen": [
-      "Choosing between options, e.g. Postgres vs MongoDB or REST vs gRPC, for this project.",
-      "Evaluating a pattern or best practice before writing code.",
-      "Getting a quick architecture opinion on scalability, reliability, or risk.",
-      "You want a single analytical answer without back-and-forth."
+      "Choosing between options, e.g. Postgres vs MongoDB, for this project.",
+      "Getting a quick opinion on scalability, reliability, or risk.",
+      "You want one analytical answer without back-and-forth."
     ],
     "avoidWhen": [
-      "The idea is vague and needs questioning: use /ak:advise.",
-      "You need to compare options and lock an outcome contract before delivery: use /ak:brainstorm.",
-      "You want existing code or a concept explained: use /ak:explain.",
-      "You need deep external research with citations: use /ak:research.",
-      "You want to start building: use /ak:plan or /ak:cook."
+      "A vague idea that needs questioning: use /ak:advise.",
+      "Locking an outcome contract before delivery: use /ak:brainstorm.",
+      "Deep external research with citations: use /ak:research."
     ],
     "params": [
       {
         "name": "[technical-question]",
         "kind": "arg",
-        "desc": "Technical question or architecture challenge, placed in the prompt's <questions> block."
+        "desc": "Technical question or architecture challenge."
       },
       {
         "name": "--yagni",
         "kind": "flag",
-        "desc": "Enables YAGNI: challenge and cut scope not needed for the stated outcome. Without it, advice covers the full requested scope."
+        "desc": "Challenges and cuts scope not needed for the outcome; default covers the full scope."
       }
     ],
     "examples": [
@@ -280,17 +232,12 @@
       {
         "cmd": "/ak:ask Design RBAC permissions for the admin panel --yagni",
         "note": "Asks for a minimal design with unneeded scope cut."
-      },
-      {
-        "cmd": "/ak:ask Should the billing module become its own microservice?",
-        "note": "Strategic architecture decision before planning."
       }
     ],
     "tips": [
-      "User-invoked only (disable-model-invocation); the agent never triggers it on its own.",
-      "Specific questions (module names, constraints, scale) get evidence-based answers; vague ones trigger scouting and cost more tokens.",
-      "Output is deliberately blunt; expect weak ideas to be called out.",
-      "ak:ask creates no plan or report files; move to /ak:plan after you have a recommendation."
+      "User-invoked only; the agent never triggers it on its own.",
+      "Specific questions get evidence-based answers; vague ones trigger costly scouting.",
+      "It writes no files; move to /ak:plan once you have a recommendation."
     ],
     "related": [
       "ak-advise",
@@ -303,88 +250,80 @@
     "artifacts": []
   },
   "ak-advise": {
-    "tagline": "Interview-driven advisor: one question at a time, then honest, evidence-based advice.",
-    "summary": "ak:advise takes a raw idea, problem, or URL, interviews you one question at a time, confirms a reframing, then gives blunt advice. Output covers verdict, do/don't, better options, a path, benefits, trade-offs, a work checklist, and success metrics. It advises only and edits nothing beyond its own reports.",
+    "tagline": "Interview one question at a time, then give honest, evidence-based advice.",
+    "summary": "ak:advise interviews you about a raw idea, problem, or URL, confirms a reframing, then gives blunt advice with a checklist and success metrics. It advises only and edits nothing beyond its own reports.",
     "howItWorks": [
-      "Step 1, input: splits raw prompts into stated problem, hidden problem, and assumptions; states 2-3 initial understandings.",
-      "GitHub URLs are read with `gh issue view <url> --comments` or `gh pr view`; the issue number is kept for --github.",
-      "Other URLs are fetched and summarized.",
-      "Step 2, scout: reads relevant source narrowly when the topic touches the project; skipped for pure strategy. Summarizes in 3-6 bullets.",
-      "Step 3, interview (hard gate): exactly ONE question per ask_user call, usually 4-8 total.",
-      "The interview asks for reasons, challenges pros/cons, finds load-bearing assumptions, and explores 2-3 alternatives including doing less.",
-      "Step 4: confirms the reframing (Problem, Exact requirements, Goals, Non-goals, Constraints) before any advice.",
-      "Step 5: gives 8-part advice: Verdict, What you should do, What you shouldn't do, What could be better, My take and how to get there, Benefits, Trade-offs, Work checklist & success metrics.",
-      "Step 6: writes the standard report, then spawns output subagents per flag in parallel, each told \"DO NOT COMMIT OR PUSH\".",
-      "--agent: the main session relays questions while the `advisor` subagent runs the workflow, up to 12 relay rounds.",
-      "--ultra: interview once, then 5 read-only advice candidates in parallel; kongming scores 1-20 and picks one winner or rejects all."
+      "Reads the input (GitHub URLs via gh) and scouts relevant source when the topic touches the project.",
+      "Interview is a hard gate: exactly one question per turn, usually 4-8 total.",
+      "Confirms Problem, Requirements, Goals, Non-goals, Constraints before any advice.",
+      "Advice covers verdict, do/don't, better options, path, benefits, trade-offs, checklist, and metrics.",
+      "Writes a report; output flags spawn subagents for HTML, Markdown, wiki, or GitHub delivery."
     ],
     "useWhen": [
       "You have a raw idea and want it challenged before planning.",
-      "You want an honest second opinion on an existing plan, design, or proposal.",
-      "You want advice on a GitHub issue/PR posted back to it (--github).",
-      "You need an HTML or Markdown advice report to share with people outside the conversation."
+      "You want an honest second opinion on a plan or design.",
+      "You want advice posted back to a GitHub issue or PR (--github)."
     ],
     "avoidWhen": [
-      "You want one analytical answer without an interview: use /ak:ask.",
-      "You want to compare options and lock a contract for plan/cook: use /ak:brainstorm.",
-      "You need implementation: use /ak:plan then /ak:cook.",
-      "Headless runs with no one to answer: use /ak:brainstorm, which has a headless fallback with --ask."
+      "One analytical answer without an interview: use /ak:ask.",
+      "Comparing options and locking a contract for plan/cook: use /ak:brainstorm.",
+      "Headless runs with no one to answer: use /ak:brainstorm --ask."
     ],
     "params": [
       {
         "name": "[prompt-or-url]",
         "kind": "arg",
-        "desc": "Problem or idea text, or a URL: GitHub issue/PR/discussion, spec, doc, or blog post. GitHub URLs keep repo and issue number for --github."
+        "desc": "Idea or problem text, or a URL (GitHub issue/PR, spec, doc). GitHub URLs are kept for --github."
       },
       {
         "name": "--html",
         "kind": "flag",
-        "desc": "Spawns ui-ux-designer to build a self-contained, responsive HTML report beside the standard one. Visualizes verdict, requirements, do vs don't, options, benefits, and trade-offs."
+        "desc": "Adds a self-contained HTML report built by ui-ux-designer."
       },
       {
         "name": "--md",
         "kind": "flag",
-        "desc": "Spawns docs-manager for a standalone Markdown report; if the standard report already qualifies, only reports its path."
+        "desc": "Adds a standalone Markdown report via docs-manager."
       },
       {
         "name": "--wiki",
         "kind": "flag",
-        "desc": "Spawns docs-manager to upload the report to AgentWiki when available. Private-first; public only on explicit request. Skipped with a notice if unavailable."
+        "desc": "Uploads the report to AgentWiki, private by default; skipped if unavailable."
       },
       {
         "name": "--github",
         "kind": "flag",
-        "desc": "Spawns git-manager to comment the advice on the input issue/PR, or open a new issue in the current repo. `gh` errors are reported verbatim."
+        "desc": "Comments the advice on the input issue/PR, or opens a new issue."
       },
       {
         "name": "--agent",
         "kind": "flag",
-        "desc": "Hands the workflow to the `advisor` subagent (fable model); the main session only relays questions. Claude Code only, 12 relay rounds max. Exclusive with --ultra."
+        "desc": "Runs the workflow in the `advisor` subagent while the main session relays questions. Claude Code only; excludes --ultra."
       },
       {
         "name": "--ultra",
         "kind": "flag",
-        "desc": "Best-of-5: one interview, 5 read-only advice candidates, a verifier scores 1-20 and picks the winner. Hard stop without parallel dispatch. Conflicts with --agent."
+        "desc": "Best-of-5: one interview, 5 advice candidates, kongming picks the winner. Conflicts with --agent."
       },
       {
         "name": "--yagni",
         "kind": "flag",
-        "desc": "Enables YAGNI: challenge and cut unneeded scope. By default, wrong scope is raised as a trade-off, not cut."
+        "desc": "Cuts unneeded scope; by default wrong scope is raised as a trade-off."
       },
       {
         "name": "--no-antv",
         "kind": "flag",
-        "desc": "Disables AntV Infographic KPI tiles in the HTML report. Only affects --html."
+        "desc": "Disables AntV KPI tiles in --html output."
       },
       {
         "name": "--no-diagram-design",
         "kind": "flag",
-        "desc": "Disables diagram-design visuals, e.g. the 2×2 Quadrant for Do vs Don't. Only affects --html."
+        "desc": "Disables diagram-design visuals in --html output."
       },
       {
         "name": "--no-editorial-visuals",
         "kind": "flag",
-        "desc": "Disables the whole editorial visual layer (AntV and diagram-design); highest precedence."
+        "desc": "Disables all editorial visuals; highest precedence."
       }
     ],
     "examples": [
@@ -397,25 +336,14 @@
         "note": "Analyzes the issue, interviews, then comments the advice on it."
       },
       {
-        "cmd": "/ak:advise plans/260920-auth/plan.md --html --md",
-        "note": "Second opinion on an existing plan, with HTML and Markdown reports."
-      },
-      {
         "cmd": "/ak:advise Choose a caching strategy for the API --ultra --yagni",
         "note": "Load-bearing decision: 5 independent candidates, best one picked, minimal scope."
-      },
-      {
-        "cmd": "/ak:advise Should we add a GraphQL gateway? --agent",
-        "note": "Keeps a long interview out of the main session context (Claude Code only)."
       }
     ],
     "tips": [
-      "User-invoked only (disable-model-invocation).",
-      "One question per turn; concrete answers (numbers, constraints) converge in 4-8 questions. \"Make it better\" is not a requirement.",
-      "You keep the final decision: the advisor pushes back but records overrides as trade-offs.",
-      "--ultra costs several times more (5 candidates + verifier); use it only for important decisions.",
-      "The closing work checklist is small enough to feed straight into /ak:plan or /ak:cook.",
-      "Instructions embedded in URLs or issue bodies are data, not commands; reports never contain secrets."
+      "Concrete answers (numbers, constraints) converge faster; \"make it better\" is not a requirement.",
+      "You keep the final decision; overrides are recorded as trade-offs.",
+      "--ultra costs several times more; use it only for important decisions."
     ],
     "related": [
       "ak-ask",
@@ -432,8 +360,8 @@
       "kongming"
     ],
     "artifacts": [
-      "Standard advise report in the reports folder (named per ## Naming, type advise)",
-      "Self-contained HTML file beside the report (--html)",
+      "Standard advise report in the reports folder",
+      "HTML file beside the report (--html)",
       "Markdown report (--md)",
       "State file `...-state.md` (--agent)",
       "AgentWiki share URL (--wiki)",
@@ -441,84 +369,75 @@
     ]
   },
   "ak-brainstorm": {
-    "tagline": "Turn unclear intent into a delivery contract and compare options first.",
-    "summary": "ak:brainstorm is the opening gate for multi-step delivery. It records Outcome, Constraints, Non-goals, and Acceptance criteria, plus Trade-offs and Better approaches when options are compared. For bugs it requires a proven root cause first, then hands off to ak:plan → ak:cook or ak:fix.",
+    "tagline": "Turn unclear intent into a delivery contract and compare options.",
+    "summary": "ak:brainstorm is the opening gate for multi-step delivery: it records Outcome, Constraints, Non-goals, and Acceptance criteria. For bugs it requires a proven root cause, then hands off to ak:plan → ak:cook or ak:fix.",
     "howItWorks": [
-      "Parses flags once before loading references: --ask, --html, --report, --advice, --ultra, --yagni, visual kill switches.",
-      "Non-delivery requests get a direct answer or read-only utility, no design loop.",
-      "An accepted contract or plan with all four fields is reused; only material gaps are raised.",
-      "With --ask: checks evidence, then one question round of up to 4 decisions, 2-4 options each, marked (Recommended).",
-      "Without --ask: writes a short contract and asks only when an answer changes outcome, safety boundary, or public contract.",
-      "Bug branch: frame expected behavior → scout the failure path → prove root cause → compare cause-aligned fixes.",
-      "Design branch: reads the smallest relevant source/docs/tests, states constraints and evidence gaps.",
-      "Presents at most 3 options, each with its load-bearing assumption and first failure condition, compared by worst case.",
-      "Recommends the smallest option meeting the contract, or the cheapest to abandon if assumptions are unresolved.",
-      "Handoff: passes contract, chosen direction, evidence, and open risks to plan then /ak:cook, /ak:fix, or stops for exploration.",
-      "--yagni and --advice pass downstream; --ask never does.",
-      "--html writes brainstorm.html, --report writes a Markdown report; otherwise a durable summary is written only when needed."
+      "Reuses an accepted contract or plan; non-delivery requests get a direct answer.",
+      "Asks only when an answer changes outcome or safety; --ask runs one round of up to 4 decisions.",
+      "Bugs: frame expected behavior, scout, prove root cause, then compare cause-aligned fixes.",
+      "Presents at most 3 options and recommends the smallest one meeting the contract.",
+      "Hands off contract and direction to plan; --yagni and --advice pass downstream, --ask never does."
     ],
     "useWhen": [
-      "Starting a multi-step feature whose outcome, constraints, or acceptance criteria are not recorded.",
-      "Several viable implementations need trade-off comparison before planning.",
-      "A diagnosed bug has multiple fixes or touches an architecture decision.",
-      "You want an HTML brief with workflow diagram and UI mockups to review before planning (--html)."
+      "A multi-step feature lacks recorded outcome, constraints, or acceptance criteria.",
+      "Several viable implementations need comparison before planning.",
+      "A diagnosed bug has multiple possible fixes."
     ],
     "avoidWhen": [
-      "Simple questions or read-only utilities: answer directly or use /ak:ask, /ak:explain.",
-      "An accepted plan already has all four fields: run /ak:cook <plan-path>.",
-      "An undiagnosed bug: use /ak:debug or /ak:fix first.",
-      "You want a deep one-question-at-a-time interview and standalone advice: use /ak:advise."
+      "Simple questions: answer directly or use /ak:ask.",
+      "An accepted plan exists: run /ak:cook <plan-path>.",
+      "An undiagnosed bug: use /ak:debug or /ak:fix first."
     ],
     "params": [
       {
         "name": "[topic or problem]",
         "kind": "arg",
-        "desc": "Topic, request, or problem to clarify and compare options for."
+        "desc": "Topic, request, or problem to clarify."
       },
       {
         "name": "--ask",
         "kind": "flag",
-        "desc": "Interview mode: evidence first, then one ask_user round of up to 4 decisions with (Recommended) options. Headless applies reversible defaults as assumptions and hard-stops on security boundaries. Never passed downstream."
+        "desc": "One question round of up to 4 decisions with recommended options. Headless applies reversible defaults. Never passed downstream."
       },
       {
         "name": "--advice",
         "kind": "flag",
-        "desc": "Runs under `kongming` advisory supervision after each phase, when stuck, and before high-risk decisions. Passed to plan/cook/fix; kongming reviews the PR at green CI. Advises only."
+        "desc": "kongming supervises each phase and high-risk decisions; passed to plan, cook, and fix."
       },
       {
         "name": "--html",
         "kind": "flag",
-        "desc": "Also writes self-contained brainstorm.html with contract, options, trade-offs, recommendation, risks, at least one workflow diagram, and annotated UI mockups for UI topics."
+        "desc": "Writes a self-contained brainstorm.html with options, diagram, and UI mockups for UI topics."
       },
       {
         "name": "--report",
         "kind": "flag",
-        "desc": "Saves a Markdown report to plans/{plan-dir}/reports/ or plans/reports/, named brainstorm-{YYMMDD-HHmm}-{slug}.md. With --ultra, includes the winner and a ranking appendix."
+        "desc": "Saves a Markdown report brainstorm-{YYMMDD-HHmm}-{slug}.md in the plan or plans/reports/ folder."
       },
       {
         "name": "--ultra",
         "kind": "flag",
-        "desc": "Best-of-5: frozen evidence packet, 5 parallel read-only candidates, a verifier picks one contract intact or rejects all. Hard stop without parallel dispatch."
+        "desc": "Best-of-5: 5 read-only candidates; a verifier picks one or rejects all."
       },
       {
         "name": "--yagni",
         "kind": "flag",
-        "desc": "Cuts scope not needed for the outcome. Passed verbatim to every downstream skill and subagent handoff."
+        "desc": "Cuts scope not needed for the outcome; passed to every downstream skill."
       },
       {
         "name": "--no-antv",
         "kind": "flag",
-        "desc": "Disables AntV Infographic KPI tiles for effort/impact scores in brainstorm.html."
+        "desc": "Disables AntV KPI tiles in brainstorm.html."
       },
       {
         "name": "--no-diagram-design",
         "kind": "flag",
-        "desc": "Replaces the diagram-design Quadrant option comparison in brainstorm.html with a plain table."
+        "desc": "Uses a plain table instead of the Quadrant comparison in brainstorm.html."
       },
       {
         "name": "--no-editorial-visuals",
         "kind": "flag",
-        "desc": "Disables the whole editorial visual layer in brainstorm.html."
+        "desc": "Disables all editorial visuals in brainstorm.html."
       }
     ],
     "examples": [
@@ -533,22 +452,12 @@
       {
         "cmd": "/ak:brainstorm Redesign the onboarding page --html",
         "note": "UI topic: HTML brief with annotated mockup and workflow diagram."
-      },
-      {
-        "cmd": "/ak:brainstorm Offline sync architecture for the mobile app --ultra --advice",
-        "note": "Load-bearing decision: 5 candidates plus verifier, with kongming supervising."
-      },
-      {
-        "cmd": "/ak:brainstorm Advanced search filters --yagni",
-        "note": "Minimal approach; --yagni carries into plan/cook."
       }
     ],
     "tips": [
-      "Clear requests get a four-field summary and move on; there is not always a question round.",
-      "Trade-offs appear only when 2+ options are compared; otherwise the contract says \"Better approaches: none — ...\" with evidence.",
-      "Never paste secrets; if you do, they become [REDACTED] and you are told to rotate them.",
-      "--ultra costs several times more and pays off only when results are verifiable.",
-      "For bugs, brainstorm demands scouting and a proven cause before proposing fixes."
+      "Clear requests get a four-field summary and move on without questions.",
+      "--ultra costs several times more; use it only when results are verifiable.",
+      "Pasted secrets become [REDACTED] and you are told to rotate them."
     ],
     "related": [
       "ak-plan",
@@ -563,42 +472,29 @@
     ],
     "artifacts": [
       "brainstorm.html in the report folder (--html)",
-      "plans/reports/brainstorm-{YYMMDD-HHmm}-{slug}.md or plans/{plan-dir}/reports/... (--report)",
-      "`ultra: picked=...` receipt line in the report (--ultra)"
+      "plans/reports/brainstorm-{YYMMDD-HHmm}-{slug}.md (--report)",
+      "`ultra: picked=...` receipt in the report (--ultra)"
     ]
   },
   "ak-plan": {
-    "tagline": "Create, validate, and review implementation plans with executable phases.",
-    "summary": "ak:plan writes structured plans under plans/<timestamp>-<slug>/: a short plan.md index plus phase-NN-<name>.md files, with architecture diagrams and test strategy. It offers depth modes (fast, hard, deep, parallel, two, debate, ultra, or auto-detect) and subcommands validate, red-team, and archive. It sits after brainstorm and before ak:cook; implementation belongs to cook.",
+    "tagline": "Create, validate, and red-team implementation plans with executable phases.",
+    "summary": "ak:plan writes plans/<timestamp>-<slug>/ with a short plan.md index and phase-NN-<name>.md files. It picks a depth mode, runs red-team and validation gates, and hands off to ak:cook; it writes no code.",
     "howItWorks": [
-      "Resolves one mode plus modifiers before loading references; two mode flags cause a hard stop.",
-      "Reuses accepted outcome, constraints, non-goals, and acceptance criteria.",
-      "1. Intake & Scope Challenge: what exists, what was asked, and a complexity check (>8 files, >2 new services, >3 phases).",
-      "Only --yagni offers EXPANSION/HOLD/REDUCTION choices; otherwise it records HOLD SCOPE.",
-      "Auto-detect: simple → fast; complex or new tech → hard; 5+ area refactor → deep; 3+ independent features → parallel; several valid paths → two.",
-      "debate and ultra are never auto-selected.",
-      "2. Research & Scout (hard/deep/two): up to 2 parallel `researcher` agents, plus /ak:scout when evidence is missing.",
-      "3. Drafting: scaffolds with `ak plan create` when available, reads every generated stub, then writes plan.md and phase files, usually via `planner`.",
-      "debate runs 3 independent planners and merges; ultra runs 5 planners and kongming picks one intact.",
-      "4. Red-Team Gate (hard/deep/parallel/debate/ultra): 2-4 adversarial `code-reviewer` lenses; findings without file:line are dropped; you decide what applies.",
-      "5. Validation Gate: verifies claims against the codebase, asks key questions, writes `## Validation Log`.",
-      "6. Whole-Plan Sweep: checks links, frontmatter, invariants, and contradictions across phase files.",
-      "7-9. Optional plan.html (--html), task hydration (unless --no-tasks), GitHub/Wiki publishing.",
-      "10. Handoff: plan path, phase summary, and next step `/ak:cook {plan-dir}/plan.md`.",
-      "11. Runs /ak:journal unless --skip-journal or journal.auto=false."
+      "Picks one mode (flag or auto-detect); two mode flags hard-stop. debate and ultra are opt-in only.",
+      "Deeper modes spawn up to 2 researchers and scout before the planner drafts.",
+      "Red-team gate: 2-4 adversarial code-reviewers; findings without file:line are dropped; you approve fixes.",
+      "Validation gate checks claims against code and writes `## Validation Log`; a sweep checks consistency.",
+      "Hands off `/ak:cook {plan-dir}/plan.md`, then runs /ak:journal unless skipped."
     ],
     "useWhen": [
-      "Work needs phases, architecture decisions, file ownership, or TDD structure before coding.",
-      "Several agents should work in parallel with separate file boundaries (--parallel).",
-      "You want two architectures compared (--two) or several independent drafts merged (--debate).",
-      "You have a plan and want to validate it or red-team it before cooking.",
-      "You want finished plans archived out of the index (archive)."
+      "Work needs phases, architecture decisions, or file ownership before coding.",
+      "Parallel agents need separate file boundaries (--parallel).",
+      "Validating or red-teaming an existing plan before cooking."
     ],
     "avoidWhen": [
-      "Small, clear single-file change: use /ak:cook --fast or /ak:fix.",
-      "Outcome and acceptance criteria are still vague: run /ak:brainstorm first.",
-      "You want code written: plan writes none; use /ak:cook.",
-      "Issue to validated plan branch in one command: use /ak:issue-to-plan; full pipeline to PR: use /ak:vibe."
+      "Small, clear change: use /ak:cook --fast or /ak:fix.",
+      "Outcome is still vague: run /ak:brainstorm first.",
+      "Issue to validated plan in one command: use /ak:issue-to-plan."
     ],
     "params": [
       {
@@ -609,112 +505,112 @@
       {
         "name": "--fast",
         "kind": "flag",
-        "desc": "No research: reads repo guidance and docs, planner writes the plan, tasks hydrated. Reduces depth only, never scope. Exclusive with other modes."
+        "desc": "No research; planner writes directly. Reduces depth, never scope."
       },
       {
         "name": "--hard",
         "kind": "flag",
-        "desc": "Deep mode: up to 2 parallel researchers → scout → planner → red-team → validate → task hydration. Exclusive with other modes."
+        "desc": "Researchers, scout, planner, red-team, validate, task hydration."
       },
       {
         "name": "--deep",
         "kind": "flag",
-        "desc": "For large overhauls: research and scout Phase 1, detail Phase 1, outline later phases; each later phase gets its own scout during cook. Includes red-team and validate."
+        "desc": "For large overhauls: details Phase 1, outlines the rest; later phases scout during cook."
       },
       {
         "name": "--parallel",
         "kind": "flag",
-        "desc": "Produces parallel phases with strict file ownership; includes red-team and validate; hands off to `/ak:cook --parallel`."
+        "desc": "Parallel phases with strict file ownership, for `/ak:cook --parallel`."
       },
       {
         "name": "--two",
         "kind": "flag",
-        "desc": "Researches 2 distinct architectures with a trade-off matrix via ask_user, then fully plans the chosen one."
+        "desc": "Researches 2 architectures with a trade-off matrix, then plans the chosen one."
       },
       {
         "name": "--debate",
         "kind": "flag",
-        "desc": "Opt-in only: shared evidence packet (reports/debate-evidence-packet.md), 3 parallel planners write reports/planner-debate-candidate-{N}.md, the orchestrator merges one plan noting agreements and disagreements, then red-team and validate."
+        "desc": "Opt-in: 3 parallel planners on shared evidence; the orchestrator merges one plan."
       },
       {
         "name": "--ultra",
         "kind": "flag",
-        "desc": "Opt-in best-of-5: 5 planners with identical evidence write reports/planner-ultra-candidate-{N}.md; kongming scores them blind A..E and writes the winner intact, with a ranking appendix; then red-team and validate. Expensive."
+        "desc": "Opt-in best-of-5: kongming scores 5 blind drafts and keeps the winner intact. Expensive."
       },
       {
         "name": "--auto",
         "kind": "flag",
-        "desc": "Selects ak:plan's own auto-detect mode (unlike /ak:cook's auto-approve --auto). Not in argument-hint; conflicts with every other mode flag."
+        "desc": "Explicit auto-detect mode (unlike /ak:cook --auto); conflicts with other mode flags."
       },
       {
         "name": "--tdd",
         "kind": "flag",
-        "desc": "Requires test-first design, a test matrix, and verify commands in every phase."
+        "desc": "Requires test-first design and verify commands in every phase."
       },
       {
         "name": "--no-tasks",
         "kind": "flag",
-        "desc": "Skips hydrating phases into tasks (default hydrates when the plan has 3+ meaningful phases)."
+        "desc": "Skips hydrating phases into tasks (default hydrates at 3+ phases)."
       },
       {
         "name": "--html",
         "kind": "flag",
-        "desc": "Outputs a self-contained, interactive plan.html as the main deliverable; plan.md becomes a short index. Includes roadmap, phase outlines and modals, a workflow diagram, UI mockups when relevant, open questions, and citations."
+        "desc": "Outputs an interactive plan.html as the main deliverable; plan.md becomes an index."
       },
       {
         "name": "--github",
         "kind": "flag",
-        "desc": "After the gates, creates or updates a `Plan: {plan-title}` issue (or comments on the source issue) with summary, roadmap, links, and label `ready to review`. Missing `gh` auth is reported without breaking plan creation."
+        "desc": "Creates or updates a `Plan: {plan-title}` GitHub issue labeled `ready to review`."
       },
       {
         "name": "--wiki",
         "kind": "flag",
-        "desc": "Uploads the reviewed plan to AgentWiki, private by default (`agentwiki doc upload` + `doc share`); public only on explicit request. Share URL goes in the handoff."
+        "desc": "Uploads the reviewed plan to AgentWiki, private by default."
       },
       {
         "name": "--advice",
         "kind": "flag",
-        "desc": "Runs under kongming supervision and writes a handover plan for weaker executors (Sonnet, Gemini Flash): tasks with Goal, targets, steps, success criteria, mechanical Verify, and a verbatim Failure Protocol."
+        "desc": "kongming supervision plus a handover plan with mechanical verify steps for weaker executors."
       },
       {
         "name": "--yagni",
         "kind": "flag",
-        "desc": "Challenges and removes unneeded scope, recommending REDUCTION. Default is HOLD SCOPE."
+        "desc": "Challenges and removes unneeded scope; default is HOLD SCOPE."
       },
       {
         "name": "--skip-journal",
         "kind": "flag",
-        "desc": "Skips the automatic /ak:journal step (also in archive) and prints `journal skipped by --skip-journal`. Overrides journal.auto."
+        "desc": "Skips the automatic /ak:journal step; overrides journal.auto."
       },
       {
         "name": "--no-antv",
         "kind": "flag",
-        "desc": "Disables the AntV Infographic layer in plan.html."
+        "desc": "Disables AntV visuals in plan.html."
       },
       {
         "name": "--no-diagram-design",
         "kind": "flag",
-        "desc": "Disables the diagram-design layer (Quadrant, etc.) in plan.html."
+        "desc": "Disables diagram-design visuals in plan.html."
       },
       {
         "name": "--no-editorial-visuals",
         "kind": "flag",
-        "desc": "Disables the whole editorial visual layer in plan.html."
+        "desc": "Disables all editorial visuals in plan.html."
       },
       {
         "name": "validate <path>",
         "kind": "subcommand",
-        "desc": "Validation gate: tiered verification (Light/Standard/Full by phase count, grep/glob checks of paths and symbols), key questions (max 4 per round, with (Recommended)), `## Validation Log`, decision propagation, consistency sweep. Failed > 0 means fix before cooking."
+        "desc": "Checks paths and symbols against code, asks up to 4 key questions, writes `## Validation Log`. Fix failures before cooking."
       },
       {
         "name": "red-team <path>",
         "kind": "subcommand",
-        "desc": "Adversarial review by 2-4 code-reviewers (Security Adversary, Assumption Destroyer, Failure Mode Analyst, Scope & Complexity Critic). Dedupes, caps at 15 findings, drops findings without file:line, proposes Accept/Reject for your approval, adds `## Red Team Review`."
+        "desc": "2-4 adversarial reviewers, max 15 findings with file:line; you approve each; adds `## Red Team Review`."
       },
       {
         "name": "archive [slug]",
         "kind": "subcommand",
-        "desc": "Reads the plan, optionally writes a journal to plans/journals/ via journal-writer, confirms, then runs `ak plan archive` / `ak plan cleanup`. Changes index status only; never deletes or moves plan files. Offers a commit via /ak:git."
+        "desc": "Marks finished plans archived in the index, optionally journaling; never deletes or moves files."
       }
     ],
     "examples": [
@@ -727,33 +623,14 @@
         "note": "New domain: research, red-team, validate, and test-first."
       },
       {
-        "cmd": "/ak:plan --parallel Build auth, billing, and notifications",
-        "note": "3 independent modules, ready for /ak:cook --parallel."
-      },
-      {
-        "cmd": "/ak:plan --two --html Choose an offline data sync architecture",
-        "note": "Compares 2 approaches and outputs plan.html for review."
-      },
-      {
         "cmd": "/ak:plan validate plans/260926-0945-stripe/plan.md",
         "note": "Validates an existing plan before cooking."
-      },
-      {
-        "cmd": "/ak:plan red-team plans/260926-0945-stripe/plan.md",
-        "note": "Finds holes with adversarial reviewers."
-      },
-      {
-        "cmd": "/ak:plan archive",
-        "note": "Archives finished plans from the index; files stay in place."
       }
     ],
     "tips": [
-      "Mode flags are exclusive; passing two (e.g. --fast --hard) hard-stops with a reason.",
-      "plan.md and phase files are the source of truth; `ak plan` and plans.db are a rebuildable index (`ak plan reindex`).",
-      "After validate, `/clear` and run `/ak:cook <absolute-path>/plan.md` for a clean context.",
-      "--fast reduces planning depth, not features; use --yagni to cut scope.",
-      "--debate (3 planners) and --ultra (5 planners + verifier) cost several times more; save them for key decisions.",
-      "archive never deletes plan folders; to remove one, run `git rm -r ./plans/<plan-dir>` after committing."
+      "Plan files are the source of truth; `ak plan reindex` rebuilds the index.",
+      "After validate, `/clear` and run `/ak:cook <absolute-path>/plan.md`.",
+      "--fast reduces depth, not features; use --yagni to cut scope."
     ],
     "related": [
       "ak-brainstorm",
@@ -777,113 +654,102 @@
       "plans/<timestamp>-<slug>/plan.md",
       "plans/<timestamp>-<slug>/phase-NN-<name>.md",
       "plans/<timestamp>-<slug>/plan.html (--html)",
-      "plans/<timestamp>-<slug>/reports/ (debate-evidence-packet.md, planner-debate-candidate-{N}.md, planner-ultra-candidate-{N}.md, research/scout reports)",
-      "`## Validation Log` and `## Red Team Review` sections in plan.md",
-      "plans/journals/ (archive)",
+      "plans/<timestamp>-<slug>/reports/ (research, scout, debate, ultra candidates)",
+      "`## Validation Log` and `## Red Team Review` in plan.md",
       "GitHub issue `Plan: ...` (--github)",
       "AgentWiki share URL (--wiki)"
     ]
   },
   "ak-preview": {
-    "tagline": "View files in a clean reader, or generate visual explanations, slides, and diagrams.",
-    "summary": "ak:preview is a viewer and visual generator. View mode opens Markdown files or folders in a novel-reader UI via a background server. Generation mode creates explanations (--explain), slides (--slides), diagrams (--diagram), or ASCII diagrams (--ascii); --html makes a self-contained file, and HTML-only modes add --diff, --plan-review, and --recap.",
+    "tagline": "View files in a clean reader, or generate visuals, slides, and diagrams.",
+    "summary": "ak:preview opens Markdown in a browser reader, or generates explanations, slides, and diagrams as Markdown or self-contained HTML. HTML-only modes add visual diff review, plan review, and project recap.",
     "howItWorks": [
-      "No arguments: asks via ask_user which action to run (view, --explain, --slides, --diagram, --ascii, --stop, --html variants).",
-      "Resolution order: --stop → --html → generation flags → HTML-only flags (auto-enable HTML) → visual routing → path → ask again.",
-      "Unclear visual workflows load visual-explanation-routing.md.",
-      "View mode runs the ak-markdown-novel-viewer server (`server.cjs --file|--dir ... --host 0.0.0.0 --open --foreground`) as a background task and reports local and network URLs.",
-      "Markdown generation saves to {plan_dir}/visuals/{topic-slug}.md or plans/visuals/{topic-slug}.md, using per-flag templates (ASCII + Mermaid + text).",
-      "Uses /ak:mermaidjs-v11 for Mermaid syntax, then opens the result in the preview server.",
-      "--diagram self-reviews the rendered image (arrows through boxes, overlapping labels) and re-renders until clean.",
-      "HTML mode activates ak:frontend-design then ak:diagram (inline SVG fallback), applies anti-slop rules, and requires a light/dark toggle.",
-      "HTML files are self-contained and opened with open/xdg-open/start.",
-      "--diff gathers git diff stats, changed files, new APIs, CHANGELOG, or `gh pr diff`.",
-      "--plan-review reads the plan, every referenced file, and blast radius; --recap reads git log/shortlog/status for a timeframe (default 2w).",
-      "Runs a quality checklist (squint test, swap test, theme toggle, overflow, Mermaid zoom, responsive) before reporting the path."
+      "No arguments: asks which action to run.",
+      "View mode runs a background reader server and reports local and network URLs.",
+      "Generation saves to {plan_dir}/visuals/ or plans/visuals/{topic-slug}.md or .html.",
+      "--diagram self-reviews the render and re-renders until clean.",
+      "HTML output uses ak:frontend-design, needs a light/dark toggle, and passes a quality checklist."
     ],
     "useWhen": [
-      "Reading a long Markdown file (plan, report, RFC) in a comfortable browser view.",
-      "Explaining a concept or code flow visually with ASCII + Mermaid diagrams.",
-      "Making quick slides on a technical topic.",
-      "Reviewing a branch, PR, or commit visually (--html --diff), or comparing a plan to code (--html --plan-review).",
-      "Returning to a project and needing a recent context snapshot (--html --recap)."
+      "Reading a long plan, report, or RFC in the browser.",
+      "Explaining a flow visually or making quick slides.",
+      "Reviewing a PR visually (--html --diff) or catching up on a project (--html --recap)."
     ],
     "avoidWhen": [
-      "Grounded explanation of a new concept or error, with ELI5: use /ak:explain.",
-      "Publication-grade SVG/PNG diagrams: use /ak:tech-graph; interactive JSON IR system maps: use /ak:diagram.",
-      "Rephrasing the last answer: use /ak:bro.",
-      "A self-contained showcase or demo page: use /ak:show-off."
+      "Grounded explanation of a concept or error: use /ak:explain.",
+      "Publication-grade diagrams: use /ak:tech-graph or /ak:diagram.",
+      "A showcase or demo page: use /ak:show-off."
     ],
     "params": [
       {
         "name": "[path]",
         "kind": "arg",
-        "desc": "File or folder to view, or a context reference resolved from recent conversation. Missing paths trigger a follow-up question."
+        "desc": "File or folder to view; missing paths trigger a question."
       },
       {
         "name": "--html",
         "kind": "flag",
-        "desc": "Outputs one self-contained HTML file (inline CSS/JS) that opens without a server. Combines with --explain, --slides, --diagram; not with --ascii (use --html --diagram)."
+        "desc": "One self-contained HTML file; works with --explain, --slides, --diagram, not --ascii."
       },
       {
         "name": "--explain",
         "kind": "flag",
-        "desc": "Visual explanation of [topic]: Overview, Quick View (ASCII), Detailed Flow (Mermaid), Key Concepts, Code Example. HTML uses the architecture.html template."
+        "desc": "Visual explanation: overview, ASCII view, Mermaid flow, key concepts, code example."
       },
       {
         "name": "--slides",
         "kind": "flag",
-        "desc": "Slides, one concept each. HTML builds a magazine-quality deck (slide-deck.html), optionally styled via /ak:ui-ux-pro-max."
+        "desc": "Slide deck, one concept per slide."
       },
       {
         "name": "--diagram",
         "kind": "flag",
-        "desc": "Focused diagram (ASCII + Mermaid); HTML adds zoom controls. Includes a visual self-review after rendering."
+        "desc": "Focused ASCII + Mermaid diagram with self-review; HTML adds zoom."
       },
       {
         "name": "--ascii",
         "kind": "flag",
-        "desc": "ASCII box diagram with legend only, terminal-friendly. Markdown mode only."
+        "desc": "Terminal-friendly ASCII box diagram; Markdown only."
       },
       {
         "name": "--diff",
         "kind": "flag",
-        "desc": "HTML-only. Visual diff review for [ref]: branch, commit, HEAD (uncommitted), PR number (needs `gh`), or commit range; default vs main. Includes summary, KPIs, module architecture, file map, review cards, decision log. Needs a git repo."
+        "desc": "HTML-only visual review of a branch, commit, PR (needs gh), or range; default vs main."
       },
       {
         "name": "--plan-review",
         "kind": "flag",
-        "desc": "HTML-only. Compares a plan (given or active) with the codebase: current vs planned architecture, blast radius, risks, knowledge gaps (blue current, green planned, amber concern, red gap)."
+        "desc": "HTML-only comparison of a plan with the code: blast radius, risks, gaps."
       },
       {
         "name": "--recap",
         "kind": "flag",
-        "desc": "HTML-only. Project context snapshot for [timeframe] (2w, 30d, 3m; default 2w): identity, architecture, recent activity, decisions, cognitive-debt hotspots, next steps. Needs git history."
+        "desc": "HTML-only project snapshot for a timeframe (default 2w); needs git history."
       },
       {
         "name": "--stop",
         "kind": "flag",
-        "desc": "Stops the running preview server. Listed in actions and Usage, not in argument-hint."
+        "desc": "Stops the running preview server."
       },
       {
         "name": "[topic]",
         "kind": "arg",
-        "desc": "Topic for generation flags; slugged to kebab-case (max 80 chars) for the filename. With several generation flags, only the first applies; the rest become topic text."
+        "desc": "Topic for generation flags; slugged for the filename. Only the first generation flag applies."
       },
       {
         "name": "--no-antv",
         "kind": "flag",
-        "desc": "Disables the AntV Infographic layer (KPI tiles, comparison lists) in HTML output."
+        "desc": "Disables AntV visuals in HTML output."
       },
       {
         "name": "--no-diagram-design",
         "kind": "flag",
-        "desc": "Disables the diagram-design layer (Architecture, Quadrant, Timeline), falling back to Mermaid/Chart.js."
+        "desc": "Disables diagram-design visuals, falling back to Mermaid/Chart.js."
       },
       {
         "name": "--no-editorial-visuals",
         "kind": "flag",
-        "desc": "Disables the whole editorial visual layer; highest precedence over other kill switches and project/user config."
+        "desc": "Disables all editorial visuals; highest precedence."
       }
     ],
     "examples": [
@@ -896,28 +762,14 @@
         "note": "Markdown visual explanation with ASCII + Mermaid."
       },
       {
-        "cmd": "/ak:preview --html --slides event-driven architecture",
-        "note": "HTML slide deck for a team presentation."
-      },
-      {
         "cmd": "/ak:preview --html --diff 142",
         "note": "Visual review of PR #142 (needs gh)."
-      },
-      {
-        "cmd": "/ak:preview --html --recap 30d",
-        "note": "Recap of the last 30 days when returning to a project."
-      },
-      {
-        "cmd": "/ak:preview --stop",
-        "note": "Stops the preview server when done."
       }
     ],
     "tips": [
-      "View mode runs a background server (see /tasks); run `/ak:preview --stop` when done. A running server is reused.",
-      "Same-named output files are overwritten without asking; change the topic to keep old versions.",
-      "HTML output loads CDNs (Google Fonts, Mermaid, Chart.js); for fully offline output consider /ak:explain --html.",
-      "--html --slides and --plan-review read large references and templates; expect high token use.",
-      "Valid diagram syntax may still render poorly; the skill self-checks, but look at the result."
+      "Run `/ak:preview --stop` when done; a running server is reused.",
+      "Same-named outputs are overwritten; change the topic to keep old versions.",
+      "HTML output loads CDNs; use /ak:explain --html for fully offline files."
     ],
     "related": [
       "ak-explain",
@@ -931,95 +783,80 @@
     "agents": [],
     "artifacts": [
       "{plan_dir}/visuals/{topic-slug}.md or .html when a plan is active",
-      "plans/visuals/{topic-slug}.md or .html without a plan",
-      "Background preview server (local + network URL) in view mode"
+      "plans/visuals/{topic-slug}.md or .html otherwise",
+      "Background preview server in view mode"
     ]
   },
   "ak-cook": {
-    "tagline": "Implement features, plans, and fixes: implement → verify → review → finalize.",
-    "summary": "ak:cook is the main implementation skill. It takes a task or plan path and delivers the full authorized outcome through verification and review. It reuses existing contracts, fixes regressions it causes, then syncs the plan, updates affected docs, and writes a journal.",
+    "tagline": "Implement features, plans, and fixes: implement, verify, review, finalize.",
+    "summary": "ak:cook is the main implementation skill: it takes a task or plan path and delivers the full authorized scope through verification and review. It then syncs the plan, updates affected docs, and writes a journal.",
     "howItWorks": [
-      "Mode selection: explicit flag first, then plan path (plans/*, plan.md, phase-*.md → code mode).",
-      "Then keywords (quick/asap → fast; trust me/yolo → auto; no test → no-test), then feature count (≥3 → parallel).",
-      "Default is to continue within authorized scope.",
-      "Reuses valid inspection and acceptance evidence; small changes need only a short plan.",
-      "Phase files are written only when modules, public contracts, schema, or data need coordination.",
-      "Existing plans resolve files-first via `ak plan use`, `ak plan resolve`, `ak plan show`.",
-      "Implements per workflow-steps.md, following existing helpers, imports, error handling, and contracts.",
-      "Checks the plan against current source before editing.",
-      "--tdd splits each phase into 3.T (safety-net tests), 3.I (implement), 3.V (old tests pass + compile gate).",
-      "3.S Conditional Simplify: if `git diff --numstat HEAD` exceeds .ck.json thresholds (default 400 LOC / 8 files / 200 LOC per file), spawns `code-simplifier` on edited files.",
-      "Disable simplify with CK_SIMPLIFY_DISABLED=1.",
-      "Verify: narrowest check first, then affected callers and contracts; never weakens or fakes checks.",
-      "Review per review-cycle.md; independent tester/code-reviewer for cross-module, public-contract, or security risk.",
-      "Stops only for product decision changes, unauthorized destructive actions, or evidenced blockers.",
-      "Only --interactive pauses after research, plan, implement, and test.",
-      "Finalize: syncs plan status (unproven items stay unchecked), updates affected docs, reports evidence and limits.",
-      "Commits only with permission; runs /ak:journal unless --skip-journal or journal.auto=false."
+      "Picks mode from flags, a plan path, keywords, or feature count; default runs without pauses.",
+      "Checks the plan against current source and follows existing helpers and contracts.",
+      "Spawns code-simplifier when the diff exceeds thresholds (default 400 LOC / 8 files).",
+      "Verifies narrowest check first; never weakens or fakes checks; risky changes get tester and code-reviewer.",
+      "Syncs plan checkboxes, updates docs, commits only with permission, then runs /ak:journal."
     ],
     "useWhen": [
-      "You have an accepted plan to execute: `/ak:cook plans/.../plan.md`.",
-      "Feature scope is clear and you want it built with tests and review, without a long plan.",
-      "A refactor needs a test safety net first (--tdd).",
-      "Independent features can go to parallel agents with separate files (--parallel).",
-      "You want all phases run straight through without approval pauses (--auto)."
+      "Executing an accepted plan: `/ak:cook plans/.../plan.md`.",
+      "Building a clear feature with tests and review, without a long plan.",
+      "A refactor needs a test safety net first (--tdd)."
     ],
     "avoidWhen": [
-      "Requirements are vague: run /ak:brainstorm then /ak:plan.",
-      "A specific bug, error, failing test, or red CI: use /ak:fix.",
-      "Only running or designing tests: use /ak:test.",
-      "Branch is done and needs a PR: use /ak:ship; issue to PR/merge pipeline: use /ak:vibe."
+      "Vague requirements: run /ak:brainstorm then /ak:plan.",
+      "A specific bug or red CI: use /ak:fix.",
+      "Branch is done and needs a PR: use /ak:ship."
     ],
     "params": [
       {
         "name": "[task|plan-path]",
         "kind": "arg",
-        "desc": "Natural-language task, or path to plan.md / phase-*.md. A plan path triggers code mode, executing the plan against current evidence and keeping its explicit modes."
+        "desc": "Task in plain language, or a path to plan.md / phase-*.md, which triggers plan execution."
       },
       {
         "name": "--interactive",
         "kind": "flag",
-        "desc": "Pauses for your approval after research, plan, implement, and test. The only mode with human review gates."
+        "desc": "Pauses for approval after research, plan, implement, and test. The only mode with human gates."
       },
       {
         "name": "--fast",
         "kind": "flag",
-        "desc": "Skips research: inspect, short plan, implement, verify. Does not skip tests."
+        "desc": "Skips research: short plan, implement, verify. Does not skip tests."
       },
       {
         "name": "--parallel",
         "kind": "flag",
-        "desc": "Delegates independent, file-owned work to subagents (fullstack-developer) when supported and allowed; needs separate files and clear integration points."
+        "desc": "Delegates file-owned independent work to fullstack-developer subagents."
       },
       {
         "name": "--auto",
         "kind": "flag",
-        "desc": "Runs every authorized phase without periodic approval pauses. Also the default when no flag or signal applies."
+        "desc": "Runs all authorized phases without pauses. Default when no flag applies."
       },
       {
         "name": "--no-test",
         "kind": "flag",
-        "desc": "Skips running tests and reports that verification gap. Other review and contract checks still run."
+        "desc": "Skips running tests and reports the gap; other checks still run."
       },
       {
         "name": "--tdd",
         "kind": "flag",
-        "desc": "Modifier: writes tests for current behavior before each refactor phase (3.T → 3.I → 3.V); an old test failing afterward means the refactor broke something and must be fixed first."
+        "desc": "Writes tests for current behavior before each refactor phase; old tests must still pass."
       },
       {
         "name": "--advice",
         "kind": "flag",
-        "desc": "kongming supervision after each phase, when stuck, before high-risk decisions, and mandatorily on every failed verify. Auto-enabled by an --advice handover plan or `## Failure Protocol` block. Passed to ship; kongming reviews the PR/issue at green CI."
+        "desc": "kongming supervises each phase and every failed verify; passed to ship."
       },
       {
         "name": "--yagni",
         "kind": "flag",
-        "desc": "Cuts unneeded scope; default delivers the full requested scope and nothing extra. Passed to delegates."
+        "desc": "Cuts unneeded scope; default delivers the full requested scope."
       },
       {
         "name": "--skip-journal",
         "kind": "flag",
-        "desc": "Skips the final /ak:journal and prints `journal skipped by --skip-journal`. Other finalize steps still run."
+        "desc": "Skips the final /ak:journal; other finalize steps still run."
       }
     ],
     "examples": [
@@ -1028,33 +865,18 @@
         "note": "Executes a validated plan (code mode)."
       },
       {
-        "cmd": "/ak:cook plans/260926-0945-stripe/plan.md --tdd --auto",
-        "note": "Runs all phases straight through with a test-first safety net."
-      },
-      {
         "cmd": "/ak:cook add a CSV export button to the orders table --fast",
         "note": "Small, clear feature with no research."
       },
       {
         "cmd": "/ak:cook implement auth, payments, notifications --parallel",
         "note": "Independent features delegated in parallel."
-      },
-      {
-        "cmd": "/ak:cook refactor auth middleware --tdd --interactive",
-        "note": "Sensitive refactor with approval at each major step."
-      },
-      {
-        "cmd": "/ak:cook plans/260926-0945-stripe/plan.md --advice",
-        "note": "Plan written under --advice; keeps kongming supervision and the Failure Protocol."
       }
     ],
     "tips": [
-      "After `/clear`, pass the absolute path to plan.md so cook starts clean and still finds the plan.",
-      "By default cook does not pause for approval; pass --interactive for step-by-step control.",
-      "--no-test leaves a verification gap; use it only without runnable tests and read the warning.",
-      "Finalize never implies commit/push permission; git runs only when you allow it.",
-      "--parallel is safe only when phases touch different files; use a `/ak:plan --parallel` plan for clear ownership.",
-      "Large diffs trigger code-simplifier automatically; set CK_SIMPLIFY_DISABLED=1 to turn it off."
+      "After `/clear`, pass the absolute plan.md path.",
+      "--parallel is safe only when phases touch different files.",
+      "Finalize never implies commit or push permission."
     ],
     "related": [
       "ak-plan",
@@ -1081,81 +903,63 @@
       "kongming"
     ],
     "artifacts": [
-      "Code and test changes in the repo",
-      "Short plan or phase files when coordination is needed (plans/...)",
-      "Checkbox/status updates in plan.md and phase-*.md",
+      "Code and test changes",
+      "Short plan or phase files when coordination is needed",
+      "Checkbox and status updates in plan.md and phase-*.md",
       "Updates to affected docs",
       "Journal entry via /ak:journal (unless skipped)"
     ]
   },
   "ak-vibe": {
-    "tagline": "One-command pipeline: GitHub issue or feature request to reviewed PR, optionally merged.",
-    "summary": "ak:vibe runs the full dev loop: analysis, worktree, conditional research/debug, TDD plan with validate and red-team gates, issue updates, cook or fix, code review, conditional test and docs, ship, PR review, labels, and optional merge with CI watch. Input is a GitHub issue URL/number or a plain-language request; output is a ready (or merged) PR and a completion report. It never bypasses gates, tests, review blockers, branch protection, or security policy of its child skills.",
+    "tagline": "One command from GitHub issue or request to reviewed PR.",
+    "summary": "ak:vibe runs the full loop: worktree, TDD plan with gates, cook or fix, code review, ship, PR review, and optional merge with CI watch. It never bypasses gates, tests, review blockers, or branch protection.",
     "howItWorks": [
-      "1. Parse: splits --ship/--beta/--both/--advice/--ultra; ship mode precedence is both > beta > stable.",
-      "An issue URL/number is the source of truth (no duplicates) and must match the current repo.",
-      "Plain-language requests get an issue created after the plan passes its gates.",
-      "Extracts outcome, acceptance criteria, scope, route (bugfix or feature), research needs, and any existing plan.",
-      "2. Worktree: reuses a dedicated feature worktree or calls /ak:worktree. Never works on main, master, dev, beta, or develop.",
-      "3. Pre-plan investigation (deterministic): /ak:research for named technologies; /ak:debug to prove root cause on bugfix routes.",
-      "4. Plan and gates: reuses a valid plan or runs `/ak:plan --tdd \"<issue/request>\" [--ultra] [--advice]`.",
-      "Always runs `/ak:plan validate`, `/ak:plan red-team`, and a consistency sweep; no implementation with open failures.",
-      "5. Issue: creates missing labels (ready to cook, in progress, ready to ship stable, ready to ship beta), updates the issue, labels `ready to cook`, links via `ak plan update --issue <n>`.",
-      "6. Implement: labels `in progress`, then `/ak:fix --auto <plan.md>` (bugfix) or `/ak:cook --tdd --auto <plan.md>` (feature).",
-      "Stops and updates the issue when a business decision is needed.",
-      "7-9. `/ak:code-review --pending [--ultra] [--advice]` until no Critical/Important remain; /ak:test when behavior changed and coverage is thin.",
-      "/ak:docs update runs in beta mode only; /ak:ship official handles docs otherwise. External-repo docs get an `ai-handle` issue.",
-      "10-12. Ship via `/ak:ship official` (default) or `/ak:ship beta`, then `/ak:review-pr <pr> --fix --reply` until clean and CI is green.",
-      "Labels `ready to ship stable` or `ready to ship beta` and removes `ready to cook` and `in progress`.",
-      "13. With --ship/--both: merges per repo convention (prefer `gh pr merge --auto`), never force-pushes, watches target CI.",
-      "Reproducible CI failures loop fix → ship → review-pr → merge, max 3 times per blocker; then `ak plan close <id>`.",
-      "--both finishes beta through green CI before starting stable.",
-      "Ends with a Completion Report: result, skipped steps and why, Mermaid journey, deviations, finding counts, next steps, open questions."
+      "Uses the issue as source of truth, or creates one after the plan passes; works only in a feature worktree.",
+      "Runs /ak:research or /ak:debug when needed, then `/ak:plan --tdd` with validate and red-team.",
+      "Implements via /ak:fix or /ak:cook --tdd --auto, updating issue labels along the way.",
+      "Loops /ak:code-review, then /ak:ship and `/ak:review-pr --fix --reply` until clean and CI is green.",
+      "--ship merges and fixes target CI (max 3 per blocker); ends with a Completion Report."
     ],
     "useWhen": [
-      "Taking a GitHub issue from plan to a reviewed, merge-ready PR in one command.",
-      "Turning a spoken feature request into issue, plan, code, and PR automatically.",
-      "Shipping beta first, then stable, each waiting for green CI (--both).",
-      "Auto-merging and fixing post-merge CI until green (--ship).",
-      "Using a weaker executor model with supervision that stops on failed verification (--advice)."
+      "Taking a GitHub issue to a reviewed, merge-ready PR in one command.",
+      "Turning a plain feature request into issue, plan, code, and PR.",
+      "Shipping beta then stable, each waiting for green CI (--both)."
     ],
     "avoidWhen": [
       "Only planning: use /ak:plan or /ak:issue-to-plan.",
-      "Implementing on the current branch without issue/PR: use /ak:cook or /ak:fix.",
-      "Branch is done and only needs a PR: use /ak:ship; only reviewing a PR: use /ak:review-pr.",
-      "No GitHub remote or `gh` lacks label/issue/PR permissions: vibe stops and reports it.",
-      "Product-level requirements are still vague: use /ak:brainstorm or /ak:advise first."
+      "Working on the current branch without issue or PR: use /ak:cook.",
+      "Vague product requirements: use /ak:brainstorm or /ak:advise first."
     ],
     "params": [
       {
         "name": "<github-issue-url | feature request>",
         "kind": "arg",
-        "desc": "GitHub issue URL or number (source of truth, must be in the current repo, no duplicate issues), or a plain-language feature request (issue created after plan validate/red-team)."
+        "desc": "Issue URL or number from the current repo, or a plain request (issue created after plan gates)."
       },
       {
         "name": "--ship",
         "kind": "flag",
-        "desc": "After PR review/fix/reply, merges and watches/fixes target-branch CI until success or a real external blocker (max 3 fixes per blocker). Without it, stops at a reviewed, labeled PR."
+        "desc": "Merges after PR review and fixes target CI until green (max 3 fixes per blocker). Without it, stops at a reviewed PR."
       },
       {
         "name": "--beta",
         "kind": "flag",
-        "desc": "Ships to beta/dev via `/ak:ship beta`, final label `ready to ship beta`, and runs /ak:docs update when needed. Default is stable via `/ak:ship official`. Overridden by --both (one warning)."
+        "desc": "Ships to beta/dev via `/ak:ship beta`; default is stable via `/ak:ship official`. Overridden by --both."
       },
       {
         "name": "--both",
         "kind": "flag",
-        "desc": "Two-stage ship: full beta stage (ship, review, merge, green CI), then stable (official ship or promotion PR, review, merge, green CI). Implies --ship; beats --beta. Red beta skips stable; unrelated commits in a promotion PR trigger a question."
+        "desc": "Full beta stage through green CI, then stable. Implies --ship; red beta skips stable."
       },
       {
         "name": "--advice",
         "kind": "flag",
-        "desc": "kongming supervises the whole pipeline: handover-style plan, spawns after each phase, when stuck, before high-risk decisions, on failed verify (stop), and a mandatory PR review at green CI. Passed to plan, cook, fix, code-review, ship, review-pr, test; not to research or debug."
+        "desc": "kongming supervises every phase, stops on failed verify, and reviews the PR at green CI."
       },
       {
         "name": "--ultra",
         "kind": "flag",
-        "desc": "Runs /ak:plan and /ak:code-review in best-of-5 verifier mode only. Much higher cost and time. Independent of ship mode."
+        "desc": "Best-of-5 mode for /ak:plan and /ak:code-review only. Much higher cost."
       }
     ],
     "examples": [
@@ -1168,25 +972,14 @@
         "note": "Plain request: creates issue, plan, code, PR, merges, and waits for green CI."
       },
       {
-        "cmd": "/ak:vibe --beta 128",
-        "note": "Ships issue #128 to beta/dev and stops at a ready PR."
-      },
-      {
         "cmd": "/ak:vibe --both --advice https://github.com/org/repo/issues/77",
         "note": "Beta then stable, with kongming supervision and post-PR review."
-      },
-      {
-        "cmd": "/ak:vibe --ultra --ship Migrate the storage layer to Postgres",
-        "note": "High-risk change: best-of-5 plan and review, then merge."
       }
     ],
     "tips": [
-      "Vibe runs long and uses many tokens; --ultra and --both multiply the cost.",
-      "`gh` must be logged in with rights to create labels, issues, PRs, reviews, and merges; missing rights stop the run.",
-      "The issue URL must belong to the current repo; otherwise vibe stops and asks you to switch.",
-      "No branch prep needed: vibe creates its own worktree and refuses to work on main/dev/beta.",
-      "Research/Debug/Test/Docs steps are decided deterministically; reasons appear in the final report.",
-      "CI failures from missing secrets, external services, or required approvals are external blockers; tests are never weakened."
+      "Vibe runs long; --ultra and --both multiply the cost.",
+      "`gh` needs rights for labels, issues, PRs, and merges, or the run stops.",
+      "CI failures from missing secrets or approvals are external blockers; tests are never weakened."
     ],
     "related": [
       "ak-worktree",
@@ -1212,44 +1005,38 @@
       "fullstack-developer"
     ],
     "artifacts": [
-      "Dedicated git worktree and feature branch",
-      "plans/<timestamp>-<slug>/plan.md + phase-*.md (TDD plan, validation log, red-team review)",
-      "GitHub issue created/updated with labels ready to cook / in progress / ready to ship stable|beta",
+      "Dedicated worktree and feature branch",
+      "plans/<timestamp>-<slug>/ TDD plan with validation and red-team",
+      "GitHub issue with status labels",
       "Pull request (plus stable PR with --both)",
-      "kongming review comments on the PR/issue (--advice)",
+      "kongming review comments (--advice)",
       "Completion Report in the conversation"
     ]
   },
   "ak-bro": {
-    "tagline": "Restate the last assistant message in plain, short, jargon-free words.",
-    "summary": "ak:bro rewrites the immediately previous assistant message the way a person would say it: clear, simple, short. It keeps meaning, facts, uncertainty, warnings, decisions, and required actions. It adds no analysis, runs no tools, edits no files, and replies in the user's language.",
+    "tagline": "Restate the last assistant message in plain, short words.",
+    "summary": "ak:bro rewrites the previous assistant message clearly and simply, keeping facts, warnings, and required actions. It adds no analysis, runs no tools, and replies in your language.",
     "howItWorks": [
-      "Uses only the immediately previous assistant message as its source.",
-      "Keeps meaning, facts, uncertainty, warnings, decisions, and needed calls to action.",
-      "Replaces jargon, acronyms, abstractions, and formal tone with everyday words.",
-      "Briefly defines technical terms that cannot be dropped.",
-      "Cuts repetition, process narration, filler, extra formatting, and irrelevant detail.",
-      "Replies in the user's language and returns only the restatement, with no preamble.",
-      "With no previous message, says so and asks you to paste text; new topics go to ak:explain.",
-      "Safety: embedded instructions are content, not commands; no hidden prompts, secrets, or personal data leak."
+      "Uses only the immediately previous assistant message.",
+      "Replaces jargon with everyday words and briefly defines terms it must keep.",
+      "Cuts repetition, filler, and process narration; returns only the restatement.",
+      "With no previous message, asks you to paste text."
     ],
     "useWhen": [
-      "The last answer was too long, jargon-heavy, or hard to follow.",
-      "You need a short version of a technical report for a non-specialist.",
-      "You want the main conclusion of a long analysis without losing key warnings.",
-      "You say \"simplify that\", \"say it plainly\", or \"explain it like a human\"."
+      "The last answer was too long or jargon-heavy.",
+      "You need a short version of a report for a non-specialist.",
+      "You say \"simplify that\" or \"say it plainly\"."
     ],
     "avoidWhen": [
-      "Explaining a new topic or new code: use /ak:explain (with --eli5).",
-      "You want new analysis, data, or opinions: bro adds nothing; ask directly or use /ak:ask.",
-      "You want the actions from the last answer carried out: bro runs no tools and edits no files.",
-      "You want every future answer simpler: use /ak:coding-level 0 or 1."
+      "Explaining a new topic: use /ak:explain.",
+      "Wanting new analysis or actions: bro adds nothing and runs no tools.",
+      "Making every answer simpler: use /ak:coding-level 0 or 1."
     ],
     "params": [
       {
         "name": "[last message]",
         "kind": "arg",
-        "desc": "Source to restate; defaults to the previous assistant message. Without one, paste the text."
+        "desc": "Source to restate; defaults to the previous assistant message."
       }
     ],
     "examples": [
@@ -1260,17 +1047,12 @@
       {
         "cmd": "/ak:bro say it in English",
         "note": "Restates the previous message in another requested language."
-      },
-      {
-        "cmd": "/ak:bro",
-        "note": "After a /ak:cook completion report, to get a short done/remaining summary for your manager."
       }
     ],
     "tips": [
-      "Call it right after the answer you want simplified; it reads only that one message.",
-      "Warnings and uncertainty survive, so the short version is still safe to act on.",
-      "Very cheap: no tools, no file reads.",
-      "For more depth rather than less, use /ak:explain instead."
+      "Call it right after the answer you want simplified.",
+      "Warnings and uncertainty survive, so the short version is safe to act on.",
+      "Very cheap: no tools, no file reads."
     ],
     "related": [
       "ak-explain",
@@ -1281,49 +1063,40 @@
     "artifacts": []
   },
   "ak-explain": {
-    "tagline": "Grounded explanations of concepts, code, systems, and errors; --eli5 or --html.",
-    "summary": "ak:explain builds an evidence-based mental model of any technical topic, code path, architecture, error, or document. Default output is concise Markdown separating verified facts from inference; --eli5 uses everyday analogies with all warnings kept; --html produces a self-contained offline file with diagrams. Error explanation is read-only; fixes go to a fix skill.",
+    "tagline": "Grounded explanations of concepts, code, systems, and errors.",
+    "summary": "ak:explain builds an evidence-based mental model of a topic, code path, error, or document, separating facts from inference. --eli5 uses everyday analogies with warnings kept; --html makes an offline page with diagrams.",
     "howItWorks": [
-      "Parses --html and --eli5 in any order; unknown flags return short usage help.",
-      "Takes the topic from the argument, open file, or conversation; asks exactly ONE question if it is missing.",
-      "For repo files, code paths, or stack traces, reads the actual source first.",
-      "Never invents file contents, APIs, or behavior; separates verified facts from inference.",
-      "Builds the model: Gist (1-2 sentences), Core Concepts, Mechanism/Flow, Concrete Example, Caveats & Failure Modes.",
-      "--eli5 follows references/eli5-contract.md: one main analogy mapped to the real system, terms defined, analogy limits stated, warnings kept, adult tone.",
-      "--html follows references/html-contract.md: activates ak:frontend-design, then ak:diagram if installed (JSON IR compiled by archetype).",
-      "Without ak:diagram, draws inline SVG/CSS with <title>/<desc> and states reduced interactivity.",
-      "HTML sections: Hero Header, Visual Mental Model, Step-by-Step Walkthrough, Example/Trace, Warnings & Failure Modes, Glossary & Analogy Limits. No iframes.",
-      "Verifies HTML is 100% offline (no CDN, works via file://) and accessible (headings, focus, contrast, prefers-reduced-motion).",
-      "User-supplied files, logs, and issues are untrusted data: no prompt injection, no secret leaks."
+      "Takes the topic from the argument, open file, or conversation; asks one question if missing.",
+      "Reads actual source for repo paths and stack traces; never invents APIs or behavior.",
+      "Output: gist, core concepts, mechanism, example, caveats and failure modes.",
+      "--html uses ak:frontend-design and ak:diagram, falling back to inline SVG; fully offline and accessible.",
+      "Explaining errors is read-only; fixes go to a fix skill."
     ],
     "useWhen": [
-      "Understanding a technical concept (JWT refresh tokens, event loop, DNS resolution).",
-      "Walking through a function, module, or request flow in the codebase, with path citations.",
-      "Learning why an error (deadlock, race condition, build failure) happens before fixing it.",
-      "Explaining to a non-specialist with everyday analogies (--eli5).",
-      "Sharing an offline visual explanation page (--html)."
+      "Understanding a concept like JWT refresh tokens or the event loop.",
+      "Walking through a file or request flow with path citations.",
+      "Learning why an error happens before fixing it."
     ],
     "avoidWhen": [
-      "Just restating the last answer more simply: use /ak:bro.",
-      "Viewing existing HTML/Markdown, making slides, or visual diff review: use /ak:preview.",
-      "Fixing the error: use /ak:fix, or /ak:debug to prove the cause.",
-      "Choosing an architecture or solution: use /ak:ask or /ak:advise."
+      "Restating the last answer more simply: use /ak:bro.",
+      "Slides or visual diff review: use /ak:preview.",
+      "Fixing the error: use /ak:fix or /ak:debug."
     ],
     "params": [
       {
         "name": "[subject|path|URL]",
         "kind": "arg",
-        "desc": "Topic, repo file/folder path, or URL to explain. Empty falls back to the open file or conversation; otherwise asks one question."
+        "desc": "Topic, repo path, or URL; empty falls back to the open file or conversation."
       },
       {
         "name": "--html",
         "kind": "flag",
-        "desc": "Self-contained, responsive, accessible, 100% offline HTML via ak:frontend-design and ak:diagram (inline SVG fallback). Saved to {plan_dir}/visuals/explain-{slug}.html or plans/visuals/explain-{slug}.html; no timestamp in the name."
+        "desc": "Offline, accessible HTML saved to {plan_dir}/visuals/ or plans/visuals/explain-{slug}.html."
       },
       {
         "name": "--eli5",
         "kind": "flag",
-        "desc": "\"Explain like I'm 5\": 1-2 sentence gist, one everyday analogy mapped to the real system, terms and acronyms defined, analogy limits stated, exact warnings, commands, and error codes kept; adult tone. With --html, content and diagram labels follow ELI5 style."
+        "desc": "One everyday analogy mapped to the real system, terms defined, warnings and commands kept exactly."
       }
     ],
     "examples": [
@@ -1338,22 +1111,12 @@
       {
         "cmd": "/ak:explain \"event loop\" --eli5",
         "note": "Beginner-friendly analogy with warnings intact."
-      },
-      {
-        "cmd": "/ak:explain the project's authentication architecture --html",
-        "note": "Offline HTML page with diagrams to share with the team."
-      },
-      {
-        "cmd": "/ak:explain \"microservice request flow\" --html --eli5",
-        "note": "Both: visual page in plain language with simple diagram labels."
       }
     ],
     "tips": [
-      "Give a specific file path so the explanation follows real source; otherwise inference is labeled.",
-      "--eli5 never softens dangerous warnings (e.g. `rm -rf`, key deletion, data loss).",
-      "--html output is fully offline (unlike /ak:preview --html, which may use CDNs), good for chat or offline machines.",
-      "Without ak:diagram (e.g. Core-only kits), --html still works with static SVG and says interactivity is reduced.",
-      "--html costs noticeably more tokens than Markdown because it loads frontend-design and diagram."
+      "Give a file path so the explanation follows real source.",
+      "--eli5 never softens dangerous warnings.",
+      "--html costs more tokens than Markdown."
     ],
     "related": [
       "ak-bro",

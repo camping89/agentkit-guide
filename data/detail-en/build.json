@@ -1,106 +1,84 @@
 {
   "ak-fix": {
-    "tagline": "Fix bugs, errors, test failures, and broken CI. Prove the cause first.",
-    "summary": "ak:fix takes a concrete symptom (error message, failing test, red CI, log error, UI bug) to a verified fix. It requires a proven root cause before editing, picks a quick/standard/deep route by complexity, then reruns the original failing command plus affected caller checks. Output: the fix, a regression test when useful, a cause/changes/verification report, and an automatic journal entry.",
+    "tagline": "Fix bugs, errors, failing tests, and red CI after proving the cause.",
+    "summary": "ak:fix takes a concrete symptom to a verified fix, requiring a proven root cause before any edit. It picks a quick, standard, or deep route by complexity, then reruns the original failing command and writes a journal entry.",
     "howItWorks": [
-      "Captures or reuses outcome, constraints, non-goals, and acceptance criteria; records the pre-fix failing command.",
-      "Picks a mode: --auto by default; without a flag on a non-obvious issue, asks Autonomous / Human-in-the-loop / Quick fix.",
-      "Scouts with ak:scout or 2-3 parallel Explore subagents to map affected files, tests, and recent git changes.",
-      "Diagnoses with ak:debug; switches to ak:problem-solving after 2+ failed hypotheses.",
-      "Passes a root-cause hard gate: verbatim symptom, repro, expected vs actual, file:line cause, why now, blast radius.",
-      "Routes by complexity: Simple (1 file, type/lint) → quick; Moderate (2-5 files) → standard 6 phases; Complex (5+ files, architecture) → deep 9 phases.",
-      "Deep route runs scout/diagnose/research in parallel, then ak:brainstorm picks a direction and planner writes a plan.",
-      "With --ultra, generates 5 read-only candidate fix-plans after diagnosis; a verifier picks one or rejects all.",
-      "Implements a minimal fix at the root cause, following existing patterns.",
-      "Reruns the pre-fix command, adds a regression test, sweeps side effects, runs typecheck/lint/build/test.",
-      "On failure, returns to diagnosis; after 3 failed attempts, stops to review architecture with the user.",
-      "Reviews by risk: code-reviewer subagent when allowed, otherwise a self-review of the diff.",
-      "Finalizes: syncs the plan, updates affected docs, reports results, runs /ak:journal unless opted out; commits only with permission."
+      "Scouts affected files, then diagnoses with ak:debug; switches to ak:problem-solving after 2+ failed hypotheses.",
+      "Hard gate: needs symptom, repro, expected vs actual, file:line cause, and blast radius before editing.",
+      "Routes by size: 1 file → quick; 2-5 files → standard; 5+ files or architecture → deep with a plan.",
+      "Applies a minimal root-cause fix, reruns the failing command, adds a regression test, runs typecheck/lint/build/test.",
+      "Stops after 3 failed attempts; reviews the diff, runs /ak:journal, commits only with permission."
     ],
     "useWhen": [
-      "A concrete error needs fixing: type error, lint error, failing test, logged exception.",
-      "CI or GitHub Actions is red and the pipeline must go green.",
-      "A UI or visual bug needs a fix verified in a browser.",
-      "Several independent bugs with separate file ownership can be fixed in parallel with --parallel.",
-      "A hard bug has competing fixes and you want the best plan via --ultra."
+      "A concrete error needs fixing: type error, failing test, logged exception, or red CI.",
+      "A UI bug needs a fix verified in a browser.",
+      "Several independent bugs can be fixed in parallel (--parallel)."
     ],
     "avoidWhen": [
-      "You only want to investigate the cause without fixing: use ak:debug.",
-      "The work is a new feature or known non-bug scope: use ak:cook.",
-      "You want to improve a measurable metric over many iterations: use ak:loop.",
-      "You only need to run tests or check coverage: use ak:test.",
+      "You only want the cause, not a fix: use ak:debug.",
+      "The work is a new feature: use ak:cook.",
       "You want the full issue-to-PR pipeline: use ak:vibe."
     ],
     "params": [
       {
         "name": "[issue]",
         "kind": "arg",
-        "desc": "Error description, message, failing test, or CI link. If missing, the skill narrows it down from context."
+        "desc": "Error, failing test, or CI link. If missing, the skill narrows it down from context."
       },
       {
         "name": "--auto",
         "kind": "flag",
-        "desc": "Default. Proceeds through fix and verify within allowed scope; asks only for key decisions, contract reversals, or unapproved destructive actions."
+        "desc": "Default. Runs fix and verify within scope; asks only for key decisions or destructive actions."
       },
       {
         "name": "--review",
         "kind": "flag",
-        "desc": "Human-in-the-loop: pauses for approval at each major step. Recommended for production, security, or system-wide bugs."
+        "desc": "Pauses for approval at each major step. Best for production, security, or system-wide bugs."
       },
       {
         "name": "--quick",
         "kind": "flag",
-        "desc": "Lean cause-aligned fix: scout → diagnose → fix → verify+prevent → review. Escalates to standard/deep if architecture decisions appear. Conflicts with --ultra."
+        "desc": "Lean route: scout → diagnose → fix → verify → review. Escalates if architecture decisions appear. Conflicts with --ultra."
       },
       {
         "name": "--parallel",
         "kind": "flag",
-        "desc": "Fixes several independent issues with separate file ownership via parallel delegation, when the runtime supports it. Conflicts with --ultra."
+        "desc": "Fixes independent issues with separate file ownership in parallel. Conflicts with --ultra."
       },
       {
         "name": "--ultra",
         "kind": "flag",
-        "desc": "After diagnosis, generates exactly 5 read-only candidate fix-plans; a verifier picks the winner by cause alignment, blast radius, minimality, verifiability. Reject-all stops. Hard-stops with --quick or --parallel."
+        "desc": "Generates 5 read-only fix-plans after diagnosis; a verifier picks one or rejects all. Hard-stops with --quick or --parallel."
       },
       {
         "name": "--advice",
         "kind": "flag",
-        "desc": "Runs under kongming supervision: after each step, when stuck, on verify failure, and before high-risk decisions. Kongming advises only; it writes no code."
+        "desc": "Kongming advises after each step, when stuck, and before high-risk decisions. It writes no code."
       },
       {
         "name": "--skip-journal",
         "kind": "flag",
-        "desc": "Skips the automatic /ak:journal step. Precedence: flag > project config > user config > default true. Also skipped when journal.auto=false."
+        "desc": "Skips the automatic /ak:journal. Also skipped when journal.auto=false."
       }
     ],
     "examples": [
       {
         "cmd": "/ak:fix \"TS2345 in src/auth/session.ts after upgrading zod\" --quick",
-        "note": "Clear single-file type error; the type checker is the regression proof."
+        "note": "Single-file type error; the checker is the regression proof."
       },
       {
         "cmd": "/ak:fix login sometimes returns 401 even though the token is still valid",
-        "note": "Multi-file bug with unclear cause: standard route in auto mode."
-      },
-      {
-        "cmd": "/ak:fix https://github.com/org/repo/actions/runs/123 --review",
-        "note": "Red CI on a production branch; approve each step."
+        "note": "Unclear multi-file cause: standard route, auto mode."
       },
       {
         "cmd": "/ak:fix memory leak in worker queue --ultra --advice",
-        "note": "Complex bug with many possible fixes: best-of-5 fix-plan under kongming supervision."
-      },
-      {
-        "cmd": "/ak:fix 3 independent failing tests in packages/api, packages/web, packages/cli --parallel --skip-journal",
-        "note": "Separate issues: fix in parallel, no journal."
+        "note": "Best-of-5 fix-plan under kongming supervision."
       }
     ],
     "tips": [
       "Paste the exact error and repro command; the root-cause gate needs both.",
-      "After 3 failed fixes the skill stops; supply more logs or environment details instead of forcing it.",
-      "--ultra and the deep route cost many tokens; save them for bugs worth it.",
-      "The skill never commits or pushes; use ak:git or ak:ship afterward.",
-      "A regression test must fail without the fix; for type/lint errors the checker itself is the proof."
+      "--ultra and the deep route cost many tokens; save them for hard bugs.",
+      "The skill never commits or pushes; use ak:git or ak:ship afterward."
     ],
     "related": [
       "ak-debug",
@@ -124,76 +102,62 @@
       "kongming"
     ],
     "artifacts": [
-      "Fixed source code + regression test",
-      "Plan in ./plans (deep route) or an updated existing plan",
-      "Journal entry via /ak:journal (unless opted out)",
-      "Report of cause, changed paths, verification, limitations"
+      "Fixed code + regression test",
+      "Plan in ./plans (deep route)",
+      "Journal entry (unless opted out)",
+      "Report: cause, changed paths, verification"
     ]
   },
   "ak-debug": {
     "tagline": "Investigate systematically and prove the root cause before any fix.",
-    "summary": "ak:debug investigates failures at code level (failing tests, bugs, builds) and system level (server errors, CI/CD, performance, databases, logs). Core rule: no fix without a root-cause investigation, and no \"done\" without fresh verification evidence. Output: a diagnosis with file:line evidence, ruled-out hypotheses, blast radius, and a verification plan.",
+    "summary": "ak:debug investigates code-level failures and system incidents (CI/CD, performance, databases, logs). It allows no fix without a proven root cause and no \"done\" without fresh verification evidence.",
     "howItWorks": [
-      "Classifies the problem and loads the matching reference: code bug, deep stack error, system incident, CI/CD, performance, or frontend.",
-      "Code bugs follow 4 phases in order: Root Cause Investigation → Pattern Analysis → Hypothesis Testing → Implementation.",
-      "Root-cause tracing walks the call stack back to the original trigger; scripts/find-polluter.sh bisects test pollution.",
-      "System incidents follow 5 steps: assess, collect data, analyze, identify root cause, develop solution.",
-      "Collects logs via gh CLI, psql, and structured log queries.",
-      "With --ultra, builds one immutable evidence packet and runs 5 read-only diagnoses in parallel; a verifier picks one or rejects all.",
-      "After the root cause is known, adds defensive checks only at boundaries that distinguish the cause or protect the fixed contract.",
-      "Frontend files trigger browser checks (ak:agent-browser, ak:chrome-profile, Chrome MCP): screenshots and console errors.",
-      "Tracks 3+ step or parallel investigations in a task surface or the active plan.",
-      "Verification iron law: run the command, read the output, then claim the result."
+      "Classifies the problem: code bug, stack error, system incident, CI/CD, performance, or frontend.",
+      "Code bugs: root-cause investigation → pattern analysis → hypothesis testing → implementation.",
+      "Traces the call stack back to the trigger; scripts/find-polluter.sh bisects test pollution.",
+      "Collects logs via gh CLI, psql, and log queries; checks frontend issues in a browser.",
+      "--ultra runs 5 read-only diagnoses on one evidence packet; a verifier picks one or rejects all."
     ],
     "useWhen": [
       "A test fails or behavior is wrong and the cause is unknown.",
-      "A CI/CD pipeline fails and GitHub Actions logs need reading.",
-      "The system is slow: slow queries, high latency, resource exhaustion.",
-      "A server or production incident spans components and needs a diagnostic report.",
-      "Test pollution (a test fails only with the full suite) needs bisecting."
+      "CI fails, the system is slow, or a production incident spans components.",
+      "A test fails only in the full suite (test pollution)."
     ],
     "avoidWhen": [
-      "The cause is known and you just need a fix: use ak:fix (it calls debug when needed).",
+      "The cause is known and you need a fix: use ak:fix.",
       "You have a diagnosis and need to compare solutions: use ak:brainstorm.",
-      "You only need to find related files: use ak:scout.",
-      "You are stuck on framing, not missing evidence: use ak:problem-solving."
+      "You only need to find related files: use ak:scout."
     ],
     "params": [
       {
         "name": "[error or issue description]",
         "kind": "arg",
-        "desc": "Error description, message, stack trace, or symptom to investigate."
+        "desc": "Error, stack trace, or symptom to investigate."
       },
       {
         "name": "--ultra",
         "kind": "flag",
-        "desc": "Best-of-5 diagnosis: one immutable evidence packet, 5 independent read-only diagnoses, a verifier picks one intact or rejects all. The winning cause still needs fresh verification before a fix. Reject-all hard-stops with reasons."
+        "desc": "Best-of-5: 5 independent read-only diagnoses, a verifier picks one or rejects all. The winner still needs fresh verification."
       }
     ],
     "examples": [
       {
         "cmd": "/ak:debug test UserService.spec.ts fails randomly when running the full suite",
-        "note": "Suspected test pollution: use root-cause tracing and find-polluter.sh."
+        "note": "Suspected test pollution: bisect with find-polluter.sh."
       },
       {
         "cmd": "/ak:debug workflow deploy.yml fails at the build step since commit abc1234",
-        "note": "Investigate CI logs via gh CLI."
-      },
-      {
-        "cmd": "/ak:debug API /orders p95 rose from 200ms to 2s after release",
-        "note": "Performance diagnosis of queries and resources."
+        "note": "Reads CI logs via gh CLI."
       },
       {
         "cmd": "/ak:debug race condition when 2 webhooks arrive at the same time --ultra",
-        "note": "Hard bug, many hypotheses: 5 independent diagnoses plus a verifier."
+        "note": "Hard bug: 5 diagnoses plus a verifier."
       }
     ],
     "tips": [
-      "Watch for red flags: \"quick fix now, investigate later\", \"try changing X\", \"probably X\", \"seems fixed\".",
       "A minimal repro and real logs cut investigation rounds and tokens.",
-      "--ultra fans out analysis only; any fix still runs once after the cause is verified.",
-      "Frontend screenshots and console checks need a browser tool (agent-browser or Chrome MCP).",
-      "Debug does not batch-fix; switch to /ak:fix once the root cause is proven."
+      "Treat \"probably X\" or \"seems fixed\" as red flags; demand evidence.",
+      "Debug does not fix; switch to /ak:fix once the cause is proven."
     ],
     "related": [
       "ak-fix",
@@ -212,117 +176,91 @@
     ],
     "artifacts": [
       "Root-cause diagnosis with file:line evidence",
-      "Diagnostic report (when needed) per reporting standards",
-      "Screenshots/console logs from frontend verification",
-      "Updated active plan for multi-step investigations"
+      "Diagnostic report when needed",
+      "Frontend screenshots/console logs",
+      "Updated plan for multi-step investigations"
     ]
   },
   "ak-test": {
-    "tagline": "Run, create, optimize, and audit test suites with structured QA reports.",
-    "summary": "ak:test covers code-level tests (Jest/Vitest/Mocha, pytest, go test, cargo test, flutter test), browser UI tests, coverage, build checks, and QA reports. Subcommands ui, create, optimize, and audit test websites, build suites, cut CI cost, or expose deceptive tests. All work follows 11 practical testing principles; failing tests are never skipped, mocked, or cheated.",
+    "tagline": "Run, create, optimize, and audit test suites with QA reports.",
+    "summary": "ak:test runs code tests, browser UI tests, coverage, and build checks, then writes a QA report. Subcommands ui, create, optimize, and audit test sites, build suites, cut CI cost, or expose deceptive tests, and never skip or fake failing tests.",
     "howItWorks": [
-      "With no argument, asks which operation to run: default, ui, create, optimize, or audit. With context, starts immediately.",
-      "Loads the practical testing principles first; they govern scope, layer, environment, and execution for every change and report.",
-      "Default: scopes from recent changes → runs the narrowest check → runs the suite → analyzes failures → coverage → UI tests → report.",
-      "ui [url]: tests a site via ak:agent-browser, ak:chrome-profile (real logged-in Chrome), or the project's Playwright/Vitest/k6.",
-      "UI checks cover screenshots, responsiveness, accessibility, forms, and console errors.",
-      "create: scouts code and docs, builds a coverage matrix, designs first, then writes and verifies the suite.",
-      "optimize: parallel scouts analyze CI, git history, code, and docs, then speed up tests at equal safety behind mandatory gates.",
-      "audit: parallel scouts find tests written only to pass, skipped or commented tests, duplicates, stale and insecure tests; reports only.",
-      "--interview lists each proposed change with a one-line reason and applies only approved groups.",
-      "--advice consults kongming after analysis, before applying suite/CI changes, and when stuck.",
-      "--ultra runs 5 read-only candidates plus a verifier; create/optimize pick one design, audit merges verified findings.",
-      "Hands screenshots to ak:ai-multimodal, bugs to ak:debug, and hard failures to ak:fable-thinking."
+      "No argument shows a menu: default, ui, create, optimize, audit. With context, starts immediately.",
+      "Default: scopes from recent changes, runs narrow checks, then the suite, coverage, and a report.",
+      "ui tests a URL for screenshots, responsiveness, accessibility, forms, and console errors.",
+      "create and optimize apply changes directly; audit only reports ranked findings.",
+      "optimize and audit spawn parallel scouts; --ultra adds 5 candidates plus a verifier."
     ],
     "useWhen": [
-      "You just implemented or fixed something and need to confirm nothing broke before committing.",
-      "You want to test a website UI: responsive, accessibility, console errors, forms, logged-in routes.",
-      "The project lacks a test suite covering main flows (create).",
-      "CI is too slow or costly and you want less time without losing coverage (optimize).",
-      "You suspect the suite is unreliable: skipped, fake, or stale tests (audit).",
-      "You need a final quality gate before commit/push: build and coverage thresholds."
+      "You just changed code and need proof nothing broke before committing.",
+      "You want a website UI tested, including logged-in routes.",
+      "CI is slow (optimize) or the suite seems unreliable (audit)."
     ],
     "avoidWhen": [
-      "A test fails and you need to find and fix the cause: use ak:fix or ak:debug.",
-      "You need edge cases or QA scenarios before coding: use ak:scenario.",
-      "You need deep load, visual regression, or cross-browser testing: use or combine with ak:web-testing.",
-      "You want a code quality review, not test runs: use ak:code-review."
+      "A test fails and you need the cause fixed: use ak:fix or ak:debug.",
+      "You need edge cases before coding: use ak:scenario.",
+      "You need load, visual regression, or cross-browser tests: use ak:web-testing."
     ],
     "params": [
       {
         "name": "[context]",
         "kind": "arg",
-        "desc": "Test scope (file, module, changed feature). With context, tests run immediately; with no argument, the skill asks for an operation."
+        "desc": "Test scope: file, module, or feature. Empty shows the operation menu."
       },
       {
         "name": "ui [url]",
         "kind": "subcommand",
-        "desc": "UI tests on the url: screenshots, responsive, a11y, form automation, console errors. Logged-in routes use ak:chrome-profile or the project's auth setup."
+        "desc": "UI tests on the URL. Logged-in routes use ak:chrome-profile."
       },
       {
         "name": "create [scope]",
         "kind": "subcommand",
-        "desc": "Scouts code and docs, builds a coverage matrix, designs and writes a suite. Without --interview, applies directly and lists all changes."
+        "desc": "Builds a coverage matrix, then designs and writes a suite. Applies directly unless --interview is set."
       },
       {
         "name": "optimize [scope]",
         "kind": "subcommand",
-        "desc": "Parallel scouts of CI, git history, code, docs; cuts test time/cost at equal safety (parallel lanes, change-based selection, docs-only skips). Without --interview, applies directly."
+        "desc": "Cuts test time and cost at equal safety. Applies directly unless --interview."
       },
       {
         "name": "audit [scope]",
         "kind": "subcommand",
-        "desc": "Checks suite and CI; reports ranked, evidence-backed findings with fix suggestions. Fixes only when separately requested."
+        "desc": "Reports ranked, evidence-backed findings with fix suggestions. Fixes only on separate request."
       },
       {
         "name": "--advice",
         "kind": "flag",
-        "desc": "With create/optimize/audit: kongming advises after analysis, before suite/CI changes, and when stuck. Never overrides failing-test rules or CI safety gates."
+        "desc": "With create/optimize/audit: kongming advises before suite/CI changes and when stuck. Never overrides failing-test rules."
       },
       {
         "name": "--ultra",
         "kind": "flag",
-        "desc": "With create/optimize/audit: best-of-5 analysis/design (5 read-only candidates + 1 verifier). Create/optimize take one winning design; audit takes the union of verified findings. Combines with --advice and --interview."
+        "desc": "With create/optimize/audit: 5 read-only candidates + verifier; audit merges verified findings."
       },
       {
         "name": "--interview",
         "kind": "flag",
-        "desc": "With create/optimize/audit: lists each proposed change with a one-line reason, asks one decision per group, applies only approved changes."
+        "desc": "With create/optimize/audit: lists each proposed change with a reason and applies only approved groups."
       }
     ],
     "examples": [
       {
-        "cmd": "/ak:test",
-        "note": "No argument: shows the 5-operation menu."
-      },
-      {
         "cmd": "/ak:test src/payments",
-        "note": "Tests the changed module and reports results."
+        "note": "Tests the changed module and reports."
       },
       {
         "cmd": "/ak:test ui https://staging.example.com",
-        "note": "Staging UI test: screenshots, responsive, a11y, console errors."
+        "note": "Staging UI: screenshots, responsive, a11y, console errors."
       },
       {
         "cmd": "/ak:test create packages/api --interview",
-        "note": "Builds a new API suite, approving each test group first."
-      },
-      {
-        "cmd": "/ak:test optimize --advice",
-        "note": "Slow CI: optimize the suite under kongming supervision."
-      },
-      {
-        "cmd": "/ak:test audit --ultra",
-        "note": "Audits suite reliability with 5 independent candidates and merged verified findings."
+        "note": "New API suite, approving each test group."
       }
     ],
     "tips": [
-      "Run with no argument when unsure; you get the 5-operation menu.",
-      "create and optimize apply changes by default; add --interview to approve each, especially CI workflow edits.",
-      "audit only reports; ask explicitly if you want fixes.",
-      "optimize/audit spawn parallel scouts and cost more tokens; --ultra adds 5 candidates.",
-      "For logged-in tests, use ak:chrome-profile instead of pasting cookies into chat.",
-      "Coverage gained by loosening assertions is a regression; tests run sequentially unless there is a reason."
+      "create and optimize apply changes by default; add --interview to approve CI workflow edits.",
+      "audit only reports; ask explicitly for fixes.",
+      "For logged-in tests use ak:chrome-profile, never paste cookies into chat."
     ],
     "related": [
       "ak-cook",
@@ -340,81 +278,73 @@
       "kongming"
     ],
     "artifacts": [
-      "QA report (results, coverage, failures, performance, build status, recommendations)",
+      "QA report: results, coverage, failures, build status",
       "New or updated test files (create, optimize)",
       "CI workflow changes (optimize)",
-      "UI test screenshots",
+      "UI screenshots",
       "Ranked findings report (audit)"
     ]
   },
   "ak-code-review": {
-    "tagline": "Evidence-based code review for pending changes, PRs, commits, or a whole codebase.",
-    "summary": "ak:code-review checks the requested scope against spec, regression paths, security, and repo conventions. Findings come with file/line, impact, and evidence. It detects the input type itself: PR number, commit hash, --pending, codebase, or codebase parallel. Review-only mode never edits, posts comments, or merges.",
+    "tagline": "Evidence-based review of pending changes, PRs, commits, or a codebase.",
+    "summary": "ak:code-review checks the target against spec, regressions, security, and repo conventions, with file/line evidence for every finding. It detects the input type itself, and review-only mode never edits, posts, or merges.",
     "howItWorks": [
-      "Resolves input left to right: PR #/URL → gh pr view + diff; 7-40 hex hash → git show; --pending → git diff HEAD.",
-      "No argument with recent changes uses the default target; with nothing to review, asks for a target.",
-      "Prefers PR over commit when ambiguous and notes the assumption; reports clearly if the target does not exist.",
-      "Sends changed files to an edge-case scout, then runs Stage 1 spec compliance (if a plan/spec exists) and Stage 2 code quality.",
-      "Operations: review-only, receiving feedback (verify findings before accepting), or fixing when allowed, then re-reviewing.",
-      "codebase: parallel researchers, /ak:scout, parallel code-reviewers, and a planner writing an improvement plan; asks before commit/push.",
-      "codebase parallel: lists edge cases, groups them into at most 6 buckets, one code-reviewer per bucket.",
-      "--ultra runs Stage 1 once and fans Stage 2 to 5 read-only reviewers; a verifier returns the deduplicated union.",
-      "--advice consults kongming after each stage, when stuck, and before high-risk verdicts.",
-      "Uses a checklist for risky changes and reuses checks when revision, input, and environment are unchanged."
+      "Detects input: PR number/URL → gh diff; commit hash → git show; --pending → git diff HEAD.",
+      "Runs an edge-case scout, then Stage 1 spec compliance (if a plan exists) and Stage 2 code quality.",
+      "codebase runs parallel researchers and reviewers; a planner writes an improvement plan.",
+      "codebase parallel splits edge cases into at most 6 groups, one reviewer each.",
+      "--ultra fans Stage 2 to 5 read-only reviewers; a verifier returns the deduplicated union."
     ],
     "useWhen": [
-      "You want to review staged/unstaged changes before committing (--pending).",
-      "You need to review a GitHub PR by number or URL.",
-      "You want to check whether a specific commit caused a regression.",
-      "You need a whole-codebase audit for bugs, security risks, and tech debt.",
-      "You received review feedback and need to verify findings before fixing."
+      "You want local changes reviewed before committing (--pending).",
+      "You need a PR or suspect commit reviewed.",
+      "You need a whole-codebase audit for bugs, security risks, and tech debt."
     ],
     "avoidWhen": [
-      "You want to post comments to GitHub, fix, and merge: use ak:review-pr.",
-      "You only need security, secret, or dependency scanning: use ak:security.",
-      "You need a UI guideline compliance review: use ak:ui-ux-pro-max.",
-      "You want to ship a finished branch to a PR: use ak:ship (it runs a 2-pass review)."
+      "You want to post comments, fix, and merge a PR: use ak:review-pr.",
+      "You only need security or secret scanning: use ak:security.",
+      "You want a finished branch shipped: use ak:ship."
     ],
     "params": [
       {
         "name": "#PR",
         "kind": "arg",
-        "desc": "PR number (#123) or GitHub PR URL; fetches metadata and diff via gh pr view / gh pr diff."
+        "desc": "PR number (#123) or GitHub PR URL; fetches the diff via gh."
       },
       {
         "name": "COMMIT",
         "kind": "arg",
-        "desc": "7-40 character hex commit hash; reviews the commit diff via git show. The commit must exist locally."
+        "desc": "7-40 character commit hash; reviews it via git show. Must exist locally."
       },
       {
         "name": "--pending",
         "kind": "flag",
-        "desc": "Reviews staged + unstaged changes vs HEAD (git diff HEAD); asks for a short intent since there is no commit message."
+        "desc": "Reviews staged + unstaged changes vs HEAD; asks for a short intent."
       },
       {
         "name": "codebase",
         "kind": "subcommand",
-        "desc": "Full-codebase scan: parallel researchers and code-reviewers, a planner builds an improvement plan, then a report and commit/push offer."
+        "desc": "Full scan with parallel researchers and reviewers; a planner builds an improvement plan, then offers commit/push."
       },
       {
         "name": "codebase parallel",
         "kind": "subcommand",
-        "desc": "Multi-reviewer audit: lists edge cases first, splits into at most 6 groups, one code-reviewer per group. Conflicts with --ultra."
+        "desc": "Lists edge cases, splits them into at most 6 groups, one reviewer per group. Conflicts with --ultra."
       },
       {
         "name": "--ultra",
         "kind": "flag",
-        "desc": "Best-of-5 Stage 2: 5 independent read-only reviewers, verifier returns the deduplicated union of verified findings. Works with #PR/COMMIT/--pending/codebase and --yagni; hard-stops with codebase parallel."
+        "desc": "5 independent read-only Stage 2 reviewers; verifier merges verified findings. Hard-stops with codebase parallel."
       },
       {
         "name": "--advice",
         "kind": "flag",
-        "desc": "Kongming advises after Stage 1, after Stage 2, when stuck, and before high-risk verdicts. Does not override evidence rules or the ultra/parallel conflict."
+        "desc": "Kongming advises after each stage, when stuck, and before high-risk verdicts."
       },
       {
         "name": "--yagni",
         "kind": "flag",
-        "desc": "Reviewers keep your full requested scope by default; --yagni adds recommendations to cut scope not needed for the outcome."
+        "desc": "Adds recommendations to cut scope not needed for the outcome; reviewers keep full scope by default."
       }
     ],
     "examples": [
@@ -423,28 +353,18 @@
         "note": "Review local changes before committing."
       },
       {
-        "cmd": "/ak:code-review #482 --advice",
-        "note": "Review an important PR with kongming checking before the verdict."
-      },
-      {
         "cmd": "/ak:code-review 3f9a2c1",
-        "note": "Check a commit suspected of causing a regression."
+        "note": "Check a commit suspected of a regression."
       },
       {
         "cmd": "/ak:code-review codebase parallel",
-        "note": "Audit the whole codebase with reviewers split by edge-case group."
-      },
-      {
-        "cmd": "/ak:code-review #482 --ultra --yagni",
-        "note": "Deep best-of-5 review that also flags unneeded scope."
+        "note": "Audit the codebase with reviewers split by edge-case group."
       }
     ],
     "tips": [
-      "Review-only never edits, posts, or merges; use ak:review-pr to post to GitHub.",
-      "Scores do not replace checks or findings; read the file:line findings and evidence.",
-      "codebase modes spawn many subagents and cost tokens; a typo does not need the pipeline.",
-      "Reviewers do not suggest cutting your requested scope unless you pass --yagni.",
-      "Findings that contradict current source or tests are rejected with evidence, not accepted blindly."
+      "Review-only never edits or posts; use ak:review-pr to post to GitHub.",
+      "codebase modes spawn many subagents; a typo does not need them.",
+      "Findings that contradict current source or tests get rejected with evidence."
     ],
     "related": [
       "ak-review-pr",
@@ -463,128 +383,106 @@
       "kongming"
     ],
     "artifacts": [
-      "Findings with file/line, impact, and evidence",
-      "Improvement plan plan.md + phase-XX-*.md (codebase mode)",
+      "Findings with file/line, impact, evidence",
+      "Improvement plan (codebase mode)",
       "Edge-case report by group (codebase parallel)"
     ]
   },
   "ak-ship": {
-    "tagline": "One command: test, review, version, changelog, commit, push, and open a PR.",
-    "summary": "ak:ship runs a 14-step pipeline that takes a feature branch to a PR, with optional review-merge and a build-in-public post. It detects official mode (into main/master) or beta mode (into dev/beta/develop), plus the test runner, version file, and changelog format. Output: the PR URL and a per-step status table.",
+    "tagline": "One command: test, review, version, changelog, commit, push, open PR.",
+    "summary": "ak:ship runs a 14-step pipeline that takes a feature branch to a PR, with optional review-merge and a build-in-public post. It detects official (main/master) or beta (dev/beta/develop) mode and returns the PR URL with a per-step status table.",
     "howItWorks": [
-      "Normalizes the mode token: official|stable|main → official, beta|dev|next → beta; unknown tokens stop and ask.",
-      "Without a token, infers mode from the branch name (feature/hotfix/bugfix → official; dev/beta/experiment → beta), else asks.",
-      "Step 1 pre-flight: checks branch and status, aborts if already on the target, analyzes the diff.",
-      "Step 2 links or creates the related GitHub issue; Step 3 merges origin/<target> and stops on unresolvable conflicts.",
-      "Step 4 runs tests via the tester subagent; Step 5 runs a 2-pass review (critical + informational) via code-reviewer.",
-      "Step 6 bumps version (patch auto, major/minor asks); Step 7 generates the changelog; both skip silently if files are missing.",
-      "Step 8 journal and Step 9 docs update run in the background (docs only in official); Step 9b marks the plan completed.",
-      "Steps 10-12: conventional commit, git push -u (never force-push), gh pr create with a 7-section evidence body, link PR to plan.",
-      "Step 13 (--merge) runs ak:review-pr <PR> --fix --reply --merge to review, fix, reply, merge, and wait for green CI.",
-      "Step 14 (--social) drafts and saves a build-in-public journal, then posts to configured channels; dry-run without --yes-post.",
-      "--both runs the beta stage first, then a gated stable stage."
+      "Picks mode from the token or branch name; asks when unclear. Stops if already on target.",
+      "Merges origin/<target>, runs tests (tester) and a 2-pass review (code-reviewer).",
+      "Bumps version and changelog if present; asks only for major/minor bumps.",
+      "Commits, pushes without force, opens a PR with a 7-section evidence body; docs update only in official.",
+      "--merge runs ak:review-pr to fix, merge, and wait for green CI; --social drafts a post."
     ],
     "useWhen": [
-      "A feature branch is done and you want one command to test, review, commit, push, and open a PR.",
-      "You ship to dev/beta with a lighter pipeline that skips docs.",
-      "You want the PR auto-reviewed, fixed, merged, and CI-verified (--merge).",
-      "You need beta first, then a controlled promotion to stable (--both).",
-      "You want a build-in-public post after the PR is green (--social)."
+      "A feature branch is done and you want tests, review, and a PR in one command.",
+      "You want the PR auto-reviewed, merged, and CI-verified (--merge).",
+      "You ship beta first, then promote to stable (--both)."
     ],
     "avoidWhen": [
       "You only need a plain commit/push: use ak:git.",
-      "Code is unfinished or tests are red from an unfixed bug: use ak:fix first.",
-      "You only need to review/merge an existing PR: use ak:review-pr.",
-      "You want to deploy an app to hosting: use ak:deploy.",
-      "You want the full issue → plan → code → PR flow: use ak:vibe."
+      "Tests are red from an unfixed bug: use ak:fix first.",
+      "You want to deploy an app to hosting: use ak:deploy."
     ],
     "params": [
       {
         "name": "official | stable | main",
         "kind": "subcommand",
-        "desc": "Normalized to official: ships to the detected default branch (main/master) with the full pipeline, including docs and journal."
+        "desc": "Ships to main/master with the full pipeline, including docs and journal."
       },
       {
         "name": "beta | dev | next",
         "kind": "subcommand",
-        "desc": "Normalized to beta: ships to the detected dev branch (dev/beta/develop) with a lighter pipeline that skips docs. Without a token: base main/master → official, else beta."
+        "desc": "Ships to dev/beta/develop, skipping docs. Without a token: base main/master → official, else beta."
       },
       {
         "name": "--both",
         "kind": "flag",
-        "desc": "Ships beta, then a gated stable stage. Overrides the mode token with one warning. Combines with --advice, --merge, skip flags; --dry-run simulates only beta. Stable never force-pushes or bypasses branch protection."
+        "desc": "Ships beta, then a gated stable stage. Overrides the mode token. --dry-run simulates only beta."
       },
       {
         "name": "--advice",
         "kind": "flag",
-        "desc": "Kongming supervises: after pre-flight, after test + review (before version/commit/push/PR), when stuck, and before high-risk decisions. Passed on to ak:review-pr with --merge."
+        "desc": "Kongming supervises at key checkpoints; passed to ak:review-pr with --merge."
       },
       {
         "name": "--merge",
         "kind": "flag",
-        "desc": "After the PR, runs ak:review-pr <PR> --fix --reply --merge (plus --advice if set). Claims merged/green only when Verdict=Approve, Merge=merged, CI=green."
+        "desc": "Runs ak:review-pr <PR> --fix --reply --merge. Claims success only when approved, merged, and CI is green."
       },
       {
         "name": "--skip-tests",
         "kind": "flag",
-        "desc": "Skips Step 4 tests; use only with passing-test evidence on the same revision."
+        "desc": "Skips tests; use only with passing-test evidence on the same revision."
       },
       {
         "name": "--skip-review",
         "kind": "flag",
-        "desc": "Skips the pre-landing review (Step 5); the ak:review-pr review under --merge still runs."
+        "desc": "Skips the pre-landing review; the --merge review still runs."
       },
       {
         "name": "--skip-journal",
         "kind": "flag",
-        "desc": "Skips Step 8 journal; also honors journal.auto=false. Note: it also skips the whole --social step."
+        "desc": "Skips the journal step; also skips the whole --social step."
       },
       {
         "name": "--skip-docs",
         "kind": "flag",
-        "desc": "Skips Step 9 docs update."
+        "desc": "Skips the docs update."
       },
       {
         "name": "--social",
         "kind": "flag",
-        "desc": "Opt-in: after the PR (and Step 13), drafts a build-in-public journal (Why this / What changed / The tricky bit / What's next), saves it via ak journal create, and posts it. Refuses on red CI; quotes only COLLABORATOR/MEMBER/OWNER comments."
+        "desc": "Drafts a build-in-public post after the PR. Refuses on red CI."
       },
       {
         "name": "--yes-post",
         "kind": "flag",
-        "desc": "Required with --social to actually post; without it, the social step only renders per-channel drafts (dry-run)."
+        "desc": "Required with --social to actually post; otherwise drafts only."
       },
       {
         "name": "--yes-post-private",
         "kind": "flag",
-        "desc": "Required with --social --yes-post on private repos: a second confirmation to post about non-public work."
+        "desc": "Required with --social --yes-post on private repos as a second confirmation."
       },
       {
         "name": "--dry-run",
         "kind": "flag",
-        "desc": "Shows what would happen without executing; stops before kongming, ak:review-pr, and social publishing."
+        "desc": "Shows the plan without executing; stops before kongming, ak:review-pr, and posting."
       }
     ],
     "examples": [
       {
         "cmd": "/ak:ship",
-        "note": "Detects mode from the branch name, runs the full pipeline, returns the PR URL."
-      },
-      {
-        "cmd": "/ak:ship beta --skip-tests",
-        "note": "Ship to dev when tests already passed on the same revision."
+        "note": "Detects mode from the branch, runs the full pipeline."
       },
       {
         "cmd": "/ak:ship official --advice --merge",
-        "note": "Ship to main with kongming supervision, then review-merge and wait for green CI."
-      },
-      {
-        "cmd": "/ak:ship --both --merge",
-        "note": "Beta PR merged to green, then a gated stable stage."
-      },
-      {
-        "cmd": "/ak:ship --social --yes-post",
-        "note": "Ship and publish a build-in-public post once CI is green (public repo)."
+        "note": "Ship to main under kongming, then merge on green CI."
       },
       {
         "cmd": "/ak:ship --dry-run",
@@ -592,11 +490,9 @@
       }
     ],
     "tips": [
-      "Tests gate the ship; nothing publishes on red evidence. Use --skip-tests only with same-revision proof.",
-      "The skill asks in only two places: critical findings needing a scope call, and major/minor bumps.",
-      "Unrelated dirty files stay untouched; only this task's files are committed.",
-      "Journal and docs run in the background; skip them with --skip-journal/--skip-docs to save tokens.",
-      "--social is dry-run by default; real posting needs --yes-post (and --yes-post-private for private repos)."
+      "Nothing publishes on red tests; --skip-tests needs same-revision proof.",
+      "Only this task's files get committed; unrelated dirty files stay untouched.",
+      "--social is dry-run by default; posting needs --yes-post."
     ],
     "related": [
       "ak-code-review",
@@ -616,68 +512,58 @@
       "kongming"
     ],
     "artifacts": [
-      "Conventional commit + pushed branch",
-      "GitHub pull request with a 7-section evidence body",
-      "Version bump and CHANGELOG (if the repo has them)",
-      "Linked or created GitHub issue",
-      "Journal entry and updated docs (official)",
-      "Plan marked completed with linked PR",
-      "Social post (with --social --yes-post)"
+      "Pushed commit and PR with evidence body",
+      "Version bump and CHANGELOG (if present)",
+      "Linked GitHub issue",
+      "Journal, docs, and completed plan",
+      "Social post (--social --yes-post)"
     ]
   },
   "ak-loop": {
-    "tagline": "Automated optimization loop: try changes, measure a metric, keep or revert via git.",
-    "summary": "ak:loop improves a measurable metric (coverage, bundle size, ESLint errors, Lighthouse) by repeating Modify → Verify → Keep/Discard. Each iteration commits one atomic change before measuring. Input is a config block (Goal, Scope, Verify, optional fields); output is git history of kept changes, loop-results.tsv, and a final report. Manual invocation only; needs a git repo with a clean working tree.",
+    "tagline": "Optimization loop: change, measure a metric, keep or revert via git.",
+    "summary": "ak:loop improves a shell-measurable metric (coverage, bundle size, lint errors) by repeating modify → verify → keep or discard, committing each atomic change first. You give a config block (Goal, Scope, Verify) and need a git repo with a clean tree.",
     "howItWorks": [
-      "Parses the config from the message; asks once for any missing required fields (Goal, Scope, Verify).",
-      "Screens the Verify command: rejects rm -rf /, fork bombs, curl | sh; warns on unknown hosts, embedded credentials, sudo/chmod 777.",
-      "Phase 0: checks prerequisites and a clean tree, records the baseline. Guard must pass at baseline; fix it rather than loosen it.",
-      "Phase 1 reviews git history and past results; Phase 2 picks one atomic change describable in one sentence without \"and\".",
-      "Phase 3 edits only within Scope (Guard files stay read-only); Phase 4 commits BEFORE verifying, so git is the memory.",
-      "Phase 5 runs Verify within Timeout (default 30s); crashes and timeouts are discarded safely.",
-      "Phase 5.5 runs Guard if set: on failure, revert, retry twice, then discard as guard-failed.",
-      "Phase 6 decides via a matrix using Noise, Min-Delta, and Direction; Discard uses git revert (git reset --hard only as fallback).",
-      "Phase 7 appends a TSV row to loop-results.tsv (iter, timestamp, metric, delta, kept, description).",
-      "Phase 8: 5 consecutive discards → change strategy; 10 → stop and report; after Iterations, write a final report."
+      "Asks once for missing Goal, Scope, or Verify; rejects dangerous Verify commands.",
+      "Records a baseline; Guard must pass at baseline.",
+      "Each iteration edits only Scope with one atomic change and commits before measuring.",
+      "Keeps or reverts by Noise, Min-Delta, and Direction; failed Guard or timeout means discard.",
+      "Logs each iteration to loop-results.tsv; 5 discards changes strategy, 10 stops."
     ],
     "useWhen": [
-      "You want test coverage in a folder raised to a specific threshold.",
-      "You want bundle size below a target number.",
-      "You want ESLint or type errors driven to zero over many small steps.",
-      "You have a shell-measurable performance metric and want automated experiments with rollback."
+      "You want coverage raised to a threshold or bundle size under a target.",
+      "You want lint or type errors driven to zero in small steps.",
+      "You have a shell-measurable metric and want automated experiments with rollback."
     ],
     "avoidWhen": [
-      "The goal is subjective, like \"cleaner code\": use ak:cook.",
-      "The bug has a known root cause: use ak:fix or ak:debug.",
-      "The task is one-off with no iteration: use ak:cook.",
-      "No mechanical metric measures progress: use ak:cook --interactive.",
-      "You want an overview of goal-directed iteration options: see ak:autoresearch."
+      "The goal is subjective or one-off: use ak:cook.",
+      "The bug has a known cause: use ak:fix.",
+      "No mechanical metric exists: use ak:cook --interactive."
     ],
     "params": [
       {
         "name": "[Goal/Metric description]",
         "kind": "arg",
-        "desc": "Goal or metric in words, or the full inline config block below the command."
+        "desc": "Goal or metric in words, or the full config block below the command."
       },
       {
         "name": "Goal",
         "kind": "arg",
-        "desc": "Required. Human-readable improvement target, e.g. 'Increase test coverage in src/utils'."
+        "desc": "Required. Human-readable target, like 'Increase test coverage in src/utils'."
       },
       {
         "name": "Scope",
         "kind": "arg",
-        "desc": "Required. Glob of files the loop may edit, e.g. 'src/utils/**/*.ts'. Nothing outside Scope changes."
+        "desc": "Required. Glob of files the loop may edit. Nothing outside Scope changes."
       },
       {
         "name": "Verify",
         "kind": "arg",
-        "desc": "Required. Shell command that prints exactly one number to stdout; runs every iteration, so it passes a safety screen."
+        "desc": "Required. Shell command printing exactly one number; runs every iteration after a safety screen."
       },
       {
         "name": "Guard",
         "kind": "arg",
-        "desc": "Optional, default none. Regression check command (exit 0 = pass). Files in Guard scope are read-only."
+        "desc": "Optional. Regression check (exit 0 = pass); its files are read-only."
       },
       {
         "name": "Iterations",
@@ -687,12 +573,12 @@
       {
         "name": "Noise",
         "kind": "arg",
-        "desc": "Optional, default medium. Metric variance tolerance: low / medium / high."
+        "desc": "Optional, default medium. Variance tolerance: low / medium / high."
       },
       {
         "name": "Min-Delta",
         "kind": "arg",
-        "desc": "Optional, default 0. Minimum improvement that counts as progress."
+        "desc": "Optional, default 0. Minimum improvement that counts."
       },
       {
         "name": "Direction",
@@ -702,33 +588,23 @@
       {
         "name": "Timeout",
         "kind": "arg",
-        "desc": "Optional, default 30s. Deadline per verify run; overruns are logged as timeout and discarded safely."
+        "desc": "Optional, default 30s. Per-verify deadline; overruns are discarded."
       }
     ],
     "examples": [
       {
-        "cmd": "/ak:loop\nGoal: Increase test coverage in src/utils from ~60% to 80%\nScope: src/utils/**/*.ts, tests/utils/**/*.test.ts\nVerify: npx jest tests/utils --coverage --coverageReporters=json-summary 2>/dev/null | node -e \"const d=require('./coverage-summary.json');console.log(d.total.lines.pct)\"\nGuard: npx tsc --noEmit && npx jest --passWithNoTests\nIterations: 15",
-        "note": "Raise coverage with a typecheck + test guard."
-      },
-      {
         "cmd": "/ak:loop\nGoal: Reduce main bundle size below 200KB\nScope: src/**/*.ts, src/**/*.tsx\nVerify: npx vite build 2>/dev/null | grep \"dist/index\" | awk '{print $2}' | sed 's/kB//'\nGuard: npx tsc --noEmit\nDirection: lower\nMin-Delta: 0.5",
-        "note": "Shrink bundle size, ignoring swings under 0.5 kB."
-      },
-      {
-        "cmd": "/ak:loop\nGoal: Drive ESLint error count to zero in src/api\nScope: src/api/**/*.ts\nVerify: npx eslint src/api --format=json 2>/dev/null | node -e \"const r=require('/dev/stdin');console.log(r.reduce((a,f)=>a+f.errorCount,0))\" || echo 999\nDirection: lower\nIterations: 20",
-        "note": "Drive ESLint errors to zero over 20 iterations."
+        "note": "Shrink bundle, ignoring swings under 0.5 kB."
       },
       {
         "cmd": "/ak:loop improve the Lighthouse performance score of the /pricing page",
-        "note": "Goal only; the skill asks once for missing Scope, Verify, Guard."
+        "note": "Goal only; the skill asks for missing fields."
       }
     ],
     "tips": [
-      "Start with a clean working tree; the loop commits each iteration and reverts discards.",
-      "Always set a Guard: coverage gained by weakening tests is a regression.",
-      "Verify runs every iteration, so cost scales with Iterations; time one run and never assume cost is zero.",
-      "For noisy metrics (runtime, Lighthouse), set Noise high or Min-Delta > 0 to avoid keeping phantom gains.",
-      "Never put real secrets in Verify; use environment variables, and output is masked."
+      "Always set a Guard; coverage gained by weakening tests is a regression.",
+      "Cost scales with Iterations; time one Verify run first.",
+      "For noisy metrics, set Noise high or Min-Delta above 0."
     ],
     "related": [
       "ak-autoresearch",
@@ -739,38 +615,30 @@
     ],
     "agents": [],
     "artifacts": [
-      "loop-results.tsv in the working directory",
+      "loop-results.tsv",
       "One git commit per iteration (kept or reverted)",
-      "Final report with baseline and resulting metric"
+      "Final report: baseline vs result"
     ]
   },
   "ak-bootstrap": {
-    "tagline": "Start a new project from idea to running code: research, stack, design, plan, build.",
-    "summary": "ak:bootstrap takes a new-project request through brainstorm → git init → research → tech stack → design → plan → implement → test → review → docs → onboarding → report. It writes no code itself; it delegates to ak:plan and ak:cook with flags per mode (full, auto, fast, parallel). Output: a repo with running code, stack docs, wireframes, a plan in ./plans, and a getting-started guide.",
+    "tagline": "Start a new project from idea to running, tested code.",
+    "summary": "ak:bootstrap takes a new-project idea through research, stack choice, design, plan, implementation, tests, review, and docs. It writes no code itself, delegating to ak:plan and ak:cook with flags per mode.",
     "howItWorks": [
-      "Opening brainstorm gate (all modes): captures outcome, constraints, non-goals, acceptance criteria; reuses accepted briefs; asks only key decisions.",
-      "Step 0 git init: inspects the target; reuses an existing project without re-scaffolding or resetting; inits git only for new projects.",
-      "Selects the workflow by mode: --full (default), --auto, --fast, or --parallel.",
-      "Full: clarifies one question at a time → parallel researchers (≤150-line reports) → 2-3 stack options written to ./docs.",
-      "Full then offers optional design: ui-ux-designer HTML wireframes in ./docs/wireframe/, logo via ak:ai-multimodal, screenshots via ak:agent-browser.",
-      "Fast: one parallel research batch (6 researchers), ungated design, then plan --fast. Auto/Parallel have no user gates for research/stack.",
-      "Planning runs /ak:plan --hard, --auto, --fast, or --parallel; --ultra swaps in /ak:plan --ultra. Plan = plan.md (<80 lines) + phase-XX-*.md.",
-      "Implementation runs /ak:cook <plan-path>, --auto, or --parallel; --yagni passes through to plan and cook.",
-      "Shared phases: tester runs real tests, debugger fixes failures, code-reviewer reviews, docs-manager and project-manager update docs and plan.",
-      "Onboarding guides the user step by step and explains safe credential setup without pasting secrets into chat.",
-      "Ends with a report and journal (unless opted out); commits/pushes only on request."
+      "Opens with a brainstorm gate; reuses existing code without resetting and inits git only for new projects.",
+      "Full mode: clarifies, runs parallel researchers, writes 2-3 stack options to ./docs.",
+      "Offers design: HTML wireframes in ./docs/wireframe/ and a logo; --fast skips this gate.",
+      "Plans via /ak:plan, then builds via /ak:cook with the mode's flag.",
+      "Tester, debugger, code-reviewer, and docs-manager finish; commits only on request."
     ],
     "useWhen": [
       "You are starting a brand-new project from an idea.",
-      "You need a full-stack app (e.g. SaaS with auth, e-commerce with Stripe) with a plan and design.",
-      "You want a quick prototype and accept skipping the design gate (--fast).",
-      "The project is large and you want parallel agents with file ownership (--parallel)."
+      "You want a quick prototype and accept skipping design (--fast).",
+      "The project is large and suits parallel agents (--parallel)."
     ],
     "avoidWhen": [
       "You are adding a feature to an existing project: use ak:plan + ak:cook.",
       "You only need a plan: use ak:plan.",
-      "You only need to clarify the idea and compare directions: use ak:brainstorm.",
-      "You only need a .NET scaffold: use dotnet-claude-kit:dotnet-init."
+      "You only want to explore the idea: use ak:brainstorm."
     ],
     "params": [
       {
@@ -781,43 +649,43 @@
       {
         "name": "--full",
         "kind": "flag",
-        "desc": "Default. Full workflow; asks missing key decisions; plans with /ak:plan --hard; cooks in default continue mode."
+        "desc": "Default. Full workflow; asks key decisions; plans with /ak:plan --hard."
       },
       {
         "name": "--auto",
         "kind": "flag",
-        "desc": "Explicit autonomous opt-in: no gates for research/stack, picks the best option; plan --auto, cook --auto."
+        "desc": "Autonomous: no research/stack gates, picks the best option; plan and cook run --auto."
       },
       {
         "name": "--fast",
         "kind": "flag",
-        "desc": "Fast: batched parallel research, no design gate; plan --fast, default cook. The opening brainstorm gate still applies."
+        "desc": "Batched research, no design gate; plan --fast. The opening brainstorm gate still applies."
       },
       {
         "name": "--parallel",
         "kind": "flag",
-        "desc": "Multi-agent: plan --parallel (file ownership + dependency graph), cook --parallel. Conflicts with --ultra."
+        "desc": "Multi-agent: plan and cook run --parallel with file ownership. Conflicts with --ultra."
       },
       {
         "name": "--ultra",
         "kind": "flag",
-        "desc": "Planning runs /ak:plan --ultra (best-of-5 verifier) instead of the mode's plan flag; cook keeps the mode flag. With --parallel it hard-stops and asks you to drop one."
+        "desc": "Plans with /ak:plan --ultra (best-of-5); cook keeps the mode flag. Hard-stops with --parallel."
       },
       {
         "name": "--yagni",
         "kind": "flag",
-        "desc": "Enables YAGNI: challenges and cuts scope not needed for the outcome (default scaffolds full scope). Passed to ak:plan and ak:cook."
+        "desc": "Cuts scope not needed for the outcome; passed to ak:plan and ak:cook."
       },
       {
         "name": "--skip-journal",
         "kind": "flag",
-        "desc": "Skips the automatic /ak:journal at the end; also skipped when journal.auto=false."
+        "desc": "Skips the final /ak:journal; also skipped when journal.auto=false."
       }
     ],
     "examples": [
       {
         "cmd": "/ak:bootstrap \"Build a SaaS dashboard with auth\"",
-        "note": "Default full workflow with research, stack choice, and design."
+        "note": "Full workflow with research, stack, and design."
       },
       {
         "cmd": "/ak:bootstrap \"Build a SaaS dashboard with auth\" --fast",
@@ -825,23 +693,13 @@
       },
       {
         "cmd": "/ak:bootstrap \"E-commerce platform with Stripe\" --parallel",
-        "note": "Large project, parallel multi-agent implementation."
-      },
-      {
-        "cmd": "/ak:bootstrap \"Dotfiles manager CLI in Go\" --auto --yagni --skip-journal",
-        "note": "Fully autonomous, trimmed scope, no journal."
-      },
-      {
-        "cmd": "/ak:bootstrap \"Class booking platform\" --ultra",
-        "note": "Get a best-of-5 plan before coding."
+        "note": "Large project, parallel agents."
       }
     ],
     "tips": [
-      "Token cost is high (parallel research, design, plan, cook); use --fast for prototypes.",
+      "Token cost is high; use --fast for prototypes.",
       "State your preferred stack up front to skip stack selection.",
-      "--ultra cannot pair with --parallel: ultra plans lack the file-ownership structure cook --parallel needs.",
-      "In a folder with existing code, the skill reuses it without resetting; confirm the target folder first.",
-      "Bootstrap never pushes; ask explicitly or use ak:git/ak:ship."
+      "Bootstrap never pushes; use ak:git or ak:ship."
     ],
     "related": [
       "ak-brainstorm",
@@ -866,41 +724,32 @@
     ],
     "artifacts": [
       "New git repo (when needed)",
-      "Tech stack docs in ./docs",
-      "Design guidelines and HTML wireframes in ./docs/wireframe/, screenshots in ./docs/wireframes/",
-      "Plan in ./plans (plan.md + phase-XX-*.md)",
+      "Stack docs in ./docs",
+      "Wireframes in ./docs/wireframe/",
+      "Plan in ./plans",
       "Source code and tests",
       "Journal entry"
     ]
   },
   "ak-agentize": {
-    "tagline": "Turn existing code or APIs into an agent-friendly CLI, MCP server, or both.",
-    "summary": "ak:agentize wraps an existing codebase or module as an AI-agent surface: a CLI (structured output, clear exit codes) and/or an MCP server (transport, auth, protocol chosen per real consumers). It scouts exports, schemas, side effects, and credentials, builds an Agentization Map, decides the surface, then scaffolds, wraps, hardens, and packages. Not for building MCP servers from scratch (use ak:mcp-builder).",
+    "tagline": "Turn existing code or APIs into an agent-friendly CLI or MCP server.",
+    "summary": "ak:agentize wraps an existing codebase or module as a CLI with structured output, an MCP server, or both. It maps exports, side effects, and credentials, decides the surface, then scaffolds, wraps, hardens, and packages.",
     "howItWorks": [
-      "Phase 0 Track: records mode, owned files, acceptance checks, deploy intent, non-goals; plans multi-module or published surfaces.",
-      "Phase 1 Scout: inspects exports, schemas, callers, tests, side effects, credentials, runtime, and package manager.",
-      "Phase 2 Analyze: builds an Agentization Map (intent, operation, I/O schema, side effects, access control, consumer check).",
-      "Phase 3 Decide: records CLI/MCP/both, consumer, local/remote, auth, publish target; resolves protocol/SDK from manifests and lockfiles.",
-      "--auto decides alone; --ask interviews the user with a challenge framework.",
-      "Phase 4 Scaffold: reuses project layout and separates business logic from adapters; adds Cloudflare Workers/Docker/PaaS config when needed.",
-      "Phase 5 Wrap: CLI gets help, deterministic output, exit codes, non-interactive runs, stateless credentials.",
-      "MCP wrapping picks the transport, keeps stdio logs off stdout, and uses OAuth for remote servers; code mode only for bulk operations.",
-      "Phase 6 Harden: verifies original behavior through each adapter (schema, success/failure, mutation boundary, redaction, auth rejection); runs test/type/lint.",
-      "Phase 7 Package: hands off artifacts, examples, consumer results, decisions, limits; publishes only on request, with a receipt.",
-      "--ultra fans Phases 2-3 to 5 read-only candidates and a verifier; Phases 4-7 run once.",
-      "--advice consults kongming after Scout/Analyze, before locking decisions, before handoff, and when stuck."
+      "Scouts exports, schemas, callers, side effects, and credentials; builds an Agentization Map.",
+      "Decides CLI/MCP/both, local or remote, and auth; --ask interviews you first.",
+      "Keeps business logic separate from adapters; CLI gets deterministic output and exit codes.",
+      "MCP keeps stdio logs off stdout and uses OAuth for remote servers.",
+      "Verifies original behavior through each adapter; packages but publishes only on request."
     ],
     "useWhen": [
-      "An internal library or service should be callable by agents (Claude, Cursor, ChatGPT) over MCP.",
-      "You want a CLI with JSON output and clear exit codes for headless agent runs.",
-      "A large REST/OpenAPI API needs exposing to agents through curated workflows.",
-      "You need a remote MCP server with OAuth for many clients."
+      "An internal library should be callable by agents over MCP.",
+      "You want a JSON-output CLI for headless agent runs.",
+      "A large REST/OpenAPI API needs curated agent workflows."
     ],
     "avoidWhen": [
-      "You are building a new MCP server for an external service from scratch: use ak:mcp-builder.",
-      "You want to expose website features to in-browser agents: use ak:webmcp.",
-      "You are writing a skill (SKILL.md), not a CLI/MCP: use ak:skill-creator.",
-      "You only need an npm package scaffold with no agent use case."
+      "You are building an MCP server from scratch: use ak:mcp-builder.",
+      "You want in-browser agent tools: use ak:webmcp.",
+      "You are writing a SKILL.md: use ak:skill-creator."
     ],
     "params": [
       {
@@ -911,12 +760,12 @@
       {
         "name": "--both",
         "kind": "flag",
-        "desc": "Default. Builds CLI and MCP adapters on shared business logic; hardening checks both consumer paths and the shared core."
+        "desc": "Default. CLI and MCP adapters on shared logic; hardening checks both."
       },
       {
         "name": "--mcp",
         "kind": "flag",
-        "desc": "MCP server only. Also inferred from 'MCP only' or 'server only'."
+        "desc": "MCP server only. Also inferred from 'MCP only'."
       },
       {
         "name": "--cli",
@@ -931,48 +780,42 @@
       {
         "name": "--ask",
         "kind": "flag",
-        "desc": "After analysis, asks clarifying and challenge questions before implementing. With --ultra, the interview runs once before fan-out."
+        "desc": "Asks clarifying and challenge questions after analysis. With --ultra, the interview runs once before fan-out."
       },
       {
         "name": "--ultra",
         "kind": "flag",
-        "desc": "Fans the Agentization Map + decision record (Phases 2-3) to 5 read-only candidates; a verifier scores behavior fidelity, agent-centric design, capability choice, deploy realism; picks one or rejects all."
+        "desc": "Fans the map and decision to 5 read-only candidates; a verifier picks one or rejects all."
       },
       {
         "name": "--advice",
         "kind": "flag",
-        "desc": "Kongming advises at 4 checkpoints (after Scout/Analyze, before decision lock, before packaging, when stuck). Never overrides hard gates, tests, or security policy."
+        "desc": "Kongming advises after analysis, before locking decisions, before packaging, and when stuck."
       },
       {
         "name": "--yagni",
         "kind": "flag",
-        "desc": "Challenges and cuts scope not needed for the outcome; passed to subagents."
+        "desc": "Cuts scope not needed for the outcome; passed to subagents."
       }
     ],
     "examples": [
       {
         "cmd": "/ak:agentize src/billing",
-        "note": "Default --both --auto: CLI and MCP for the billing module."
+        "note": "Default: CLI and MCP for the billing module."
       },
       {
         "cmd": "/ak:agentize packages/search --mcp --ask",
-        "note": "MCP server only; clarify transport/auth first."
+        "note": "MCP only; clarify transport and auth first."
       },
       {
         "cmd": "/ak:agentize --cli --yagni",
-        "note": "Minimal CLI for the whole codebase, trimmed scope."
-      },
-      {
-        "cmd": "/ak:agentize api/openapi.yaml --both --ultra --advice",
-        "note": "Large API published remotely: best-of-5 decision record under supervision."
+        "note": "Minimal CLI for the whole codebase."
       }
     ],
     "tips": [
-      "If nothing is exposable, the skill names the needed refactor instead of wrapping blindly.",
-      "MCP protocol dates and auth extensions come from the installed SDK, not templates.",
-      "MCP stdio logs must never go to stdout; that breaks the protocol.",
-      "Packaging is not publishing; request npm or Cloudflare releases explicitly.",
-      "Monorepo layout is only for the npm + remote MCP preset; a local command does not need it."
+      "If nothing is exposable, the skill names the needed refactor.",
+      "MCP stdio logs on stdout break the protocol.",
+      "Packaging is not publishing; request npm or Cloudflare releases explicitly."
     ],
     "related": [
       "ak-mcp-builder",
@@ -988,42 +831,35 @@
     "artifacts": [
       "CLI adapter and/or MCP server",
       "Agentization Map and decision record",
-      "Deploy config (Cloudflare Workers/Docker) when chosen",
-      "Release CI and companion skill on request",
-      "Usage examples and consumer verification results"
+      "Deploy config when chosen",
+      "Usage examples and verification results"
     ]
   },
   "ak-backend-development": {
-    "tagline": "Build backends and APIs in Node.js, Python, or Go using the project's stack.",
-    "summary": "ak:backend-development covers REST/GraphQL/gRPC APIs, auth (OAuth, JWT), OWASP security, performance, microservices, and Docker/K8s operations with frameworks like NestJS, FastAPI, and Django. It checks manifests, route/service boundaries, data ownership, and tests before choosing a recipe. Output: backend behavior implemented and verified on success and failure paths. Database, auth, or deploy-centric work goes to specialized skills.",
+    "tagline": "Build backends and APIs in Node.js, Python, or Go.",
+    "summary": "ak:backend-development builds REST/GraphQL/gRPC APIs, auth, security, performance, and microservices in the project's real stack. It verifies both success and failure paths and hands database, auth, or deploy work to specialized skills.",
     "howItWorks": [
-      "Reads manifests, route/service boundaries, data ownership, and tests to find the real stack.",
-      "Editing one REST endpoint never licenses swapping auth or the database.",
-      "Classifies the change: API design, auth, performance, architecture, testing, or deployment, and opens the matching reference.",
-      "References cover technologies, API design, OWASP Top 10 2025 security, authentication, performance, architecture, testing, code quality, devops, debugging.",
-      "New backend choices must state constraints and trade-offs; version-sensitive guidance is checked against installed deps and official docs.",
-      "Validates input, keeps authorization and state server-side, returns stable errors.",
-      "Verifies success and failure paths plus affected caller contracts; applies the implementation checklist only to affected features."
+      "Reads manifests, service boundaries, and tests to find the real stack; never swaps it unasked.",
+      "Classifies the change and loads only the matching reference (API, auth, OWASP, performance, architecture).",
+      "States trade-offs for new choices; checks version-sensitive advice against installed deps.",
+      "Validates input, keeps authorization server-side, returns stable errors.",
+      "Verifies success and failure paths plus affected callers."
     ],
     "useWhen": [
-      "You need a new REST/GraphQL/gRPC endpoint in NestJS, FastAPI, Django, Express, or Go.",
-      "You need to review and patch OWASP vulnerabilities in an API.",
-      "You need backend performance work: caching, queries, load balancing.",
-      "You are designing microservice or event-driven architecture, CQRS, or sagas.",
-      "You need a backend test strategy and CI."
+      "You need a new endpoint in NestJS, FastAPI, Django, Express, or Go.",
+      "You need OWASP fixes or backend performance work.",
+      "You are designing microservices, events, CQRS, or sagas."
     ],
     "avoidWhen": [
-      "The main work is schema, query, migration, or index: use ak:databases.",
-      "You are integrating Better Auth: use ak:better-auth.",
-      "Deploy/hosting: use ak:deploy; cloud/K8s/CI infrastructure: use ak:devops.",
-      "Payments: use ak:payment-integration.",
-      "ASP.NET Core backends: use dotnet-claude-kit skills (minimal-api, ef-core, ...)."
+      "Schema, query, or migration work: use ak:databases.",
+      "Better Auth integration: use ak:better-auth.",
+      "Deploy or infrastructure: use ak:deploy or ak:devops."
     ],
     "params": [
       {
         "name": "[framework]",
         "kind": "arg",
-        "desc": "Target framework/language (e.g. nestjs, fastapi, django, go). The real stack from manifests still wins."
+        "desc": "Target framework or language, like nestjs, fastapi, django, go. The stack in manifests still wins."
       },
       {
         "name": "[task]",
@@ -1034,26 +870,21 @@
     "examples": [
       {
         "cmd": "/ak:backend-development nestjs add cursor pagination endpoint for /orders",
-        "note": "API and pagination design in an existing NestJS service."
+        "note": "Pagination in an existing NestJS service."
       },
       {
         "cmd": "/ak:backend-development fastapi OWASP audit for the upload module",
-        "note": "Security review using the backend security reference."
+        "note": "Security review."
       },
       {
         "cmd": "/ak:backend-development go add Redis cache for product lookup",
-        "note": "Performance work using the backend performance reference."
-      },
-      {
-        "cmd": "/ak:backend-development split order service into event-driven with outbox",
-        "note": "Architecture decision; trade-offs must be stated."
+        "note": "Performance work."
       }
     ],
     "tips": [
-      "Performance numbers in recipes are not evidence for your app; measure a baseline.",
-      "The skill does not change framework or database because of an example; request stack changes explicitly.",
-      "References are large; name the change type so only the needed part loads.",
-      "Always ask for failure-path tests (bad input, no permission), not just the happy path."
+      "Recipe performance numbers are not evidence; measure your baseline.",
+      "Name the change type so only the needed reference loads.",
+      "Ask for failure-path tests, not just the happy path."
     ],
     "related": [
       "ak-databases",
@@ -1067,48 +898,40 @@
     ],
     "agents": [],
     "artifacts": [
-      "Backend source (routes, services, middleware) and related tests"
+      "Backend source (routes, services, middleware) and tests"
     ]
   },
   "ak-better-auth": {
-    "tagline": "Add Better Auth (TypeScript): email/password, OAuth, 2FA, passkeys, sessions, RBAC.",
-    "summary": "ak:better-auth guides Better Auth integration for TypeScript apps on Next.js, Nuxt, SvelteKit, Remix, Astro, Hono, and Express. It checks the installed version, server/client wiring, and schema first; it installs or scaffolds only for new integrations. Output: auth config, schema/migrations, and verified failure paths (callback failure, session expiry/revocation).",
+    "tagline": "Add Better Auth to TypeScript apps: OAuth, 2FA, passkeys, sessions.",
+    "summary": "ak:better-auth integrates Better Auth into TypeScript apps on Next.js, Nuxt, SvelteKit, Remix, Astro, Hono, and Express. It checks the installed version and schema first and scaffolds only for new integrations.",
     "howItWorks": [
-      "Checks the installed Better Auth version, server/client wiring, and existing schema.",
-      "New integration: picks the method (email/password, OAuth, passkey, magic link, or a mix), then follows install recipes.",
-      "scripts/better_auth_init.py can initialize config interactively for new setups.",
-      "Existing integration: never reruns init to add plugins; opens the relevant reference instead.",
-      "Uses a feature matrix: built-in (email/password, OAuth, verification, reset, rate limiting, session) vs plugins (twoFactor, passkey, magicLink, username, organization).",
-      "Checks the version against upstream security advisories and keeps key invariants (client_secret for oidc-provider/mcp refresh tokens, single-use magicLink tokens, requireEmailVerificationOnInvitation, device codes bound to the verifying session).",
-      "Verifies callback failure, session expiry/revocation, and plugin error paths; keeps secrets server-side."
+      "Checks the installed version, server/client wiring, and existing schema.",
+      "New setups pick an auth method and may run scripts/better_auth_init.py.",
+      "Existing setups never rerun init; plugins (twoFactor, passkey, magicLink, organization) come from references.",
+      "Checks security advisories and keeps key invariants like single-use magic links.",
+      "Verifies callback failure and session expiry/revocation; keeps secrets server-side."
     ],
     "useWhen": [
-      "You want email/password or Google/GitHub OAuth login in a TypeScript app.",
-      "You want 2FA/TOTP, passkeys/WebAuthn, or magic links on a Better Auth app.",
-      "You are building a multi-tenant app with organizations and member invites.",
-      "You need session management or brute-force rate limiting."
+      "You want email/password or Google/GitHub OAuth in a TypeScript app.",
+      "You want 2FA, passkeys, or magic links on a Better Auth app.",
+      "You need organizations with member invites."
     ],
     "avoidWhen": [
-      "The project uses Auth.js, Clerk, or Supabase Auth and will not switch: use ak:backend-development.",
+      "The project uses Auth.js, Clerk, or Supabase Auth: use ak:backend-development.",
       "ASP.NET Core auth: use dotnet-claude-kit:authentication.",
-      "Full security audit: use ak:security.",
-      "Non-auth schema design: use ak:databases."
+      "Full security audit: use ak:security."
     ],
     "params": [
       {
         "name": "[auth-method or feature]",
         "kind": "arg",
-        "desc": "Auth method or feature to add (e.g. oauth github, 2fa, passkey, organization, rate limiting)."
+        "desc": "Auth method or feature to add, like oauth github, 2fa, passkey, organization, rate limiting."
       }
     ],
     "examples": [
       {
         "cmd": "/ak:better-auth email/password + email verification for a Next.js app",
-        "note": "New integration using built-in features."
-      },
-      {
-        "cmd": "/ak:better-auth add Google and GitHub OAuth",
-        "note": "Adds social login to an existing integration."
+        "note": "New integration, built-in features."
       },
       {
         "cmd": "/ak:better-auth enable the twoFactor plugin",
@@ -1116,14 +939,13 @@
       },
       {
         "cmd": "/ak:better-auth organization with email invitations",
-        "note": "Multi-tenant; keeps requireEmailVerificationOnInvitation."
+        "note": "Multi-tenant with verified invitations."
       }
     ],
     "tips": [
-      "Never rerun init to add plugins; it can overwrite existing config.",
-      "Check advisories for your exact version before claiming a vulnerability is patched.",
-      "Run schema migrations after adding plugins that need new tables.",
-      "Option names differ across versions; the skill checks the installed version instead of copying examples."
+      "Never rerun init to add plugins; it can overwrite config.",
+      "Run schema migrations after adding plugins that need tables.",
+      "Check advisories for your exact version before calling a vulnerability patched."
     ],
     "related": [
       "ak-backend-development",
@@ -1135,35 +957,29 @@
     "agents": [],
     "artifacts": [
       "Server/client auth config",
-      "Schema/migrations for auth tables",
-      "Route handlers and sign-in UI flow (when needed)"
+      "Auth schema/migrations",
+      "Route handlers and sign-in UI (when needed)"
     ]
   },
   "ak-databases": {
-    "tagline": "Design schemas, write queries, indexes, and migrations for MongoDB and PostgreSQL.",
-    "summary": "ak:databases is a unified guide for MongoDB and PostgreSQL: OLTP/OLAP schema design, SQL and aggregation pipelines, indexes, migrations, replication, backups, administration, and psql. It detects the engine and version, loads only relevant references, and classifies impact before acting, each class with required evidence. Python scripts cover migrations, backups, and performance checks.",
+    "tagline": "Design schemas, queries, indexes, and migrations for MongoDB and PostgreSQL.",
+    "summary": "ak:databases covers MongoDB and PostgreSQL schema design, queries, indexes, migrations, replication, and backups. It detects the engine and version, and demands evidence by impact: EXPLAIN for performance, rollback for migrations, approval for destructive actions.",
     "howItWorks": [
-      "Detects the current engine and version; keeps the engine unless asked to change it.",
-      "Read queries need correct shape, a bounded target, and read-only execution.",
-      "Performance changes need EXPLAIN plans and before/after workload numbers; note that ANALYZE executes the query.",
-      "Migrations/writes need a preimage or backup, rollback, and safe reruns.",
-      "Backup/restore/admin needs the exact target, restore verification, and explicit approval for destructive actions.",
-      "Loads only the needed references: design, MongoDB CRUD/aggregation/indexing/Atlas, PostgreSQL queries/psql/performance/admin.",
-      "Uses db_migrate.py, db_backup.py, and db_performance_check.py when they fit.",
-      "Applies engine best practices: embed vs reference in MongoDB; 3NF, foreign keys, VACUUM/ANALYZE, pgBouncer in PostgreSQL."
+      "Detects engine and version; keeps the engine unless asked to change.",
+      "Performance changes need EXPLAIN plus before/after numbers; ANALYZE really executes the query.",
+      "Migrations need a backup, rollback, and safe reruns.",
+      "Backup, restore, and admin need an exact target and explicit approval.",
+      "Uses db_migrate.py, db_backup.py, and db_performance_check.py when they fit."
     ],
     "useWhen": [
-      "You are designing a new app schema or analytics fact/dimension tables.",
-      "You need complex queries: JOINs, CTEs, window functions, aggregation pipelines.",
-      "A slow query needs EXPLAIN and index suggestions.",
-      "You need a safe migration with rollback.",
-      "You are setting up backup/restore, replication, or user permissions."
+      "You are designing an app or analytics schema.",
+      "A query is slow and needs EXPLAIN and index suggestions.",
+      "You need a safe migration or backup/replication setup."
     ],
     "avoidWhen": [
-      "You only need to read data for debugging and have a read-only MCP: use dbread.",
+      "You only need read-only data for debugging: use dbread.",
       "EF Core in .NET: use dotnet-claude-kit:ef-core.",
-      "Cloudflare D1/KV: use ak:devops.",
-      "General API logic not centered on the database: use ak:backend-development."
+      "API logic not centered on the database: use ak:backend-development."
     ],
     "params": [
       {
@@ -1175,15 +991,11 @@
     "examples": [
       {
         "cmd": "/ak:databases design a PostgreSQL schema for a multi-branch booking system",
-        "note": "OLTP design per the design reference."
+        "note": "OLTP schema design."
       },
       {
         "cmd": "/ak:databases MongoDB aggregation of revenue by month and category",
-        "note": "Writes an aggregation pipeline."
-      },
-      {
-        "cmd": "/ak:databases /orders query is slow, here is the EXPLAIN ANALYZE ...",
-        "note": "Performance tuning; needs before/after evidence."
+        "note": "Aggregation pipeline."
       },
       {
         "cmd": "/ak:databases migration adding a NOT NULL tenant_id column to users",
@@ -1191,10 +1003,9 @@
       }
     ],
     "tips": [
-      "EXPLAIN ANALYZE really runs the query; be careful with writes on production.",
-      "Backup, restore, and delete need explicit approval and an exact target.",
-      "Provide the engine version and current table structure so the skill does not guess.",
-      "Performance gains need before/after workload numbers, not just a query plan."
+      "EXPLAIN ANALYZE runs the query; take care with writes on production.",
+      "Give the engine version and table structure so the skill does not guess.",
+      "Performance claims need workload numbers, not just a plan."
     ],
     "related": [
       "ak-backend-development",
@@ -1205,81 +1016,62 @@
     ],
     "agents": [],
     "artifacts": [
-      "Schema/DDL and migration files",
+      "Schema/DDL and migrations",
       "Queries and index definitions",
-      "Backup files (when running db_backup.py)",
-      "Slow-query report and index suggestions"
+      "Backups (db_backup.py)",
+      "Slow-query report"
     ]
   },
   "ak-deploy": {
-    "tagline": "Deploy to 15 platforms with auto-detection, health checks, and a recorded rollback.",
-    "summary": "ak:deploy resolves the chosen environment and target, checks provider config, manifests, and existing deployment docs, then runs the platform's deploy commands (Vercel, Netlify, Cloudflare, Railway, Fly.io, Render, Heroku, TOSE.sh, GitHub Pages, Coolify, Dokploy, GCP Cloud Run, AWS, DigitalOcean, Vultr). An upload without health evidence does not count as deployed; the skill verifies URL, health, revision, environment, and records rollback. It does not handle infra provisioning, DB migrations, DNS, SSL, or CI/CD creation; deeper infra goes to ak:devops.",
+    "tagline": "Deploy to 15 platforms with auto-detection, health checks, and rollback.",
+    "summary": "ak:deploy resolves the environment and target from config and docs, then deploys to platforms like Vercel, Netlify, Cloudflare, Fly.io, Render, and AWS. A deploy counts only with health evidence and a recorded rollback; infra, migrations, DNS, and SSL are out of scope.",
     "howItWorks": [
-      "Resolves the user's environment and target first, then checks active provider config, manifests, and owned deployment docs.",
-      "Records conflicts between docs and config so a first match never picks the wrong account or production.",
-      "Asks only when a material target decision is unclear; naming a provider in a question is not deploy intent.",
-      "Detects targets from files like vercel.json, netlify.toml, wrangler.toml, fly.toml, railway.json, render.yaml, Procfile, dokploy.yml, .do/app.yaml.",
-      "With no target, classifies the project (static, SPA, SSR, Node/Python API, Docker, monorepo) and offers up to 4 platform options.",
-      "Compares options by runtime fit, region/data limits, ops burden, and budget; cites prices only from current official sources.",
-      "Keeps the current target unless asked to change it.",
-      "Execution: checks the CLI (installs if missing) → checks auth → runs commands from references/platforms/<platform>.md only.",
-      "Verifies the returned URL, health endpoint or main flow, deployed revision, and environment; fixes in-scope errors.",
-      "Records the rollback command or previous deploy ID; updates deployment docs only when the ops contract changes, never writing secrets.",
-      "Fixes common errors itself; escalates unresolved ones to /ak:devops."
+      "Resolves environment and target first; flags doc/config conflicts to avoid hitting production by mistake.",
+      "Detects the platform from files like vercel.json, netlify.toml, wrangler.toml, fly.toml.",
+      "With no target, classifies the project and offers up to 4 platforms.",
+      "Checks CLI and auth, then runs only commands from references/platforms/<platform>.md.",
+      "Verifies URL, health, revision, and environment; records the rollback command."
     ],
     "useWhen": [
-      "You want to deploy, publish, go live, or host the current app.",
-      "You do not know where to host and need platforms compared by project type, runtime, and budget.",
-      "You deploy to a preconfigured platform and need health, revision, and rollback verified.",
-      "You changed deploy commands, env vars, or rollback path and need the deployment docs updated."
+      "You want to deploy or host the current app.",
+      "You do not know where to host and need options compared.",
+      "You need health and rollback verified on a configured platform."
     ],
     "avoidWhen": [
-      "Infra provisioning, Kubernetes, CI/CD, GitOps, or deep infra troubleshooting: use ak:devops.",
-      "Database migrations: use ak:databases.",
+      "Kubernetes, CI/CD, or infra provisioning: use ak:devops.",
       "\"Ship\" meaning branch to PR: use ak:ship.",
-      "DNS, SSL certificates, or CI/CD pipeline creation: out of scope.",
-      "You only ask about a provider with no intent to deploy."
+      "You only ask about a provider without deploy intent."
     ],
     "params": [
       {
         "name": "[platform]",
         "kind": "arg",
-        "desc": "Target platform, one of 15: vercel, netlify, cloudflare, railway, flyio, render, heroku, tose, github-pages, coolify, dokploy, gcp, aws, digitalocean, vultr. Empty means auto-detect from config and docs."
+        "desc": "One of 15 platforms: vercel, netlify, cloudflare, railway, flyio, render, heroku, tose, github-pages, coolify, dokploy, gcp, aws, digitalocean, vultr. Empty auto-detects."
       },
       {
         "name": "[environment]",
         "kind": "arg",
-        "desc": "Target environment (e.g. preview, staging, production). Resolved before config to avoid deploying to production by mistake."
+        "desc": "Target environment: preview, staging, or production. Resolved first to avoid accidental production deploys."
       }
     ],
     "examples": [
       {
         "cmd": "/ak:deploy",
-        "note": "Auto-detects the target from config files and deployment docs, then deploys."
+        "note": "Auto-detects the target, then deploys."
       },
       {
         "cmd": "/ak:deploy vercel preview",
-        "note": "Deploy a Vercel preview and verify the URL."
+        "note": "Vercel preview with a verified URL."
       },
       {
         "cmd": "/ak:deploy flyio production",
-        "note": "Deploy a Docker app to Fly.io production with health check and rollback command."
-      },
-      {
-        "cmd": "/ak:deploy github-pages",
-        "note": "Publish a static site to GitHub Pages."
-      },
-      {
-        "cmd": "/ak:deploy cloudflare staging",
-        "note": "Deploy to Cloudflare staging per wrangler.toml."
+        "note": "Production deploy with health check and rollback."
       }
     ],
     "tips": [
-      "Naming a provider is not deploy intent; say clearly when you want to deploy.",
-      "With conflicting configs (e.g. vercel.json and netlify.toml), name the platform and environment explicitly.",
-      "The skill checks .env and .gitignore, never prints keys, and docs record only where secrets come from.",
-      "Keep the rollback command or previous deploy ID the skill records after each production deploy.",
-      "For cost comparisons, ask for official sources; the skill keeps no built-in price table."
+      "Naming a provider is not deploy intent; say clearly when to deploy.",
+      "With conflicting configs, name platform and environment explicitly.",
+      "Keep the recorded rollback command after each production deploy."
     ],
     "related": [
       "ak-devops",
@@ -1291,44 +1083,37 @@
     ],
     "agents": [],
     "artifacts": [
-      "Platform deployment + verified URL",
+      "Deployment + verified URL",
       "Rollback note or previous deploy ID",
-      "Project deployment docs (updated only when the ops contract changes)",
+      "Deployment docs (when ops change)",
       "Platform config files when needed"
     ]
   },
   "ak-devops": {
-    "tagline": "Cloud and containers: Cloudflare, Docker, GCP, Kubernetes, CI/CD, GitOps, security audits.",
-    "summary": "ak:devops deploys and manages infrastructure on Cloudflare (Workers, Pages, R2, D1, KV, Browser Rendering), Docker/Compose, Google Cloud (Cloud Run, GKE, Cloud SQL via gcloud), and Kubernetes (kubectl, Helm), plus CI/CD, multi-region, GitOps (Argo CD, Flux), security audits, RBAC, and network policies. It keeps the repo's provider, picks an explicit effect (local, preview, production), and loads only the target's references. Production rollouts need exact account/project/region, health checks, and rollback.",
+    "tagline": "Cloudflare, Docker, GCP, Kubernetes, CI/CD, GitOps, and infra audits.",
+    "summary": "ak:devops builds and manages infrastructure on Cloudflare, Docker, Google Cloud, and Kubernetes, plus CI/CD, GitOps, and security audits. It keeps the repo's provider and requires exact account, region, health check, and rollback for production.",
     "howItWorks": [
-      "Reads the repo's deployment/container config and the user's target; keeps that provider instead of matching examples.",
-      "Picks an explicit effect: local build and test, preview, or production rollout; local Docker work never calls cloud CLIs.",
-      "Loads only target references: Cloudflare platform/Workers/R2/D1-KV/Browser Rendering, Docker basics/Compose, gcloud; Kubernetes/Helm use upstream docs.",
-      "Uses platform recipes for new platform comparisons or command examples, rechecking version-sensitive CLI details.",
-      "Before production: pins account/project/region, health check, and rollback; reuses existing authorization for those effects.",
-      "Uses scripts/cloudflare_deploy.py (Worker deploys) and scripts/docker_optimize.py (Dockerfile analysis) when they fit.",
-      "Keeps secrets out of output, preserves state ownership, and stops only processes this work started.",
-      "When an ops path changes (deploy, logs, credentials, webhook/OAuth/DNS, backup/rollback), updates project docs via /ak:docs update.",
-      "Without write permission, reports a proposed diff and the blocker instead."
+      "Reads the repo's deploy and container config; keeps that provider.",
+      "Picks an explicit effect: local, preview, or production; local Docker never calls cloud CLIs.",
+      "Loads only the target's references; uses cloudflare_deploy.py and docker_optimize.py when they fit.",
+      "Production pins account/project/region, a health check, and rollback.",
+      "Updates ops docs via /ak:docs when deploy, log, or credential paths change."
     ],
     "useWhen": [
-      "You are writing and deploying Cloudflare Workers/Pages with R2, D1, KV bindings or Browser Rendering.",
-      "You need a multi-stage Dockerfile or a Docker Compose setup for local dev.",
-      "You deploy to Cloud Run/GKE or manage Cloud SQL with gcloud.",
-      "You manage Kubernetes with kubectl/Helm or set up GitOps with Argo CD or Flux.",
-      "You need CI/CD, multi-region rollout, or an infra security audit: non-root containers, RBAC, network policy, image scans."
+      "You deploy Cloudflare Workers with R2, D1, or KV.",
+      "You need a Dockerfile, Compose setup, or Cloud Run/GKE deploy.",
+      "You manage Kubernetes, GitOps, CI/CD, or an infra security audit."
     ],
     "avoidWhen": [
-      "You just need an app deployed to a common PaaS with auto-detection: use ak:deploy.",
-      "Dockerfile-less .NET containers: use dotnet-claude-kit:container-publish.",
-      ".NET-specific CI/CD: use dotnet-claude-kit:ci-cd.",
-      "Source code vulnerability and secret scanning: use ak:security."
+      "A simple app deploy to a PaaS: use ak:deploy.",
+      ".NET containers or CI/CD: use dotnet-claude-kit:container-publish or ci-cd.",
+      "Source code secret scanning: use ak:security."
     ],
     "params": [
       {
         "name": "[platform]",
         "kind": "arg",
-        "desc": "Target platform: cloudflare, docker, gcp, kubernetes, ... The repo's existing provider still wins; the skill never switches providers."
+        "desc": "Target platform: cloudflare, docker, gcp, kubernetes. The repo's existing provider still wins."
       },
       {
         "name": "[task]",
@@ -1339,27 +1124,21 @@
     "examples": [
       {
         "cmd": "/ak:devops cloudflare create a Worker API with D1 and R2 bindings",
-        "note": "Edge serverless using the Cloudflare references."
+        "note": "Edge serverless."
       },
       {
         "cmd": "/ak:devops docker write a non-root multi-stage Dockerfile for a Node app",
-        "note": "Local containerization, no cloud CLI; may run docker_optimize.py."
+        "note": "Local containerization, no cloud CLI."
       },
       {
         "cmd": "/ak:devops gcp deploy to Cloud Run in region asia-southeast1",
-        "note": "Production rollout with pinned project/region, health check, rollback."
-      },
-      {
-        "cmd": "/ak:devops kubernetes Helm chart + Argo CD for staging",
-        "note": "Cluster GitOps using upstream Kubernetes/Helm docs."
+        "note": "Production with health check and rollback."
       }
     ],
     "tips": [
-      "Name the account/project/region for production so the skill does not guess.",
-      "Dev processes the skill starts (wrangler dev, docker compose up) are stopped when done; check for orphans.",
-      "Cost: R2 suits heavy egress; enable caching and right-size resources.",
-      "Kubernetes/Helm have no dedicated reference; state your cluster/chart versions.",
-      "Changing deploy paths, log sources, or credential sources should update ops docs via ak:docs, or yield a proposed diff."
+      "Name account, project, and region for production.",
+      "Kubernetes/Helm have no dedicated reference; state your versions.",
+      "Check for orphaned dev processes like wrangler dev or docker compose up."
     ],
     "related": [
       "ak-deploy",
@@ -1374,42 +1153,36 @@
       "Dockerfile, docker-compose.yml",
       "wrangler.toml and Worker code",
       "Kubernetes manifests/Helm chart",
-      "CI/CD workflows, GitOps config",
+      "CI/CD and GitOps config",
       "Infra security audit report",
-      "Updated project ops guide (or proposed diff) when an ops path changes"
+      "Ops guide update or proposed diff"
     ]
   },
   "ak-mobile-development": {
-    "tagline": "Build mobile apps with React Native, Flutter, SwiftUI, or Jetpack Compose.",
-    "summary": "ak:mobile-development helps build native or cross-platform iOS/Android apps: mobile UX, performance/battery/memory, offline-first, security, testing, and App Store/Google Play releases. It reads manifests, lockfiles, and platform project files to find the real framework and toolchain. It keeps existing architecture for small changes and compares frameworks only when the platform decision is open. Performance, battery, and hardware claims require real-device measurements.",
+    "tagline": "Build mobile apps with React Native, Flutter, SwiftUI, or Compose.",
+    "summary": "ak:mobile-development builds iOS/Android apps covering UX, performance, offline-first, security, testing, and store releases. It keeps the existing framework for small changes and requires real-device measurements for performance claims.",
     "howItWorks": [
-      "Reads manifests, lockfiles, platform project files, and deploy config to find framework, SDK/toolchain, and supported devices.",
-      "Keeps existing architecture for scoped UI edits; compares frameworks only when the platform decision is open.",
-      "Loads references as needed: iOS (Swift 6, SwiftUI, HIG), Android (Kotlin, Compose, Material 3), best practices, debugging, mindset.",
-      "Handles network errors properly; offline-first is a product choice, not a forced migration.",
-      "Sets performance budgets from product, target devices, refresh rate, and baseline; measures on real devices for releases.",
-      "Records which devices could not be tested.",
-      "Applies the implementation checklist to the chosen feature or release (its budgets are only examples).",
-      "Before release, verifies current Apple/Google submission requirements from official sources."
+      "Reads manifests and platform files to find framework, toolchain, and devices.",
+      "Keeps existing architecture; compares frameworks only when the platform choice is open.",
+      "Loads iOS, Android, best-practice, or debugging references as needed.",
+      "Sets performance budgets from target devices and baseline; records untested devices.",
+      "Checks current Apple/Google submission rules before release."
     ],
     "useWhen": [
       "You are building a feature in a React Native, Flutter, SwiftUI, or Compose app.",
-      "You must choose native vs cross-platform for a new project.",
-      "The app janks, drains battery, or uses too much memory and needs profiling.",
-      "You are designing offline-first data sync.",
+      "The app janks, drains battery, or uses too much memory.",
       "You are preparing an App Store or Google Play release."
     ],
     "avoidWhen": [
-      "A responsive web app, not native: use ak:frontend-development or ak:web-frameworks.",
-      "UI/UX or design system only: use ak:ui-ux-pro-max.",
-      "The app's backend API: use ak:backend-development.",
-      "In-app payments via Stripe/Polar: combine with ak:payment-integration."
+      "A responsive web app: use ak:frontend-development or ak:web-frameworks.",
+      "UI/UX design only: use ak:ui-ux-pro-max.",
+      "The app's backend API: use ak:backend-development."
     ],
     "params": [
       {
         "name": "[platform]",
         "kind": "arg",
-        "desc": "Platform/framework: ios, android, react-native, flutter, swiftui, compose."
+        "desc": "Platform or framework: ios, android, react-native, flutter, swiftui, compose."
       },
       {
         "name": "[feature]",
@@ -1423,22 +1196,17 @@
         "note": "UI feature in an existing app."
       },
       {
-        "cmd": "/ak:mobile-development flutter offline sync for notes",
-        "note": "Offline-first design as a product choice."
-      },
-      {
         "cmd": "/ak:mobile-development ios app crashes when opening the camera",
-        "note": "Debugging per the mobile debugging reference."
+        "note": "Mobile debugging."
       },
       {
         "cmd": "/ak:mobile-development choose React Native or Flutter for a booking app",
-        "note": "Framework decision with a comparison matrix."
+        "note": "Framework comparison."
       }
     ],
     "tips": [
-      "Old SDK versions or deadlines in examples are not authoritative; the skill rechecks current store rules.",
-      "Without real devices, performance and battery claims are marked unverified.",
-      "Name the framework if the repo has several projects (e.g. native app + RN module).",
+      "Without real devices, performance and battery claims stay unverified.",
+      "Name the framework when the repo has several mobile projects.",
       "Keep secure storage and accessibility intact even for small edits."
     ],
     "related": [
@@ -1451,29 +1219,27 @@
     "agents": [],
     "artifacts": [
       "Mobile app source and tests",
-      "Build and release config when preparing a release"
+      "Build and release config (releases)"
     ]
   },
   "ak-tanstack": {
-    "tagline": "Build with TanStack Start, Form, and AI, matched to the installed versions.",
-    "summary": "ak:tanstack covers TanStack Start/Router file-based routes, server functions, and middleware; type-safe forms with Zod/Valibot validation in TanStack Form; and AI chat/streaming with TanStack AI. It reads manifests, lockfiles, imports, and scripts to route by installed package and uses version-correct types and docs. TanStack Query, Table, Virtual, and generic React patterns are out of scope.",
+    "tagline": "Build with TanStack Start, Form, and AI, matched to installed versions.",
+    "summary": "ak:tanstack covers TanStack Start/Router routes, server functions, middleware, TanStack Form validation, and TanStack AI streaming chat, using the installed package versions. TanStack Query, Table, and Virtual are out of scope.",
     "howItWorks": [
-      "Reads the package manifest, lockfile, imports, and scripts to find installed TanStack packages and versions.",
-      "Routes: routes, server functions, middleware → Start reference; form state and validation → Form reference; AI chat/streaming → AI reference.",
-      "Loads versioned examples only when needed, then adapts them to the installed version.",
-      "Never hand-edits routeTree.gen.ts; edits source routes and runs the project's generator.",
-      "Verifies types, build, and affected behavior with existing scripts; Form edits never spawn a new Start app or AI chat."
+      "Reads manifests, lockfile, and imports to find installed TanStack versions.",
+      "Loads only the Start, Form, or AI reference the task needs.",
+      "Never hand-edits routeTree.gen.ts; edits routes and runs the generator.",
+      "Verifies types, build, and affected behavior with existing scripts."
     ],
     "useWhen": [
-      "You are creating a TanStack Start project with file-based routing and server functions.",
-      "You need a complex form with Zod/Valibot validation in TanStack Form.",
-      "You want streaming AI chat in a TanStack app.",
-      "You are comparing TanStack Start with Next.js or Remix."
+      "You are building a TanStack Start app with file routes and server functions.",
+      "You need a validated form in TanStack Form.",
+      "You want streaming AI chat in a TanStack app."
     ],
     "avoidWhen": [
-      "TanStack Query, Table, Virtual: out of scope; use ak:frontend-development.",
+      "TanStack Query, Table, Virtual: use ak:frontend-development.",
       "Next.js App Router apps: use ak:web-frameworks.",
-      "Generic React patterns unrelated to TanStack: use ak:frontend-development or ak:react-best-practices."
+      "Generic React patterns: use ak:react-best-practices."
     ],
     "params": [
       {
@@ -1490,7 +1256,7 @@
     "examples": [
       {
         "cmd": "/ak:tanstack start add a /dashboard route with a loader and server function",
-        "note": "Routing + server function; runs the generator instead of editing routeTree.gen.ts."
+        "note": "Route + server function via the generator."
       },
       {
         "cmd": "/ak:tanstack form multi-step signup with Zod",
@@ -1498,17 +1264,13 @@
       },
       {
         "cmd": "/ak:tanstack ai streaming chat with tool calling",
-        "note": "Adds AI chat to an existing app."
-      },
-      {
-        "cmd": "/ak:tanstack compare TanStack Start and Next.js for an internal dashboard",
-        "note": "Framework decision."
+        "note": "AI chat in an existing app."
       }
     ],
     "tips": [
-      "Hand edits to routeTree.gen.ts get overwritten; always run the generator.",
-      "TanStack APIs change fast; the skill trusts installed types over examples.",
-      "Name the part (start/form/ai) so only one reference loads, saving tokens."
+      "Hand edits to routeTree.gen.ts get overwritten; run the generator.",
+      "TanStack APIs change fast; installed types win over examples.",
+      "Name the part (start/form/ai) so only one reference loads."
     ],
     "related": [
       "ak-frontend-development",
@@ -1518,41 +1280,36 @@
     ],
     "agents": [],
     "artifacts": [
-      "Source route files, server functions, middleware",
-      "Form components and validation schemas",
+      "Route files, server functions, middleware",
+      "Form components and schemas",
       "AI chat/streaming code"
     ]
   },
   "ak-web-frameworks": {
-    "tagline": "Next.js (App Router, RSC, SSR, ISR) and Turborepo monorepos, with optional RemixIcon.",
-    "summary": "ak:web-frameworks covers full-stack web apps with Next.js (routing, Server Components, data fetching, caching, optimization) and Turborepo (workspaces, task pipelines, local/remote cache), with RemixIcon as an optional integration. It reads manifests and framework/workspace config, then routes to the matching reference. Scripts initialize Next.js projects and migrate monorepos to Turborepo.",
+    "tagline": "Next.js App Router and Turborepo monorepos, with optional RemixIcon.",
+    "summary": "ak:web-frameworks builds Next.js apps (routing, Server Components, data fetching, caching) and Turborepo monorepos (workspaces, pipelines, remote cache). Scripts initialize Next.js projects and migrate monorepos to Turborepo.",
     "howItWorks": [
-      "Reads manifests and framework/workspace config; keeps the chosen framework and icon library (RemixIcon is optional).",
-      "Next.js rendering/data changes load App Router, Server Components, data fetching, and optimization references.",
-      "Workspace and build changes load Turborepo setup, pipelines, and caching references.",
-      "New setups load setup recipes; end-to-end patterns (shared component libraries, monorepo CI/CD) load common patterns.",
-      "Uses scripts/nextjs_init.py (TypeScript/App Router init) and scripts/turborepo_migrate.py (monorepo migration, supports --dry-run).",
-      "Applies best practices: Server Components by default, loading/error states, Image component, SEO metadata, caching strategy.",
-      "Production uses the patched stable line; avoids pinning canary."
+      "Reads manifests and config; keeps the chosen framework and icon library.",
+      "Loads Next.js or Turborepo references matching the change.",
+      "Uses nextjs_init.py for new apps and turborepo_migrate.py (supports --dry-run) for monorepos.",
+      "Defaults to Server Components, loading/error states, and an explicit caching strategy.",
+      "Uses the patched stable Next.js line, never canary."
     ],
     "useWhen": [
-      "You are building or extending a Next.js App Router app with RSC, SSR, or ISR.",
-      "You need caching/revalidation for data fetching.",
-      "You are setting up a Turborepo monorepo with shared apps/ and packages/.",
-      "Monorepo builds are slow and need task pipelines and remote cache.",
-      "You want RemixIcon in your UI."
+      "You are building a Next.js App Router app with RSC, SSR, or ISR.",
+      "You are setting up a Turborepo monorepo.",
+      "Monorepo builds are slow and need pipelines and remote cache."
     ],
     "avoidWhen": [
-      "Deep React/Next.js render performance work: use ak:react-best-practices.",
+      "Deep React render performance: use ak:react-best-practices.",
       "TanStack Start: use ak:tanstack.",
-      "UI styling with shadcn/Tailwind: use ak:ui-styling.",
       "Deploying to Vercel/Netlify: use ak:deploy."
     ],
     "params": [
       {
         "name": "[framework]",
         "kind": "arg",
-        "desc": "Framework/tool: nextjs, turborepo, remixicon."
+        "desc": "Framework or tool: nextjs, turborepo, remixicon."
       },
       {
         "name": "[feature]",
@@ -1571,17 +1328,12 @@
       },
       {
         "cmd": "/ak:web-frameworks turborepo migrate the existing pnpm monorepo to Turborepo",
-        "note": "Run turborepo_migrate.py --dry-run first."
-      },
-      {
-        "cmd": "/ak:web-frameworks turborepo enable remote cache for CI",
-        "note": "Caching strategy."
+        "note": "Run the migration with --dry-run first."
       }
     ],
     "tips": [
       "Run turborepo_migrate.py with --dry-run before applying.",
-      "Track security releases on the Next.js stable line; never pin canary in production.",
-      "Declare outputs correctly in turbo.json or caching will not work.",
+      "Declare outputs in turbo.json or caching will not work.",
       "Use ^build for topological dependencies between packages."
     ],
     "related": [
@@ -1593,40 +1345,35 @@
     ],
     "agents": [],
     "artifacts": [
-      "Next.js code (routes, layouts, components)",
-      "turbo.json and apps/ packages/ structure",
+      "Next.js routes, layouts, components",
+      "turbo.json and apps/ packages/ layout",
       "New Next.js project (nextjs_init.py)"
     ]
   },
   "ak-payment-integration": {
-    "tagline": "Integrate SePay (VietQR), Polar, and Stripe: checkout, webhooks, subscriptions, QR.",
-    "summary": "ak:payment-integration implements payments with SePay (Vietnamese banks, VND, VietQR), Polar (global SaaS, Merchant of Record, automated benefits), and Stripe (Checkout, Billing, Connect, Payment Element). It keeps the current provider and API version, loads only needed recipes, and enforces payment-state invariants. Webhook signatures are verified on the raw payload, events are idempotent, and the server owns amount, currency, and status.",
+    "tagline": "Integrate SePay (VietQR), Polar, and Stripe payments safely.",
+    "summary": "ak:payment-integration implements checkout, webhooks, and subscriptions with SePay for Vietnam, Polar for global SaaS, and Stripe for enterprise. It verifies webhook signatures on the raw payload, dedupes events, and lets only the server own amount and status.",
     "howItWorks": [
       "Keeps the current provider and API version unless asked to change.",
-      "For new setups: SePay for Vietnam/VietQR, Polar for SaaS/subscriptions, Stripe for enterprise/Connect.",
-      "Loads only the needed recipes from references/sepay/*, references/polar/*, or references/stripe/*.",
-      "Multi-provider orders use the unified order and currency-conversion patterns.",
-      "Implements the flow: auth → products → checkout → webhooks → events.",
-      "Verifies webhook signatures on the raw payload (sepay-webhook-verify.js, polar-webhook-verify.js) and dedupes with idempotency keys.",
-      "A client-side redirect never proves payment.",
-      "Handles duplicate, badly signed, and out-of-order events without wrong fulfillment; tests in sandbox and reports verified state transitions."
+      "New setups: SePay for VietQR, Polar for SaaS subscriptions, Stripe for enterprise/Connect.",
+      "Builds auth → products → checkout → webhooks → events, loading only needed recipes.",
+      "Verifies signatures on the raw body and dedupes with idempotency keys.",
+      "Tests duplicate and out-of-order events in sandbox; a client redirect never proves payment."
     ],
     "useWhen": [
-      "You want VietQR bank-transfer payments via SePay for Vietnamese customers.",
-      "You sell global SaaS subscriptions via Polar with automatic GitHub/Discord benefits.",
-      "You integrate Stripe Checkout/Payment Element, Billing, or Connect.",
-      "You need safe, idempotent payment webhook handling.",
-      "Your order system supports multiple providers and currencies."
+      "You want VietQR bank-transfer payments via SePay.",
+      "You sell SaaS subscriptions via Polar or Stripe.",
+      "You need idempotent webhooks or multi-provider orders."
     ],
     "avoidWhen": [
       "Billing inside a Shopify app: use ak:shopify.",
-      "General backend APIs unrelated to payments: use ak:backend-development."
+      "Backend APIs unrelated to payments: use ak:backend-development."
     ],
     "params": [
       {
         "name": "[provider]",
         "kind": "arg",
-        "desc": "Provider: sepay, polar, stripe (or multi-provider)."
+        "desc": "Provider: sepay, polar, stripe, or multi-provider."
       },
       {
         "name": "[task]",
@@ -1637,26 +1384,21 @@
     "examples": [
       {
         "cmd": "/ak:payment-integration sepay create a VietQR for an order and confirm via webhook",
-        "note": "Vietnamese bank-transfer payment."
+        "note": "Vietnamese bank transfer."
       },
       {
         "cmd": "/ak:payment-integration polar monthly/yearly subscription with trial",
-        "note": "Global SaaS with Merchant of Record."
+        "note": "Global SaaS subscription."
       },
       {
         "cmd": "/ak:payment-integration stripe idempotent webhook for checkout.session.completed",
         "note": "Safe webhook handling."
-      },
-      {
-        "cmd": "/ak:payment-integration support both SePay and Stripe in one orders table",
-        "note": "Multi-provider orders."
       }
     ],
     "tips": [
-      "Never fulfill on a client-side redirect; trust only signature-verified webhooks.",
-      "Verify signatures on the raw body; parsing JSON first breaks the signature.",
-      "Mind rate limits: SePay about 2 req/s, Polar 300 req/min.",
-      "Always test in sandbox/test mode; use the stripe CLI to forward webhooks locally."
+      "Fulfill only on signature-verified webhooks, never on client redirects.",
+      "Parsing JSON before verifying breaks the signature.",
+      "Test in sandbox; use the stripe CLI to forward webhooks locally."
     ],
     "related": [
       "ak-backend-development",
@@ -1672,28 +1414,23 @@
     ]
   },
   "ak-shopify": {
-    "tagline": "Build Shopify apps, extensions, and themes with Shopify CLI, GraphQL, Polaris, Liquid.",
-    "summary": "ak:shopify determines whether the work is an app, extension, or theme from the request and project config, and reads the configured CLI and API versions before running commands. Apps use OAuth, webhook, and billing references; extensions use targets and extension APIs (Checkout, Admin, POS, Functions); themes use Liquid, sections, and preview. It keeps OAuth scopes minimal, verifies webhook signatures, keeps billing state server-side, and verifies on a development store or preview theme.",
+    "tagline": "Build Shopify apps, extensions, and themes with Shopify CLI.",
+    "summary": "ak:shopify detects whether the work is an app, extension, or theme and reads the configured CLI and API versions first. It keeps OAuth scopes minimal, verifies webhooks, and tests on a development store or preview theme.",
     "howItWorks": [
-      "Resolves the work type (app, extension, theme) from the request and config; never scaffolds an app just to edit a theme.",
-      "Reads the configured Shopify CLI and API versions before running commands.",
-      "Loads references: app development (OAuth, API, webhooks, billing), extensions (Checkout, Admin, POS, Functions), themes (Liquid, sections, deploy).",
-      "New setups use the setup and workflow recipes; scripts/shopify_init.py initializes projects when needed.",
-      "Pulls sample patterns: paginated GraphQL product queries, React checkout UI extensions, Liquid loops.",
-      "Keeps OAuth scopes minimal, verifies webhook signatures, holds billing state server-side, and uses idempotency.",
-      "Verifies on a development store or preview theme; going live needs the chosen store/theme and authorization.",
-      "Tracks and cleans up dev servers and tunnels it started."
+      "Resolves app, extension, or theme; never scaffolds an app just to edit a theme.",
+      "Reads configured Shopify CLI and API versions before running commands.",
+      "Loads app, extension, or theme references; scripts/shopify_init.py sets up new projects.",
+      "Keeps scopes minimal, verifies webhook signatures, holds billing state server-side.",
+      "Verifies on a dev store or preview theme; cleans up tunnels it started."
     ],
     "useWhen": [
-      "You are building an embedded Shopify app with OAuth, webhooks, and billing.",
-      "You need a checkout UI, admin, or POS extension, or Shopify Functions.",
-      "You are customizing a theme with Liquid and sections.",
-      "You query the GraphQL Admin API with pagination or bulk operations.",
-      "You are debugging rate limits, missing webhooks, or invisible extensions."
+      "You are building an embedded app with OAuth, webhooks, and billing.",
+      "You need a checkout, admin, or POS extension, or Shopify Functions.",
+      "You are customizing a Liquid theme or debugging webhooks and rate limits."
     ],
     "avoidWhen": [
-      "Payments outside Shopify (Stripe/Polar/SePay): use ak:payment-integration.",
-      "Headless Next.js storefronts without Shopify CLI: use ak:web-frameworks.",
+      "Payments outside Shopify: use ak:payment-integration.",
+      "Headless Next.js storefronts: use ak:web-frameworks.",
       "Store marketing strategy: use the marketing skills."
     ],
     "params": [
@@ -1705,7 +1442,7 @@
       {
         "name": "[feature]",
         "kind": "arg",
-        "desc": "Feature: OAuth, webhook, billing, GraphQL query, Liquid section, ..."
+        "desc": "Feature: OAuth, webhook, billing, GraphQL query, Liquid section."
       }
     ],
     "examples": [
@@ -1720,17 +1457,12 @@
       {
         "cmd": "/ak:shopify theme create a testimonial section with a settings schema",
         "note": "Liquid; preview before publishing."
-      },
-      {
-        "cmd": "/ak:shopify app orders/create webhook is not arriving",
-        "note": "Webhook troubleshooting."
       }
     ],
     "tips": [
-      "A theme preview is not a live publish; name the store/theme explicitly to go live.",
-      "Prefer GraphQL over REST and request only needed fields to cut query cost.",
-      "On rate limits, watch the X-Shopify-Shop-Api-Call-Limit header and use exponential backoff or bulk operations.",
-      "API versions ship quarterly (YYYY-MM) with about 12 months of support; test before upgrading."
+      "A preview is not a live publish; name the store/theme to go live.",
+      "Prefer GraphQL and request only needed fields.",
+      "On rate limits, use backoff or bulk operations."
     ],
     "related": [
       "ak-payment-integration",
@@ -1741,35 +1473,29 @@
     "agents": [],
     "artifacts": [
       "Shopify app/extension/theme project",
-      "Webhook, billing, and GraphQL query code",
-      "Liquid section/template files"
+      "Webhook, billing, and GraphQL code",
+      "Liquid sections/templates"
     ]
   },
   "ak-mcp-builder": {
-    "tagline": "Build MCP servers (FastMCP Python or Node/TypeScript SDK), starting from one complete tool.",
-    "summary": "ak:mcp-builder builds MCP servers that connect LLMs to external services. It first defines the user task and the first tool contract, then implements one complete tool: validated input, authorized API behavior, bounded useful output. It then compiles, runs against a real client, and writes task-based evaluations. More tools are added only when the workflow needs them.",
+    "tagline": "Build MCP servers in Python or TypeScript, one complete tool first.",
+    "summary": "ak:mcp-builder builds MCP servers that connect LLMs to external services, starting with one complete, validated tool. It then runs the server against a real client and writes task-based evaluations.",
     "howItWorks": [
-      "Defines the user task and first tool contract; checks the project's SDK, version, and transport.",
-      "Reads only the protocol/API parts that tool needs (auth, schema, pagination, errors/retry, transport), not the whole spec.",
-      "Picks the Python or Node server reference plus MCP best practices.",
-      "Implements one complete tool with accurate readOnly/destructive/idempotent/openWorld annotations, input constraints, actionable errors, cancellation/timeout.",
-      "Matches auth and scopes to the operation; annotations are hints, not enforcement.",
-      "Tests invalid, auth, pagination, and retry paths where relevant; extracts helpers only for real repetition.",
-      "Compiles or import-checks the server, runs it with a real client or harness, and confirms correct output and effects.",
-      "Writes 10 independent, read-only, realistic, verifiable, stable evaluation questions in XML; runs them with scripts/evaluation.py.",
-      "Bounds and cleans up server processes; reports the working contract, observed client results, and missing capabilities."
+      "Defines the task and first tool contract; checks the project's SDK and transport.",
+      "Implements one tool with accurate annotations, input limits, actionable errors, and timeouts.",
+      "Enforces auth and scopes in code; annotations are only hints.",
+      "Runs the server with a real client and confirms output and effects.",
+      "Writes 10 read-only evaluation questions and runs scripts/evaluation.py."
     ],
     "useWhen": [
-      "You need an MCP server for an external API (GitHub, Notion, internal CRM) for agents to use.",
-      "You are writing an MCP server with FastMCP Python or the MCP TypeScript SDK.",
-      "You are designing MCP tool schemas, annotations, pagination, and error handling.",
-      "You want an evaluation suite testing how well an LLM uses your MCP server."
+      "You need an MCP server for an external API.",
+      "You are designing tool schemas, pagination, and errors.",
+      "You want an evaluation suite for an MCP server."
     ],
     "avoidWhen": [
-      "Wrapping existing repo code or APIs as CLI/MCP: use ak:agentize.",
-      "Exposing website features to in-browser agents: use ak:webmcp.",
-      "Just calling existing MCP tools: use the runtime's native MCP tools.",
-      "Building a Google ADK agent that uses MCP tools: use ak:google-adk-python."
+      "Wrapping existing repo code: use ak:agentize.",
+      "In-browser agent tools: use ak:webmcp.",
+      "Just calling existing MCP tools: use the runtime's native tools."
     ],
     "params": [
       {
@@ -1781,11 +1507,7 @@
     "examples": [
       {
         "cmd": "/ak:mcp-builder Linear API: tool to find issues by status",
-        "note": "Start with one complete read-only tool."
-      },
-      {
-        "cmd": "/ak:mcp-builder FastMCP for internal Postgres, read-only queries only",
-        "note": "Python server with readOnly annotations."
+        "note": "One complete read-only tool."
       },
       {
         "cmd": "/ak:mcp-builder Node SDK for Jira, streamable HTTP transport",
@@ -1793,14 +1515,13 @@
       },
       {
         "cmd": "/ak:mcp-builder write a 10-question evaluation for an existing Slack MCP server",
-        "note": "Evaluation work only."
+        "note": "Evaluation only."
       }
     ],
     "tips": [
-      "Get one tool working end to end first; do not register a batch of empty tools.",
-      "readOnly/destructive annotations are client hints; enforce real permissions in code and scopes.",
-      "Successful registration is not proof of completion; run it with a real client.",
-      "Evaluation answers must be stable, string-matchable, and need only read-only operations."
+      "Get one tool working end to end before adding more.",
+      "Registration is not proof; run it with a real client.",
+      "Evaluation answers must be stable and need only read-only operations."
     ],
     "related": [
       "ak-agentize",
@@ -1812,52 +1533,44 @@
     "artifacts": [
       "MCP server source (Python or TypeScript)",
       "Evaluation XML file",
-      "scripts/evaluation.py run results"
+      "evaluation.py results"
     ]
   },
   "ak-google-adk-python": {
-    "tagline": "Build AI agents with Google ADK Python: multi-agent, A2A, MCP tools, Vertex AI deploys.",
-    "summary": "ak:google-adk-python guides the Agent Development Kit (ADK) for Python, a code-first toolkit to build, evaluate, and deploy agents; optimized for Gemini but model-agnostic. It covers single and multi-agent systems, A2A, MCP servers as tools, workflow agents (sequential, parallel, loop), session/state/memory/artifacts, callbacks/plugins, deploys to Cloud Run/Vertex AI Agent Engine/GKE, and adk eval. Required layout: a folder with __init__.py (from . import agent) and agent.py defining root_agent or app.",
+    "tagline": "Build Google ADK Python agents: multi-agent, A2A, MCP tools, Vertex deploys.",
+    "summary": "ak:google-adk-python builds, evaluates, and deploys agents with Google's Agent Development Kit, including multi-agent systems, A2A, MCP tools, workflow agents, and memory. An agent folder needs __init__.py and an agent.py defining root_agent or app.",
     "howItWorks": [
-      "Checks installed ADK dependencies and project conventions; keeps the root_agent/app discovery entrypoint.",
-      "Routes by intent: agent types, multi-agent/A2A, tools/MCP, sessions/state/memory, callbacks/plugins/observability, or deployment reference.",
-      "API examples in recipes are optional; checks them against the installed SDK and current model catalog instead of upgrading to match.",
-      "For inference, defines an observable task/eval and records model, errors, time, and cost when telemetry exists (else unknown).",
-      "Checks tool side effects, session boundaries, and error paths; evaluates with adk eval.",
+      "Checks installed ADK version; keeps the root_agent/app entrypoint.",
+      "Loads the reference for the intent: agents, multi-agent/A2A, tools/MCP, state, callbacks, deployment.",
+      "Checks examples against the installed SDK and current model catalog.",
+      "Verifies tool side effects and error paths; evaluates with adk eval.",
       "Starts minimal and expands only for the requested workflow."
     ],
     "useWhen": [
       "You are building a Gemini agent with tools in ADK Python.",
-      "You need a coordinator with sub-agents, or remote agent communication over A2A.",
-      "You want MCP servers as tools for an ADK agent.",
-      "You need sequential, parallel, or loop workflow agents.",
-      "You deploy to Cloud Run, Vertex AI Agent Engine, or GKE and evaluate with adk eval."
+      "You need sub-agents, A2A, or MCP servers as tools.",
+      "You deploy to Cloud Run, Vertex AI Agent Engine, or GKE."
     ],
     "avoidWhen": [
-      "Agents on the Claude API/Agent SDK: use claude-api.",
-      "Building an MCP server, not an agent: use ak:mcp-builder.",
-      "General context/token management for agent systems: use ak:context-engineering.",
+      "Claude API or Agent SDK agents: use claude-api.",
+      "Building an MCP server: use ak:mcp-builder.",
       "GCP infrastructure unrelated to ADK: use ak:devops."
     ],
     "params": [
       {
         "name": "[agent or feature]",
         "kind": "arg",
-        "desc": "ADK agent or feature to build: single agent, multi-agent, A2A, MCP tool, workflow, memory, callback, deploy, eval."
+        "desc": "ADK agent or feature: single agent, multi-agent, A2A, MCP tool, workflow, memory, callback, deploy, eval."
       }
     ],
     "examples": [
       {
         "cmd": "/ak:google-adk-python customer support agent with an order lookup tool",
-        "note": "Single agent with a custom tool."
+        "note": "Single agent, custom tool."
       },
       {
         "cmd": "/ak:google-adk-python coordinator + 3 sub-agents research/write/review",
         "note": "Multi-agent system."
-      },
-      {
-        "cmd": "/ak:google-adk-python use a filesystem MCP server as a tool, filtered to read-only tools",
-        "note": "MCP integration with tool filtering."
       },
       {
         "cmd": "/ak:google-adk-python deploy to Vertex AI Agent Engine and write an evalset",
@@ -1865,10 +1578,9 @@
       }
     ],
     "tips": [
-      "Without __init__.py containing 'from . import agent', or root_agent/app in agent.py, ADK cannot find the agent.",
-      "Check model names against the current catalog; old examples may use retired models.",
-      "Record inference cost/time when telemetry exists; otherwise write unknown, not zero.",
-      "Start with one minimal agent before adding sub-agents or plugins."
+      "Missing 'from . import agent' in __init__.py means ADK cannot find the agent.",
+      "Check model names; old examples may use retired models.",
+      "Start with one minimal agent before adding sub-agents."
     ],
     "related": [
       "ak-mcp-builder",
@@ -1879,35 +1591,28 @@
     "agents": [],
     "artifacts": [
       "Agent folder (__init__.py, agent.py)",
-      "Evalset files for adk eval",
+      "Evalset files",
       "Cloud Run/Vertex/GKE deploy config"
     ]
   },
   "ak-webmcp": {
-    "tagline": "Expose website features as WebMCP tools for in-browser agents via document.modelContext.",
-    "summary": "ak:webmcp turns website features into WebMCP tools: named JavaScript functions with descriptions and JSON Schema that in-browser agents call via document.modelContext instead of scraping the DOM. WebMCP is a W3C Web Machine Learning CG draft browser API, NOT an Anthropic MCP server. The skill covers the imperative (registerTool) and declarative (form attributes) APIs, schemas, safety annotations, cross-origin exposure, framework integration, validation, and evals.",
+    "tagline": "Expose website features as WebMCP tools for in-browser agents.",
+    "summary": "ak:webmcp turns website features into WebMCP tools that in-browser agents call via document.modelContext instead of scraping the DOM. WebMCP is a W3C draft browser API, not an Anthropic MCP server.",
     "howItWorks": [
-      "Verifies the browser and API: records browser version, HTTPS/origin-isolation status, and available members.",
-      "Feature-detects the entrypoint and each member; without support, keeps the normal UI.",
-      "Plans tools: one tool per function, no overlap, a small set; prefers static registration.",
-      "Simple HTML forms that need no result read → declarative API; everything else (state, navigation, custom widgets, annotations) → imperative. Mixing is allowed.",
-      "Names tools by exact effect with positive descriptions and specific schemas.",
-      "Respects budgets: name ≤30, description ≤500, parameter description ≤150, output ≤1.5K.",
-      "Scaffolds with scripts/scaffold_tool.py and wires execute to existing app logic; validates strictly and returns short strings and clear errors.",
-      "Adds safety annotations: readOnlyHint, consequentialHint (irreversible actions), untrustedContentHint (UGC/external content).",
-      "Gates cross-origin use with exposedTo + Permissions-Policy tools, exposing only to trusted origins.",
-      "Validates with scripts/validate_webmcp.mjs (--strict turns warnings into errors), then tests with Model Context Tool Inspector and evals."
+      "Feature-detects the API; keeps the normal UI when unsupported.",
+      "Plans a small set of non-overlapping tools with exact names and specific schemas.",
+      "Simple forms use the declarative API; stateful actions use imperative registerTool.",
+      "Adds safety hints (readOnly, consequential, untrustedContent) and limits cross-origin exposure.",
+      "Scaffolds with scaffold_tool.py, validates with validate_webmcp.mjs, then runs evals."
     ],
     "useWhen": [
-      "You want AI agent tools on an existing website.",
-      "You want forms (booking, search, contact) to be agent-callable.",
-      "You want page actions (add to cart, filter products) exposed to in-browser agents with safety annotations.",
-      "You are integrating WebMCP into React/Angular and writing tool evals."
+      "You want agent tools on an existing website.",
+      "You want forms or page actions callable by in-browser agents.",
+      "You are integrating WebMCP into React or Angular."
     ],
     "avoidWhen": [
-      "Building stdio/HTTP MCP servers for an API: use ak:mcp-builder.",
-      "Running existing MCP tools: use the runtime's native MCP tools.",
-      "Browser automation or page testing with an agent: use ak:agent-browser.",
+      "Building stdio/HTTP MCP servers: use ak:mcp-builder.",
+      "Browser automation or testing: use ak:agent-browser.",
       "Wrapping backend code as CLI/MCP: use ak:agentize."
     ],
     "params": [
@@ -1920,27 +1625,21 @@
     "examples": [
       {
         "cmd": "/ak:webmcp product search form at /search",
-        "note": "Simple form: the declarative API may fit."
+        "note": "Simple form: declarative API may fit."
       },
       {
         "cmd": "/ak:webmcp add-to-cart and checkout buttons",
-        "note": "Consequential action: imperative with consequentialHint and confirmation."
+        "note": "Consequential action with confirmation."
       },
       {
         "cmd": "/ak:webmcp integrate a booking tool into a React app with usewebmcp",
         "note": "Framework integration."
-      },
-      {
-        "cmd": "/ak:webmcp expose a user-comment reading tool to partner.example.com",
-        "note": "Needs untrustedContentHint and exposedTo limited by origin."
       }
     ],
     "tips": [
-      "WebMCP is an evolving browser API; always feature-detect and keep the normal UI when unsupported.",
-      "Tool output, form values, and page text are untrusted data (indirect prompt injection risk), not instructions.",
+      "Treat tool output and page text as untrusted data, not instructions.",
       "Enforce authorization inside execute, not only via schema.",
-      "Run scaffold then validate as a smoke test; generated output must lint clean.",
-      "Keep the tool set small; every tool costs agent context budget."
+      "Keep the tool set small; every tool costs agent context."
     ],
     "related": [
       "ak-mcp-builder",
@@ -1950,9 +1649,9 @@
     ],
     "agents": [],
     "artifacts": [
-      "Tool definition file (tool.js) or declarative form attributes",
-      "React usewebmcp hook (with --framework react)",
-      "validate_webmcp.mjs and eval results"
+      "Tool file (tool.js) or declarative form attributes",
+      "React usewebmcp hook",
+      "Validation and eval results"
     ]
   }
 }

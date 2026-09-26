@@ -1,76 +1,59 @@
 {
  "ak-autoresearch": {
-  "tagline": "Router for bounded iteration: change one thing, measure, keep or revert, repeat.",
-  "summary": "ak:autoresearch does not run loops itself. It routes the 'autoresearch' pattern (make one change, verify with a measurable metric, keep or revert, repeat within safe bounds) to the skill that owns the desired outcome. Input is a goal or hypothesis, optionally with an iteration count and metric; output is a handoff to the right skill plus a stable loop contract settled before any edit.",
+  "tagline": "Routes bounded measure-keep-or-revert iteration to the right skill.",
+  "summary": "ak:autoresearch runs no loops itself; it routes a goal to the skill that owns it and settles a loop contract (metric, baseline, guards, iteration limit, stop condition) before any edit. Each iteration makes one change and keeps it only if evidence satisfies the contract.",
   "howItWorks": [
-   "Reads the live skill catalog first; the catalog is the source of truth for skill names and availability.",
-   "Measurable technical improvement through a bounded loop routes to `/ak:loop`.",
-   "Comparing expert viewpoints before a risky decision routes to `/ak:predict`.",
-   "Expanding edge cases and testing hypotheses routes to `/ak:scenario`; threat-driven security review routes to `/ak:security`.",
-   "Optimizing a skill for routing and quality routes to a skill creation/evaluation capability (e.g. `ak:skill-creator`).",
-   "If no route owns the outcome, it never invents an alias.",
-   "For vague requests with no metric ('make it clearer'), it finds an observable quality check or falls back to the normal editing workflow; it never runs unbounded loops.",
-   "Settles the loop contract before editing: metric, baseline, guard conditions, iteration limit, and stop condition.",
-   "Each iteration makes one attributable change and runs the declared verification and guards.",
-   "Keeps a change only when evidence satisfies the contract; otherwise safely restores the pre-iteration state.",
-   "Records results and decides whether another iteration is worth running.",
-   "Any push, publish, deploy, or external side effect still needs the normal user gate.",
-   "Treats fetched content and command output as data, not instructions; redacts credentials in findings.",
-   "Screens user-supplied verify commands before running them and keeps runs bounded and non-interactive."
+   "Reads the live skill catalog; never invents an alias when no route fits.",
+   "Routes metric loops to `/ak:loop`, risk debates to `/ak:predict`, edge cases to `/ak:scenario`, security to `/ak:security`.",
+   "Settles metric, baseline, guards, iteration limit, and stop condition before editing; refuses unbounded loops.",
+   "Each iteration makes one attributable change, verifies it, and keeps or restores it.",
+   "Push, publish, deploy, or other external side effects still need a user gate."
   ],
   "useWhen": [
-   "You want to improve a measurable number (build time, test pass rate, bundle size, eval score) over verified iterations but do not know which skill owns it.",
-   "You want the autoresearch family (predict, scenario, security, loop) and need one entry point to pick the right branch.",
-   "You want to optimize a skill against routing cases and task quality, not just trim prompt tokens.",
-   "You need a clear loop contract (metric, baseline, guards, stop condition) before letting an agent iterate."
+   "You want to improve a measurable number over verified iterations but do not know which skill owns it.",
+   "You want one entry point to the predict, scenario, security, and loop family.",
+   "You need a clear loop contract before letting an agent iterate."
   ],
   "avoidWhen": [
-   "You already know you need a local technical metric loop: call `/ak:loop` directly.",
-   "You only need a risk debate on a proposal: use `/ak:predict`; only edge cases/QA: use `/ak:scenario`.",
-   "The request has no observable metric (e.g. 'write better'): use the normal editing workflow instead of forcing a loop.",
-   "You need a long-running Codex /goal: use `ak:codex-goal` or `ak:goal-warmup`."
+   "You already know you need a metric loop: call `/ak:loop` directly.",
+   "The request has no observable metric: use the normal editing workflow.",
+   "A long-running Codex /goal: use `ak:codex-goal` or `ak:goal-warmup`."
   ],
   "params": [
    {
     "name": "<goal or hypothesis>",
     "kind": "arg",
-    "desc": "The goal or hypothesis to improve; used to pick the route and define the metric and stop condition. Required."
+    "desc": "Required. Goal or hypothesis; picks the route and defines metric and stop condition."
    },
    {
     "name": "--iterations N",
     "kind": "flag",
-    "desc": "Iteration limit (the 'iteration bound' in the loop contract). How it is passed to the owning skill is not documented in source."
+    "desc": "Iteration limit for the loop contract. How it reaches the owning skill is undocumented."
    },
    {
     "name": "--metric <metric>",
     "kind": "flag",
-    "desc": "Metric used to verify each iteration (the 'metric' in the loop contract; needs a baseline). How it is passed to the owning skill is not documented in source."
+    "desc": "Metric that verifies each iteration; needs a baseline. How it reaches the owning skill is undocumented."
    }
   ],
   "examples": [
    {
     "cmd": "/ak:autoresearch \"Reduce test suite run time\" --metric \"npm test duration\" --iterations 5",
-    "note": "Measurable technical goal; routes to `/ak:loop` with a 5-iteration limit."
+    "note": "Routes to `/ak:loop` with a 5-iteration limit."
    },
    {
     "cmd": "/ak:autoresearch \"Find missing edge cases in the checkout flow\"",
-    "note": "Coverage expansion; routes to `/ak:scenario`."
+    "note": "Routes to `/ak:scenario`."
    },
    {
     "cmd": "/ak:autoresearch \"Should we switch to GraphQL?\"",
-    "note": "Risky decision needing multiple viewpoints; routes to `/ak:predict`."
-   },
-   {
-    "cmd": "/ak:autoresearch \"Improve correct activation of skill X\" --metric \"correct routing rate\"",
-    "note": "Skill optimization; routes to a skill creation/evaluation capability such as `ak:skill-creator`."
+    "note": "Routes to `/ak:predict`."
    }
   ],
   "tips": [
-   "Always provide a metric and baseline; without a metric the skill refuses to run an unbounded loop.",
-   "One change per iteration shows exactly which change helped; bundling changes loses attribution.",
-   "Cutting prompt tokens alone does not count as success for skill optimization; routing, quality, safety, and completion guards must hold too.",
-   "Loops never push or deploy on their own; every external side effect goes through a user gate.",
-   "This is a thin router with low token cost; the expensive part is the chosen skill."
+   "Always give a metric and baseline; without one the skill refuses to loop.",
+   "One change per iteration keeps attribution clear.",
+   "For skill optimization, cutting tokens alone is not success; routing and quality must hold."
   ],
   "related": [
    "ak-loop",
@@ -81,65 +64,54 @@
   ],
   "agents": [],
   "artifacts": [
-   "Writes no artifacts itself; any artifacts come from the chosen skill, e.g. `scenario-results.tsv` from ak:scenario."
+   "None itself; the chosen skill writes any artifacts (e.g. `scenario-results.tsv`)."
   ]
  },
  "ak-codex-goal": {
-  "tagline": "Draft and use Codex /goal for long work with a verifiable stop condition.",
-  "summary": "ak:codex-goal helps you use Codex's /goal feature for a durable objective with a clear stop condition and validation loop. Input is an objective or a goal draft; output is a Goal Contract (objective, files to read first, constraints, validate command, checkpoints, stop condition), or a native goal created when the runtime supports it and the user explicitly asks. It is not a safety boundary and does not replace product decisions; it comes after `ak:goal-warmup` for multi-hour goals and before the user launches /goal.",
+  "tagline": "Draft Codex /goal runs with a verifiable stop condition.",
+  "summary": "ak:codex-goal turns an objective into a Goal Contract: read-first files, constraints, validate command, checkpoints, and a verifiable stop condition. It creates a native goal only when you explicitly ask and the runtime supports it; otherwise you get a draft to paste.",
   "howItWorks": [
-   "Creates a goal only when the user explicitly asks; checks the runtime's goal capability and uses native goal tools if present.",
-   "A missing slash UI does not mean native tools are missing.",
-   "Follows the host's lifecycle, completion, blocker, and budget contract; never invents tool names or edits runtime-home settings to enable features.",
-   "If goals are unsupported, it states the limit and provides a goal draft.",
-   "For command-based hosts, checks current official help/docs before giving command or config syntax; never assumes old feature flags are still needed.",
-   "Use Test: a goal fits only when the task spans more than one turn and is mostly mechanical.",
-   "The stop condition must be verifiable by test, eval, build, or artifact.",
-   "The scope must be clear enough that no product/architecture decision is needed at each checkpoint.",
-   "Refuses goals for exploration, vague improvement requests, production credential changes, destructive shared infrastructure, or unrelated backlogs.",
-   "Drafts the Goal Contract from the template `/goal Complete <objective>. Read first: ... Constraints: ... Validate after each checkpoint: <command>. Keep a brief progress log. Stop when <verifiable end state>, or when further work needs human input.`",
-   "Adds a ban on weakening, narrowing, skipping, or deleting tests to reach the goal.",
-   "Requires stopping on ambiguity instead of inventing product decisions, and reviewing the final diff before merge."
+   "Fits a goal only for multi-turn, mostly mechanical work with a test/build/eval stop condition.",
+   "Refuses exploration, vague improvements, production credential changes, or destructive shared infrastructure.",
+   "Drafts `/goal Complete <objective>. Read first: ... Constraints: ... Validate after each checkpoint: <command>. Stop when ...`.",
+   "Bans weakening or deleting tests, and requires stopping on ambiguity and reviewing the final diff.",
+   "Checks current official docs for syntax; if goals are unsupported, states the limit and gives a draft."
   ],
   "useWhen": [
-   "The user mentions /goal, goal mode, a durable objective, or autonomous multi-turn Codex runs.",
-   "A long but mechanical job (bulk migration, fixing all type errors, version upgrade) has a clear validate command.",
-   "You want to tighten a /goal draft with constraints, checkpoints, a stop condition, and a no-weakening-tests rule.",
-   "The runtime lacks goal support but you still want a goal draft to paste into Codex."
+   "You mention /goal, goal mode, or autonomous multi-turn Codex runs.",
+   "A long mechanical job (migration, type errors, upgrade) has a clear validate command.",
+   "You want to tighten a rough /goal draft."
   ],
   "avoidWhen": [
-   "The goal runs for hours or has many external dependencies: run `ak:goal-warmup` first to lock the outcome contract and preflight blockers.",
-   "A local metric improvement loop: use `ak:loop`.",
-   "Coordinating work across several coding-agent CLIs: use `ak:orchestrate`.",
-   "Exploration or vague requests with no stop condition: use `ak:brainstorm` or `ak:plan` first."
+   "Multi-hour goals with external dependencies: run `ak:goal-warmup` first.",
+   "A local metric loop: use `ak:loop`.",
+   "Exploration with no stop condition: use `ak:brainstorm` or `ak:plan` first."
   ],
   "params": [
    {
     "name": "<objective | goal draft>",
     "kind": "arg",
-    "desc": "The objective to turn into a Goal Contract, or an existing /goal draft to review and tighten. The skill has no other flags."
+    "desc": "Objective to turn into a Goal Contract, or an existing /goal draft to tighten. No flags."
    }
   ],
   "examples": [
    {
     "cmd": "/ak:codex-goal \"Migrate all tests from Jest to Vitest; npm test must pass\"",
-    "note": "Long mechanical job with a clear validate command: draft a Goal Contract."
+    "note": "Draft a Goal Contract for a mechanical job."
    },
    {
     "cmd": "/ak:codex-goal \"/goal Fix all TypeScript errors in src/\"",
-    "note": "Review a rough goal draft and add Read first, Constraints, checkpoints, and a stop condition."
+    "note": "Tighten a rough draft."
    },
    {
     "cmd": "/ak:codex-goal \"Complete plans/260926-auth/plan.md\"",
-    "note": "Use an existing plan as the read-first file and its acceptance criteria as the stop condition."
+    "note": "Plan as read-first file; its criteria as stop condition."
    }
   ],
   "tips": [
-   "Always state the ban on weakening, skipping, or deleting tests; that is how autonomous agents 'cheat' to reach a stop condition.",
-   "The stop condition must be a verifiable state (test, build, or eval command), not a feeling of 'done'.",
-   "The skill does not create a goal unless you explicitly ask; by default you get a draft to paste yourself.",
-   "Do not trust historical Codex syntax or flags; the skill requires checking current official docs.",
-   "Always review the final diff before merging, even when the goal reports completion."
+   "Always ban weakening or deleting tests; that is how agents cheat a stop condition.",
+   "The stop condition must be a command result, not a feeling of 'done'.",
+   "Review the final diff before merging, even when the goal reports success."
   ],
   "related": [
    "ak-goal-warmup",
@@ -149,74 +121,54 @@
   ],
   "agents": [],
   "artifacts": [
-   "Goal Contract as text in the conversation (no file written)."
+   "Goal Contract text in the conversation; no file."
   ]
  },
  "ak-fable-thinking": {
-  "tagline": "Evidence-based reasoning: typed claims, multiple hypotheses, self-attack, calibrated delivery.",
-  "summary": "ak:fable-thinking is a reasoning protocol distilled from Claude Fable 5.1, for when being right matters more than being fast. Input is a task or question; output is an outcome-first answer with typed claims (OBSERVED/DERIVED/PRIOR/ASSUMED), limits, and open questions. It adds a Floor check for deceptively simple questions, a Constraint Loop that mechanically verifies format constraints, and 19 domain playbooks, and it runs as a thinking layer across debugging, review, and architecture decisions.",
+  "tagline": "Evidence-based reasoning: typed claims, multiple hypotheses, self-attack.",
+  "summary": "ak:fable-thinking is a reasoning protocol for when being right matters more than being fast, delivering an outcome-first answer with claims tagged OBSERVED/DERIVED/PRIOR/ASSUMED. It adds a Floor check for trick questions and a Constraint Loop that mechanically verifies format constraints.",
   "howItWorks": [
-   "Picks checks by the task's observable risk, not the model's self-assessed ability.",
-   "Loads `references/reasoning-protocol.md` selectively, only for uncertain decisions.",
-   "Floor check, Goal: state the end state without referring to the options.",
-   "Floor check, Follow-through: play the 'movie' to the verified target frame.",
-   "Floor check, Leftovers: an unused detail in the prompt is often the trap.",
-   "The Proportionality Gate picks a mode: Direct (trivial, reversible), Standard (bugfix, review, analysis: run the 5 moves internally), or Full.",
-   "Full mode (high-risk, irreversible, novel, or contested) independently checks failure modes and reports evidence, options, and decision.",
-   "A Floor trip or mechanical constraint is never Direct.",
-   "Five Moves: FRAME (find the real question), GROUND (establish facts before reasoning), REASON (mechanism, multiple hypotheses, discriminating tests).",
-   "ATTACK plays the opposing reviewer and runs cheap kill-tests immediately; DELIVER puts the result first, evidence next, caveats last.",
-   "Constraint Loop: expands each constraint into a mechanical test and lists the easy-to-violate words.",
-   "It drafts in the reasoning space, verifies with a tool/script or unit by unit, fixes, and rechecks the full text.",
-   "It delivers the verified text verbatim; changing one character means rechecking.",
-   "Claim Discipline: every load-bearing claim is tagged OBSERVED/DERIVED/PRIOR/ASSUMED with matching grammar.",
-   "Claims are upgraded only by tools; 'I don't know' plus a way to verify is a valid answer.",
-   "Loads domain playbooks by deliverable type when needed (e.g. `debugging-root-cause.md`, `coding-taste.md`, `security-taste.md`, `subagent-orchestration.md`, `thinking-modes.md`, `token-economy.md`, `worked-examples.md`); never the whole catalog.",
-   "Reports decisions, observations, and limits, not a private reasoning transcript."
+   "Floor check: states the goal, plays it through to the target, and looks for unused prompt details.",
+   "Proportionality Gate picks Direct (trivial), Standard (bugfix, review), or Full (high-risk, irreversible, contested).",
+   "Five Moves: FRAME, GROUND, REASON with multiple hypotheses, ATTACK with kill-tests, DELIVER result first.",
+   "Constraint Loop turns each format constraint into a mechanical test and verifies with a tool before delivery.",
+   "Loads only the domain playbooks matching the deliverable (e.g. `debugging-root-cause.md`)."
   ],
   "useWhen": [
-   "Diagnosing root causes, production incidents, or flaky failures that need multiple hypotheses and discriminating tests.",
-   "Architecture, strategy, security, or data migration decisions: high risk, hard to reverse.",
-   "Output must meet machine-checkable constraints: banned letters, exactly N words, acrostics, strict formats.",
-   "A simple-looking question may hide a trap, or a contested claim needs observed vs assumed separated.",
-   "Reviewing code or docs where you must challenge yourself before concluding."
+   "Diagnosing root causes, incidents, or flaky failures that need competing hypotheses.",
+   "High-risk, hard-to-reverse architecture, security, or migration decisions.",
+   "Output must meet machine-checkable constraints like exact word counts or banned letters."
   ],
   "avoidWhen": [
-   "Quick lookups, renames, or small reversible edits: answer directly (Direct); the full protocol is wasteful.",
-   "You are stuck and need reframing techniques: use `ak:problem-solving`.",
-   "You need a full bug-fix workflow: use `ak:debug` / `ak:fix` (fable-thinking can still serve as the thinking layer)."
+   "Quick lookups or small reversible edits: answer directly.",
+   "You are stuck and need reframing: use `ak:problem-solving`.",
+   "A full bug-fix workflow: use `ak:debug` / `ak:fix`."
   ],
   "params": [
    {
     "name": "[task or question to reason through]",
     "kind": "arg",
-    "desc": "The task or question to reason through. Optional; if empty, the protocol applies to the current task in the conversation. No flags; the Proportionality Gate picks Direct/Standard/Full itself."
+    "desc": "Optional; defaults to the current task. No flags; the gate picks Direct/Standard/Full."
    }
   ],
   "examples": [
    {
     "cmd": "/ak:fable-thinking \"Why did p99 latency double after yesterday's deploy?\"",
-    "note": "Diagnosis needing multiple hypotheses and kill-tests; usually Standard or Full mode."
+    "note": "Multiple hypotheses and kill-tests."
    },
    {
     "cmd": "/ak:fable-thinking \"Write a 12-word sentence about cats without the letter e\"",
-    "note": "Format constraint: triggers the Constraint Loop and mechanical verification before delivery."
+    "note": "Triggers the Constraint Loop."
    },
    {
     "cmd": "/ak:fable-thinking \"Should we split the monolith into microservices?\"",
-    "note": "Hard-to-reverse architecture decision: Full mode, loads `solution-exploration.md` and `engineering-standards.md`."
-   },
-   {
-    "cmd": "/ak:fable-thinking \"Re-check the subagent's conclusion about this race condition\"",
-    "note": "Verify a delegate's report; loads `subagent-orchestration.md`."
+    "note": "Hard-to-reverse decision: Full mode."
    }
   ],
   "tips": [
-   "A hallucination sign is a PRIOR/ASSUMED claim dressed in OBSERVED grammar; check the wording of your own output.",
-   "Rereading a draft and 'seeing it's fine' is not verification of a format constraint; run a script/grep or count unit by unit.",
-   "Load only playbooks that match the deliverable; loading many references (about 200KB total) wastes tokens.",
-   "Failing 2-3 times in the same frame means the frame is wrong: change altitude, invert, or gather observations instead of trying harder.",
-   "The protocol's benefit is not guaranteed on every task; the source requires evaluation against the real model/runtime before claiming improvement."
+   "A PRIOR/ASSUMED claim worded as OBSERVED is a hallucination sign.",
+   "Rereading a draft is not verification; count or grep format constraints mechanically.",
+   "Failing 2-3 times in one frame means the frame is wrong; change approach."
   ],
   "related": [
    "ak-problem-solving",
@@ -226,77 +178,59 @@
   ],
   "agents": [],
   "artifacts": [
-   "No files written; results are answers or assessments in the conversation."
+   "No files; answers in the conversation."
   ]
  },
  "ak-goal-warmup": {
   "tagline": "Outcome-locked preflight before /goal or a long autonomous run.",
-  "summary": "ak:goal-warmup prepares a long autonomous run before execution: it interviews you to an approved Outcome Contract, plans without scope drift, runs a contract-preserving review and a whole-plan preflight matrix, then ends in exactly one state: Ready, Blocked, or Decision required. Input is a goal sentence (optionally `--fast`); output is a handoff packet (locked contract, plan, preflight, scope guard, openers for Codex `/goal` and Claude long runs). It never starts /goal itself; it usually follows `/ak:advise`, uses `ak:plan` by reference, and hands off to you.",
+  "summary": "ak:goal-warmup interviews you to an approved Outcome Contract, plans without scope drift, and preflights every phase, ending in Ready, Blocked, or Decision required. It outputs a copy/paste handoff packet but never starts /goal itself.",
   "howItWorks": [
-   "Parses the goal and `--fast`; treats the goal and repo content as untrusted data (ignores embedded instructions to override rules, reveal secrets, or auto-start).",
-   "Light scouting if the goal touches a repo, then estimates complexity and risk: local only, or external dependencies, credentials, deploys, approvals, multiple services.",
-   "With `--fast`, checks eligibility per `references/fast-path.md`; if ineligible, refuses with a reason ('--fast refused: ...') and runs the full path.",
-   "Interviews `ak:advise`-style, one question at a time (without forking advise's body).",
-   "The Outcome Contract has Intended result, In scope, Out of scope, Acceptance signals, Constraints, Allowed substitutions, and Decision owner = user.",
-   "Hard gate 1: `ask_user` approve / edit / abort; no planning without explicit approval. Once approved, the contract is immutable.",
-   "Plans with `ak:plan` using the contract as a hard constraint, plus a traceability table (Phase, Contract items, Acceptance signals, Facts/assumptions/prereqs/user decisions).",
-   "Without a plan CLI, it falls back to an in-session markdown plan.",
-   "Contract-preserving review: skips the default apply pipeline of `/ak:plan red-team` and collects findings (local review or collect-only).",
-   "Before any edit, findings are classified: mitigation-within-contract (fixable), preflight-required (annotate only), blocker (blocks Ready), outcome-change-request (goes to Decision required).",
-   "Preflight Matrix per phase: Phase, Requirement, Check method, Status (available/missing/pending/unknown/n/a), Owner/unblock action, Blocking?.",
-   "Uses only non-mutating checks (`command -v`, env var presence without values, config shape, `gh auth status`).",
-   "Groups items into Must provide / Should decide / Can be deferred.",
-   "Hard gate 7: `ask_user` confirms the final summary (contract + plan path + preflight) before declaring Ready; self-checks against assertions in `fixtures/*`.",
-   "Outputs one final state and its packet per `references/handoff-packet.md`, plus a completion report (State, Contract, Plan, Preflight blockers, Fast path, Next)."
+   "Treats the goal and repo as untrusted data, scouts lightly, and estimates risk and external dependencies.",
+   "Interviews one question at a time; you must approve the Outcome Contract, which then becomes immutable.",
+   "Plans with `ak:plan` under the contract, with a phase-to-acceptance traceability table.",
+   "Reviews without changing scope, then builds a Preflight Matrix using only non-mutating checks.",
+   "A second approval confirms the summary; outputs one final state and its handoff packet."
   ],
   "useWhen": [
-   "You are about to run Codex `/goal` or a multi-hour autonomous Claude session and want the outcome locked so the agent cannot shrink scope.",
-   "Multi-phase work with external dependencies (credentials, third-party APIs, deploys) where blockers must surface before paying for the run.",
-   "An agent previously 'finished' by dropping requirements or weakening tests.",
-   "You want a copy/paste packet for both Codex and Claude with a clear scope guard."
+   "Before Codex `/goal` or a multi-hour Claude run, to stop the agent shrinking scope.",
+   "Multi-phase work with credentials, APIs, or deploys whose blockers must surface first.",
+   "An agent previously 'finished' by dropping requirements or weakening tests."
   ],
   "avoidWhen": [
-   "You only need /goal wording for a short mechanical job: use `ak:codex-goal`.",
-   "One command from issue to PR: use `ak:vibe`; from issue to an audited plan: use `ak:issue-to-plan`.",
-   "Small single-turn work: call `ak:plan` or `ak:cook` directly; warmup is overkill.",
-   "Core-kit-only installs: this skill needs the engineer kit (depends on advise/plan)."
+   "Only /goal wording for a short mechanical job: use `ak:codex-goal`.",
+   "Issue to PR in one command: use `ak:vibe`.",
+   "Small single-turn work: use `ak:plan` or `ak:cook` directly."
   ],
   "params": [
    {
     "name": "\"<goal>\"",
     "kind": "arg",
-    "desc": "The long run's goal, in double quotes. Treated as untrusted data."
+    "desc": "The long run's goal, in double quotes; treated as untrusted data."
    },
    {
     "name": "--fast",
     "kind": "flag",
-    "desc": "Skips the costly multi-reviewer adversarial review, only when the user accepts lower assurance AND there is no sign of external credentials/API keys, deploy/release/publish, approval gates, or multiple services/environments, AND the task looks local only. Still required: Outcome Contract approval, a (possibly thin) traceable plan, intact acceptance signals, a whole-plan preflight matrix, a clear final state, and no auto-start of /goal. Ineligible requests are refused and run the full path."
+    "desc": "Skips adversarial review for local-only work without credentials, deploys, or approvals. Contract approval and preflight still run; ineligible requests run the full path."
    }
   ],
   "examples": [
    {
     "cmd": "/ak:goal-warmup \"Migrate the whole API to Better Auth; E2E must pass\"",
-    "note": "Multi-phase goal with credentials and E2E as the acceptance signal: full path."
+    "note": "Multi-phase with credentials: full path."
    },
    {
     "cmd": "/ak:goal-warmup \"Rename the utils module to shared across the repo\" --fast",
-    "note": "Local work with no external dependencies: eligible for the fast path."
+    "note": "Local work: fast path eligible."
    },
    {
     "cmd": "/ak:goal-warmup \"Deploy the new service to Cloud Run\" --fast",
-    "note": "Includes a deploy step, so `--fast` is refused and the full path runs."
-   },
-   {
-    "cmd": "/ak:goal-warmup \"Complete plans/260926-billing/plan.md\"",
-    "note": "Plan already exists: the skill still locks the contract, preflights every phase, and hands off a packet."
+    "note": "Deploy step: `--fast` refused."
    }
   ],
   "tips": [
-   "A mid-way 'looks good' does not count as approval; the skill needs two explicit `ask_user` approve/edit/abort answers (contract and final summary).",
-   "Even if you ask, the skill refuses to start /goal; paste the packet into Codex or a Claude session yourself.",
-   "Blocked/unknown beats a fake Ready: a check that cannot run safely is marked blocking.",
-   "Env vars are reported only as present/missing, never with values; do not paste secrets into the goal.",
-   "The contract lives only in the session and packet, not in project files; save the Ready packet to keep it."
+   "A mid-way 'looks good' is not approval; two explicit approve/edit/abort answers are required.",
+   "The skill never starts /goal; paste the packet into Codex or Claude yourself.",
+   "The contract lives only in the session; save the Ready packet to keep it."
   ],
   "related": [
    "ak-advise",
@@ -307,91 +241,72 @@
   ],
   "agents": [],
   "artifacts": [
-   "Outcome Contract (session only, no file)",
-   "Plan via `ak:plan` (plans/ folder if a plan CLI exists) or an in-session markdown plan",
+   "Outcome Contract (session only)",
+   "Plan via `ak:plan` or an in-session markdown plan",
    "Preflight Matrix",
-   "Ready / Blocked / Decision required handoff packet as copy/paste Markdown"
+   "Ready / Blocked / Decision required handoff packet"
   ]
  },
  "ak-issue-to-plan": {
-  "tagline": "One command: GitHub issue to scouted, gated, validated, red-teamed plan branch.",
-  "summary": "ak:issue-to-plan turns a GitHub issue into an audited, validated implementation plan, but only if the issue passes a hard evaluation gate. Input is an issue URL or number (optionally repo and label names); output is `plan.md` + `phase-NN-*.md` in `plans/<timestamp>-<slug>/` on a pushed plan branch, plus HTML and AgentWiki (if `/ak:plan` supports them) and a comment and label on the issue. It only plans (no implementing, cooking, shipping, or PRs), orchestrating `/ak:scout`, `/ak:brainstorm`, `/ak:plan` (validate, red-team), and `/ak:git` right before plan audit and cook.",
+  "tagline": "GitHub issue to gated, validated, red-teamed plan branch.",
+  "summary": "ak:issue-to-plan scouts a GitHub issue, gates it through `/ak:brainstorm`, and only then writes a validated, red-teamed plan on a pushed `plan/issue-<n>-<slug>` branch. It comments and labels the issue but never implements code or opens PRs.",
   "howItWorks": [
-   "Resolves the repo with `gh repo view --json nameWithOwner,defaultBranchRef`; if the URL belongs to another repo and `--repo` is absent, stops and asks to switch repo/worktree.",
-   "Reads title, body, comments, and labels with `gh issue view`.",
-   "Classifies the issue (bug/feature/refactor/docs/security-risk/research-task/decision) and extracts requirements, constraints, acceptance criteria, and open questions.",
-   "Scouts and verifies: reuses same-revision evidence and calls `/ak:scout` when needed.",
-   "Checks whether the issue is real, already done, duplicate, out of scope, or missing information, and gathers evidence (files, symbols, docs, prior PRs/issues).",
-   "Hard brainstorm gate via `/ak:brainstorm`: evaluates against standards, architecture, roadmap, security model, maintainability, and user value.",
-   "It picks exactly one: proceed to plan / needs decisions / duplicate-already handled / reject-defer / not worth implementing.",
-   "Posts an 'Issue-to-Plan Evaluation' comment and applies labels BEFORE stopping or planning.",
-   "Duplicate/reject/defer/not worth: stops completely (no `/ak:plan`, no worktree, no push); needs decisions: applies `--decision-label` and waits for a maintainer.",
-   "Plans with `/ak:plan`, always with `--html --wiki` (without also triggering frontend-design/diagram).",
-   "The plan covers objective, scope/non-goals, architecture, phases, target files, test plan, security, migration, open questions, and rollback criteria.",
-   "If the installed `/ak:plan` lacks `--html`/`--wiki`, it writes Markdown only and marks those 'pending', never inventing paths or URLs.",
-   "Never skips validation: runs `/ak:plan validate <plan.md>` and `/ak:plan red-team <plan.md>` unless evidence already exists for that exact content.",
-   "Applies findings (or records why not) and runs a whole-plan consistency sweep.",
-   "Saves the plan on a worktree branch `plan/issue-<n>-<short-slug>`, commits the HTML too, and uses `/ak:git cp` to stage/commit/push; opens no PR.",
-   "Final issue update: an 'Issue-to-Plan Handoff' comment with decision, branch, plan path, HTML, AgentWiki, validation, red-team, open questions, a summary of EVERY phase, and the next command.",
-   "Applies `--plan-ready-label` when the plan is clean, or `--decision-label` when decisions are needed; never edits the issue title or body.",
-   "Ends with a Completion Report (Source, Decision, Branch/worktree, Plan, AgentWiki, Validation/red-team, Labels, open questions)."
+   "Resolves the repo, reads the issue with `gh`, and scouts evidence via `/ak:scout`.",
+   "Brainstorm gate picks one: plan, needs decisions, duplicate, reject/defer, or not worth it.",
+   "Posts an evaluation comment and labels first; non-plan outcomes stop with no branch or push.",
+   "Plans with `/ak:plan --html --wiki`, then always runs validate and red-team and applies findings.",
+   "Commits and pushes via `/ak:git cp`, posts a handoff comment, and applies the ready or decision label."
   ],
   "useWhen": [
-   "You have a feature/bug GitHub issue and want one command to produce a validated, red-teamed plan ready for plan audit.",
-   "You want to filter issues before planning effort: the brainstorm gate blocks duplicates, already-done work, and low-value issues.",
-   "Your team hands off between planning and implementation with labels (e.g. 'ready for plan audit', 'need decisions').",
-   "You want the plan saved as files on its own branch with a comment linking back to the issue."
+   "You want one command from a GitHub issue to a plan ready for audit.",
+   "You want to filter out duplicates and low-value issues before planning effort.",
+   "Your team hands off planning to implementation via labels."
   ],
   "avoidWhen": [
-   "You want to go straight from issue to an implemented PR: use `ak:vibe`.",
-   "There is no GitHub issue, only an idea: use `ak:brainstorm`, then `ak:plan`.",
-   "You need to implement an audited plan: use `ak:cook`.",
-   "You are preparing a long /goal run: use `ak:goal-warmup`.",
-   "`gh` lacks permission to comment, create labels, or push: the skill stops; grant access first."
+   "Issue straight to implemented PR: use `ak:vibe`.",
+   "No issue, only an idea: use `ak:brainstorm`, then `ak:plan`.",
+   "Implementing an audited plan: use `ak:cook`."
   ],
   "params": [
    {
     "name": "<github-issue-url | issue-number>",
     "kind": "arg",
-    "desc": "Full issue URL or issue number. For URLs, the skill compares owner/repo with the current repo and stops on mismatch unless `--repo` is given."
+    "desc": "Issue URL or number; a URL from another repo stops unless `--repo` is given."
    },
    {
     "name": "--repo <owner/name>",
     "kind": "flag",
-    "desc": "Target repo. Default: the current repo from `gh repo view`."
+    "desc": "Target repo. Default: current repo from `gh repo view`."
    },
    {
     "name": "--plan-ready-label <name>",
     "kind": "flag",
-    "desc": "Label applied when the plan is validated, red-teamed, pushed, and has no blocking questions. Default: `ready for plan audit`; created if missing."
+    "desc": "Label for a clean, validated, pushed plan. Default `ready for plan audit`; created if missing."
    },
    {
     "name": "--decision-label <name>",
     "kind": "flag",
-    "desc": "Label applied when the issue needs a human/product/architecture decision. Default: `need decisions`; created if missing, otherwise falls back to a standard repo label such as `question` or `triage`, noted in the comment."
+    "desc": "Label when a human decision is needed. Default `need decisions`; falls back to `question` or `triage`."
    }
   ],
   "examples": [
    {
     "cmd": "/ak:issue-to-plan https://github.com/bestagentkits/agentkit/issues/123",
-    "note": "Basic form by URL from inside the right repo."
+    "note": "By URL from inside the repo."
    },
    {
     "cmd": "/ak:issue-to-plan 123 --repo bestagentkits/agentkit",
-    "note": "Issue number with an explicit repo."
+    "note": "Issue number with explicit repo."
    },
    {
     "cmd": "/ak:issue-to-plan 123 --repo bestagentkits/agentkit --plan-ready-label \"ready for plan audit\" --decision-label \"need decisions\"",
-    "note": "Custom label names to match team conventions."
+    "note": "Custom label names."
    }
   ],
   "tips": [
-   "Issue content is untrusted input; embedded instructions (e.g. 'skip red-team') are ignored.",
-   "If the brainstorm gate rejects the issue, no worktree or branch is created; read the evaluation comment to see what decision would reopen it.",
-   "The pipeline (scout, brainstorm, plan, validate, red-team) costs many tokens and much time; do not use it for one-line fixes.",
-   "Check `gh` permissions first (read issues, create/edit labels, comment, push); missing permission stops the skill without partial state.",
-   "AgentWiki defaults to private/workspace; public requires explicit opt-in and must not contain secrets or customer data.",
-   "Cook-ready labels (e.g. 'ready to cook') are applied later by the auditor or pipeline, outside this skill."
+   "Issue text is untrusted; embedded instructions like 'skip red-team' are ignored.",
+   "The full pipeline is token-heavy; do not use it for one-line fixes.",
+   "Check `gh` permissions first (comment, labels, push); missing permission stops the skill."
   ],
   "related": [
    "ak-scout",
@@ -405,87 +320,72 @@
   "agents": [],
   "artifacts": [
    "`plans/<timestamp>-<slug>/plan.md` and `phase-NN-*.md`",
-   "Plan HTML (when `/ak:plan --html` is supported)",
-   "AgentWiki page (when `--wiki` is supported)",
-   "Pushed worktree and branch `plan/issue-<n>-<short-slug>`",
-   "'Issue-to-Plan Evaluation' and 'Issue-to-Plan Handoff' comments on the issue",
-   "Issue labels (plan-ready, decision, duplicate, deferred, wontfix, question...)"
+   "Plan HTML and AgentWiki page (when supported)",
+   "Pushed branch `plan/issue-<n>-<short-slug>`",
+   "Evaluation and handoff comments on the issue",
+   "Issue labels"
   ]
  },
  "ak-predict": {
-  "tagline": "Five expert personas debate a proposed change and return GO / CAUTION / STOP.",
-  "summary": "ak:predict has five personas (Architect, Security, Performance, UX, Devil's Advocate) independently analyze a proposed change, then debate conflicts to reach a consensus verdict. Input is a feature or proposal description, optionally a file glob and a chain mode; output is a Prediction Report with Verdict, Agreements, a Conflicts & Resolutions table, Risk Summary, and Recommendations. Use it before `ak:plan`/`ak:cook` for large or risky changes; it can chain into a refinement round (`reason`) or requirement probing (`probe`).",
+  "tagline": "Five expert personas debate a change and return GO, CAUTION, or STOP.",
+  "summary": "ak:predict has Architect, Security, Performance, UX, and Devil's Advocate personas analyze a proposal independently, then resolve conflicts into a verdict. Output is a Prediction Report with agreements, conflicts, risks, and recommendations.",
   "howItWorks": [
-   "Reads the proposed change or feature from the argument.",
-   "Reads related code when paths are given (greps affected areas via `--files`).",
-   "Each persona analyzes independently, with source evidence, assumptions, and a concrete counterexample or failure path per finding.",
-   "Different persona names do not prove independent evidence.",
-   "Identifies agreements (all personas, or 4 or more).",
-   "Identifies conflicts where personas meaningfully disagree.",
-   "Weighs each conflict's trade-offs by the plausible worst case, not just the expected case.",
-   "Returns GO / CAUTION / STOP with actionable recommendations, merging duplicate root causes and separating consensus from proof.",
-   "Keeps approved scope; reversal proposals are presented as user decisions.",
-   "STOP applies for unmitigable auth bypass or data exposure, fundamental design incompatibility, latency/query explosion with no workaround, or a false assumption that invalidates the approach.",
-   "With `--chain`, continues the chained workflow (reason or probe) in the same predict session."
+   "Reads the proposal and, with `--files`, the related code.",
+   "Each persona analyzes independently with evidence, assumptions, and a concrete failure path per finding.",
+   "Finds agreements and conflicts, weighing each conflict by its plausible worst case.",
+   "Returns GO / CAUTION / STOP; STOP means unmitigable auth, design, performance, or false-assumption problems.",
+   "Presents scope reversals as your decision; `--chain` continues into reason or probe."
   ],
   "useWhen": [
-   "Before implementing a large or high-risk feature (e.g. adding WebSockets, multi-tenancy).",
-   "Before a major refactor or architecture change (REST to GraphQL, JWT to session cookies).",
-   "Comparing competing technical approaches.",
-   "Stress-testing the assumptions in a proposed design."
+   "Before a large or high-risk feature such as WebSockets or multi-tenancy.",
+   "Before a major refactor or architecture change.",
+   "Comparing competing approaches or stress-testing design assumptions."
   ],
   "avoidWhen": [
-   "Small, low-risk changes; for bugs use `ak:debug`.",
-   "Decisions already made with no open design questions: use `ak:plan`.",
-   "Dependency version bumps with no API change.",
-   "Detailed edge cases/QA scenarios: use `ak:scenario`; a full security audit: use `ak:security`."
+   "Small, low-risk changes or bugs: use `ak:debug`.",
+   "Decisions already made: use `ak:plan`.",
+   "Detailed edge cases: use `ak:scenario`; a full security audit: use `ak:security`."
   ],
   "params": [
    {
     "name": "<feature description or change proposal>",
     "kind": "arg",
-    "desc": "The feature or change proposal to debate. Required."
+    "desc": "Required. The feature or change to debate."
    },
    {
     "name": "--files <glob>",
     "kind": "flag",
-    "desc": "Glob of related files (e.g. `src/api/**/*.ts`) so personas read real code and grep affected areas instead of inferring from the description."
+    "desc": "Related files (e.g. `src/api/**/*.ts`) so personas cite real code instead of guessing."
    },
    {
     "name": "--chain reason",
     "kind": "flag",
-    "desc": "After the verdict, runs a subjective refinement loop: generate, critique, synthesize, blind judge, repeat until convergence. Use when the verdict is CAUTION with subjective trade-offs (architectural polish, design consistency). Runs only as part of a predict session."
+    "desc": "After the verdict, refine subjective trade-offs until convergence. Use for CAUTION on polish or consistency."
    },
    {
     "name": "--chain probe",
     "kind": "flag",
-    "desc": "After the verdict, runs saturation-style requirement probing to harvest missing constraints and unstated assumptions. Use when the verdict is CAUTION or STOP due to 'missing constraint' or 'unstated assumption' findings. Runs only as part of a predict session."
+    "desc": "After the verdict, probe for missing constraints and unstated assumptions. Use when those caused CAUTION or STOP."
    }
   ],
   "examples": [
    {
     "cmd": "/ak:predict \"Add WebSocket support for real-time notifications\"",
-    "note": "Evaluate a new feature with performance and security risk."
+    "note": "Feature with performance and security risk."
    },
    {
     "cmd": "/ak:predict \"Replace REST API with GraphQL\" --files src/api/**/*.ts",
-    "note": "Personas read existing API code so evidence is source-based."
+    "note": "Source-based evidence."
    },
    {
     "cmd": "/ak:predict \"Pick auth library: Passport vs Better Auth\" --chain reason",
-    "note": "Choice with many subjective factors; refine until convergence."
-   },
-   {
-    "cmd": "/ak:predict \"Move from REST to GraphQL\" --chain probe",
-    "note": "Suspected missing constraints or assumptions; probe the requirements."
+    "note": "Refine subjective trade-offs."
    }
   ],
   "tips": [
-   "GO requires evidence supporting the design, not just personas agreeing with each other.",
-   "Always pass `--files` when code exists; without code, personas speculate generically.",
-   "Feed Risk Summary lines into `ak:scenario`, Recommendations into `ak:plan` as constraints, and CAUTION/STOP items into `ak:cook` as acceptance gates.",
-   "If the verdict suggests reversing approved scope, the skill presents it as your choice and does not change it.",
-   "Chain modes add significant token cost; enable them only when the verdict is CAUTION/STOP for the matching reason."
+   "GO needs supporting evidence, not just personas agreeing.",
+   "Always pass `--files` when code exists; otherwise personas speculate.",
+   "Chain modes cost many tokens; use them only for the matching CAUTION/STOP reason."
   ],
   "related": [
    "ak-scenario",
@@ -496,73 +396,59 @@
   ],
   "agents": [],
   "artifacts": [
-   "Prediction Report in the conversation (Verdict, Agreements, Conflicts & Resolutions, Risk Summary, Recommendations); no file written."
+   "Prediction Report in the conversation; no file."
   ]
  },
  "ak-problem-solving": {
-  "tagline": "Systematic unsticking: pick the right technique for how you are stuck.",
-  "summary": "ak:problem-solving offers five reframing techniques for different kinds of stuck: Simplification Cascades, Collision-Zone Thinking, Meta-Pattern Recognition, Inversion Exercise, and Scale Game, plus a When Stuck dispatch table. Input is a description of the problem; output is a reframing with the chosen technique, how it applies, and an unblocking path with a next action. Use it mid-implementation or mid-design; code or test failures go to debugging, and `--ultra` turns it into a verified best-of-5 run.",
+  "tagline": "Pick the right reframing technique for how you are stuck.",
+  "summary": "ak:problem-solving matches your kind of stuck to one of five techniques: Simplification Cascades, Collision-Zone Thinking, Meta-Pattern Recognition, Inversion Exercise, or Scale Game. It returns a reframing and an unblocking next action; `--ultra` runs a verified best-of-5.",
   "howItWorks": [
-   "Identifies the kind of stuck with the Quick Dispatch table.",
-   "Same thing done 5+ ways or growing special cases: Simplification Cascades.",
-   "Conventional solutions fall short: Collision-Zone Thinking. Same problem in many places: Meta-Pattern Recognition.",
-   "A forced 'it must be done this way' solution: Inversion Exercise. Unsure it holds in production/edge cases: Scale Game. Unclear: When Stuck.",
-   "Loads that technique's reference from `references/` (e.g. `simplification-cascades.md`, `scale-game.md`, `when-stuck.md`).",
-   "Applies it systematically following the technique's process.",
-   "Records insights: what worked and what failed.",
-   "Stops at an actionable result: returns once a supported decision or a discriminating test unblocks the work.",
-   "Combines techniques (e.g. Simplification + Meta-pattern, Collision + Inversion, Scale + Simplification, Meta-pattern + Scale) only if the first fails; never runs all five by default.",
-   "For broken code or failing tests, the When Stuck table routes to debugging; if nothing helps, reframe the problem, narrow scope, or question constraints.",
-   "With `--ultra`, the controller builds an immutable evidence packet (problem, attempts, constraints, symptoms) and a rubric.",
-   "It dispatches five read-only candidates in parallel; the strongest verifier scores them and picks the winning reframing verbatim, or rejects all (hard stop with reasons)."
+   "Dispatch: growing special cases to Simplification; failing conventions to Collision-Zone; repeated problems to Meta-Pattern.",
+   "Forced 'only one way' goes to Inversion; scale doubts to Scale Game; unclear to When Stuck.",
+   "Loads that technique's reference, applies it, and stops once a decision or test unblocks work.",
+   "Combines techniques only if the first fails; broken code routes to debugging.",
+   "`--ultra` runs five read-only candidates in parallel; a verifier picks one verbatim or rejects all."
   ],
   "useWhen": [
-   "Spiraling complexity: more and more if/else branches, special cases, or implementations of the same thing.",
-   "Conventional solutions are not enough and you need a breakthrough idea.",
-   "The same problem recurs across modules and you keep reinventing the wheel.",
-   "You are locked into 'there is only one way', or unsure the solution survives production scale."
+   "Spiraling complexity: more special cases or duplicate implementations.",
+   "Conventional solutions fall short, or one problem recurs across modules.",
+   "You feel locked into one approach or doubt it survives production scale."
   ],
   "avoidWhen": [
-   "Broken code, failing tests, or wrong behavior: use `ak:debug` or `ak:fix`.",
-   "Choosing among already-clear options: use `ak:brainstorm`.",
-   "A rigorous reasoning protocol for a conclusion: use `ak:fable-thinking`.",
-   "The solution is already known: applying a technique is wasteful."
+   "Broken code or failing tests: use `ak:debug` or `ak:fix`.",
+   "Choosing among clear options: use `ak:brainstorm`.",
+   "The solution is already known."
   ],
   "params": [
    {
     "name": "[problem description]",
     "kind": "arg",
-    "desc": "The problem you are stuck on; include symptoms and what you tried so the right technique matches."
+    "desc": "The problem, with symptoms and what you tried."
    },
    {
     "name": "--ultra",
     "kind": "flag",
-    "desc": "Loads `references/ultra-mode.md` only when passed explicitly: a best-of-5 verifier run with five independent read-only candidates in parallel, each giving a full reframing (technique + symptom match, concrete application, unblocking path). The verifier scores symptom-technique fit, depth of application, actionability, and honesty about unknowns, then picks one verbatim or rejects all. Fail-closed: stops if the runtime cannot dispatch five parallel subagents."
+    "desc": "Best-of-5: five parallel read-only reframings scored by a verifier, which picks one or rejects all. Stops if five subagents cannot run."
    }
   ],
   "examples": [
    {
     "cmd": "/ak:problem-solving \"The pricing function has 14 special cases and still needs more\"",
-    "note": "Complexity spiral symptom: leads to Simplification Cascades."
-   },
-   {
-    "cmd": "/ak:problem-solving \"Retry, rate limiting, and cache invalidation are rewritten in every service\"",
-    "note": "Problem repeated in many places: Meta-Pattern Recognition."
+    "note": "Simplification Cascades."
    },
    {
     "cmd": "/ak:problem-solving \"Not sure the current queue can handle 1000x load\"",
-    "note": "Unclear scale limits: Scale Game."
+    "note": "Scale Game."
    },
    {
     "cmd": "/ak:problem-solving \"Every offline sync design breaks on conflicts\" --ultra",
-    "note": "Hard block; five independent reframings with a verifier picking the best."
+    "note": "Five reframings, verifier picks the best."
    }
   ],
   "tips": [
-   "Concrete symptoms ('just added the 6th case') dispatch the right technique better than 'I'm stuck'.",
-   "Use one technique at a time; combine only when the first fails on an observable problem.",
-   "Watch for red flags: 'just one more case', 'this problem is unique', 'there is only one way', 'it will probably scale'.",
-   "`--ultra` costs about five candidates plus a verifier; it pays off only when output can be verified, and adds cost with little signal for taste-only work."
+   "Concrete symptoms ('just added the 6th case') dispatch better than 'I'm stuck'.",
+   "Red flags: 'just one more case', 'only one way', 'it will probably scale'.",
+   "`--ultra` costs about six runs; use it only when output is verifiable."
   ],
   "related": [
    "ak-debug",
@@ -573,81 +459,64 @@
    "5 read-only candidate subagents and 1 verifier (Kongming) with `--ultra`"
   ],
   "artifacts": [
-   "Reframing in the conversation; no fixed file written."
+   "Reframing in the conversation; no file."
   ]
  },
  "ak-research": {
   "tagline": "Deep, multi-source, cited technical research before implementation.",
-  "summary": "ak:research investigates technical solutions, evaluates technologies and best practices, and analyzes scalability, security, and maintainability. Input is a topic; output is a research report saved at the `Report:` path under `## Naming`, with timestamp, citations, next steps, and open questions. It runs four phases (scope, parallel multi-source web search, synthesis, report) before `ak:plan`/`ak:brainstorm`; `--ultra` runs a verified best-of-5 and `--yagni` cuts unneeded scope.",
+  "summary": "ak:research scopes a topic, searches many sources in parallel, synthesizes trade-offs, and saves a cited report at the `Report:` path in `## Naming`. `--ultra` runs a verified best-of-5 and `--yagni` cuts unneeded scope.",
   "howItWorks": [
-   "Phase 1 Scope Definition: key terms and concepts, freshness requirements, source evaluation criteria, and depth limits.",
-   "Phase 2 Information Gathering: uses the runtime's native web_search, running queries in parallel when possible.",
-   "Prefers official docs, GitHub repos, and reputable blogs; uses `ak:docs-seeker` to read GitHub repo URLs.",
-   "Checks READMEs, changelogs, release notes, and official-channel videos.",
-   "Cross-checks independent sources, checks publication dates, and notes consensus and disagreement.",
-   "Respects the user's budget if given; otherwise stops when questions are credibly covered, disagreements explained, and gaps recorded, with no arbitrary tool-call cap.",
-   "Phase 3 Analysis and Synthesis: patterns and best practices, pros/cons of approaches, maturity, security and performance impact, compatibility/integration needs.",
-   "Phase 4 Report Generation: saves to the `Report:` path in `## Naming` (asks the main agent if missing).",
-   "Broad deliverables use `references/report-template.md` selectively; narrow questions need only the answer, sources, scope/version, and uncertainty.",
-   "Quality bar: accurate, current (prefers the last 12 months), complete, actionable, clear, and cited.",
-   "Security topics must check recent CVEs/advisories; performance topics look for benchmarks; deprecations and migration paths are noted.",
-   "Reports lead with the conclusion, carry a timestamp, a table of contents for long reports, code blocks, mermaid/ASCII diagrams when useful, concrete next steps, and open questions at the end.",
-   "With `--ultra`, builds an immutable evidence packet (topic, Phase 1 scope, freshness needs, criteria) and a rubric.",
-   "It dispatches exactly five read-only researcher candidates in parallel, each running Phases 2-4.",
-   "The strongest verifier picks the winning report verbatim (the controller saves it with a short ranking appendix) or rejects all and hard-stops."
+   "Scopes key terms, freshness needs, source criteria, and depth.",
+   "Searches in parallel, preferring official docs and repos; cross-checks sources and dates.",
+   "Synthesizes best practices, pros/cons, maturity, security, performance, and compatibility; checks CVEs for security topics.",
+   "Saves the report to the `Report:` path, or asks if missing; narrow questions get a short cited answer.",
+   "`--ultra` runs five researcher candidates in parallel; a verifier picks one report or rejects all."
   ],
   "useWhen": [
-   "Evaluating and comparing technologies or libraries before choosing (e.g. ORM, auth library, message broker).",
-   "Finding current best practices, breaking changes, and migration paths for a framework.",
-   "Analyzing the scalability, security, and maintainability of a planned architecture.",
+   "Comparing technologies or libraries before choosing one.",
+   "Finding current best practices, breaking changes, and migration paths.",
    "You need a cited report as input for `ak:plan` or `ak:brainstorm`."
   ],
   "avoidWhen": [
-   "You only need a research brief to hand to someone or another AI: use `ak:research-prompt`.",
-   "You only need docs for a specific API or library: use `ak:docs-seeker`.",
-   "You need to find files in the codebase: use `ak:scout`."
+   "Only a brief to hand to someone else: use `ak:research-prompt`.",
+   "Docs for a specific library: use `ak:docs-seeker`.",
+   "Finding files in the codebase: use `ak:scout`."
   ],
   "params": [
    {
     "name": "[topic]",
     "kind": "arg",
-    "desc": "The research topic or question."
+    "desc": "Research topic or question."
    },
    {
     "name": "--ultra",
     "kind": "flag",
-    "desc": "Best-of-5 verifier: five independent read-only researcher candidates in parallel, scored on source quality and freshness, cross-verification, scope coverage, actionability, and honesty about conflicting evidence; the verifier picks one report verbatim or rejects all. Fail-closed if the runtime cannot dispatch five parallel candidates. Combines with `--yagni`."
+    "desc": "Best-of-5: five parallel researchers scored on sources, freshness, and actionability; verifier picks one or rejects all. Fail-closed; combines with `--yagni`."
    },
    {
     "name": "--yagni",
     "kind": "flag",
-    "desc": "Beyond KISS/DRY, challenges and cuts any scope not needed for the stated outcome. Without it, the skill delivers the full requested scope."
+    "desc": "Cut any scope not needed for the stated outcome. Without it, the full requested scope is delivered."
    }
   ],
   "examples": [
    {
     "cmd": "/ak:research \"Compare Drizzle, Prisma, and Kysely for Postgres in 2026\"",
-    "note": "Multi-source technology evaluation that needs fresh information."
+    "note": "Multi-source technology evaluation."
    },
    {
     "cmd": "/ak:research \"Rate limiting best practices for multi-tenant APIs\" --yagni",
-    "note": "Keep only what the outcome needs; drop unneeded extensions."
+    "note": "Only what the outcome needs."
    },
    {
     "cmd": "/ak:research \"Next.js 15 to 16 migration strategy\" --ultra",
-    "note": "Important decision; five independent reports with a verifier picking the best."
-   },
-   {
-    "cmd": "/ak:research \"Recent CVEs in the xml2js library\"",
-    "note": "Security topic: the skill must check recent CVEs and advisories."
+    "note": "Big decision; five reports, best one kept."
    }
   ],
   "tips": [
-   "Reports are saved at the `Report:` path in `## Naming` (e.g. `plans/reports/`); if missing, the skill asks for a path.",
-   "Narrow questions get a short cited answer, not the full report template; say so if you want a full report.",
-   "Legacy keys `skills.research.useGemini` and `gemini.model` in `.claude/.ck.json` are compatibility inputs only and no longer enable the Gemini CLI.",
-   "`--ultra` costs about five research runs plus a verifier; use it for big decisions, not lookups.",
-   "Check source publication dates; the skill prefers the last 12 months unless historical context is needed."
+   "Reports go to the `Report:` path (e.g. `plans/reports/`); the skill asks if none is set.",
+   "Ask explicitly for a full report on narrow questions.",
+   "`--ultra` costs about six research runs; use it for big decisions only."
   ],
   "related": [
    "ak-research-prompt",
@@ -660,62 +529,50 @@
    "5 read-only candidate researchers and 1 verifier (Kongming) with `--ultra`"
   ],
   "artifacts": [
-   "Markdown research report at the `Report:` path in `## Naming` (usually `plans/reports/...`)",
-   "Short ranking appendix with `--ultra`"
+   "Markdown report at the `Report:` path (usually `plans/reports/`)",
+   "Ranking appendix with `--ultra`"
   ]
  },
  "ak-research-prompt": {
-  "tagline": "Draft a self-contained research brief for a human or AI; does no research itself.",
-  "summary": "ak:research-prompt writes a self-contained research brief, structured by complexity, with enough context for a researcher (human or deep-research AI) to deliver decision-ready, sourced results without follow-up questions. Input is a research topic or decision; output is the brief only. It does not do the research; run the brief with `ak:research` or another research runner.",
+  "tagline": "Write a self-contained research brief; does no research itself.",
+  "summary": "ak:research-prompt writes a brief detailed enough for a human or deep-research AI to deliver sourced, decision-ready results without follow-up questions. Run the brief with `ak:research` or another tool.",
   "howItWorks": [
-   "Gathers the decision, audience, deadline, known facts, constraints, and intended use from the conversation and relevant project files.",
-   "Describes the project and situation for a reader with no prior context.",
-   "Defines a single research question and the decision it serves.",
-   "Adds only the sub-questions needed to cover the decision; does not bundle unrelated tasks.",
-   "Specifies include/avoid constraints and a source hierarchy: primary sources first (official docs, repos, papers, filings, changelogs); forums and social media are weak signals.",
-   "Specifies conflict handling: separate confirmed facts, inferences, and uncertainty.",
-   "Adds a gap round to revisit contradictions and single-source claims, plus a completion threshold.",
-   "Defines the per-finding format (source URL, specific claim, one line on relevance to the decision) and asks for one detailed Markdown result.",
-   "Returns only the brief: one paragraph for simple decisions or when asked, short sections for many questions/constraints; no research and no second deliverable."
+   "Gathers decision, audience, deadline, known facts, and constraints from the conversation and project.",
+   "Defines one research question, needed sub-questions, and a primary-sources-first hierarchy.",
+   "Requires separating facts, inferences, and uncertainty, plus a gap round and completion threshold.",
+   "Returns only the brief, sized to the decision; no research and no second deliverable."
   ],
   "useWhen": [
-   "Handing work to a deep-research tool (ChatGPT/Gemini Deep Research, Perplexity) or a colleague.",
-   "You need a research prompt strict about sources and format so results are comparable.",
-   "A big decision needs research, but you want the question and criteria settled before spending effort.",
-   "You want to separate 'asking the right question' from 'finding the answer'."
+   "Handing work to a deep-research tool or a colleague.",
+   "You need strict source and format rules so results are comparable.",
+   "You want the question settled before spending research effort."
   ],
   "avoidWhen": [
-   "You want the agent to research right away: use `ak:research`.",
+   "You want the research done now: use `ak:research`.",
    "You need a library's docs: use `ak:docs-seeker`.",
-   "You need marketing copy or speculative solution proposals: the skill deliberately does not do this.",
-   "You need to interview the user to produce documents: use `ak:interview-docs`."
+   "You need an interview to produce documents: use `ak:interview-docs`."
   ],
   "params": [
    {
     "name": "<research topic | decision>",
     "kind": "arg",
-    "desc": "The research topic or the decision to inform. The skill has no flags."
+    "desc": "Topic or decision to inform. No flags."
    }
   ],
   "examples": [
    {
     "cmd": "/ak:research-prompt \"Choose a vector database for RAG over 10 million documents\"",
-    "note": "Draft a brief to paste into a deep-research tool."
+    "note": "Brief for a deep-research tool."
    },
    {
     "cmd": "/ak:research-prompt \"Should we move CI from GitHub Actions to Buildkite\"",
-    "note": "Decision with sub-questions on cost, security, and migration."
-   },
-   {
-    "cmd": "/ak:research-prompt \"Personal data storage regulations for a fintech app in Vietnam\"",
-    "note": "Brief demands primary sources (legal texts) and separates facts from inference."
+    "note": "Sub-questions on cost, security, migration."
    }
   ],
   "tips": [
-   "Briefs must not contain secrets, internal URLs, credentials, or personal data, since they are sent outside.",
-   "One brief, one task; split unrelated questions into separate briefs.",
-   "Token cost is very low because the skill only writes text; run the brief with `ak:research` afterward if you want the agent to do it.",
-   "Provide a deadline and audience so the brief sets the right completion threshold."
+   "Keep secrets, internal URLs, and personal data out of briefs sent outside.",
+   "One brief per task; split unrelated questions.",
+   "Give a deadline and audience to set the completion threshold."
   ],
   "related": [
    "ak-research",
@@ -724,81 +581,64 @@
   ],
   "agents": [],
   "artifacts": [
-   "Research brief as text in the conversation; no file written."
+   "Research brief in the conversation; no file."
   ]
  },
  "ak-scout": {
-  "tagline": "Fast, token-cheap codebase scouting to find the files a task needs.",
-  "summary": "ak:scout finds files and gathers context for a task using native search, optionally splitting work across parallel Explore subagents or using OpenCode when the user allows it. Input is a search target (optionally `ext` or `--ultra`); output is a Scout Report listing relevant files with their roles and unresolved questions. For a single path or symbol it searches locally and answers directly; it usually runs before `ak:fix`, `ak:debug`, `ak:brainstorm`, and code review.",
+  "tagline": "Fast, cheap codebase scouting to find the files a task needs.",
+  "summary": "ak:scout finds relevant files with native search and returns a Scout Report of files, roles, and unresolved questions. Single path or symbol lookups get a direct answer; parallel subagents run only when you ask.",
   "howItWorks": [
-   "Fast path: for one pathname or symbol, searches locally and returns the verified path and role directly, with no separate report.",
-   "Reuses the source map when the revision and relevant files are unchanged.",
-   "Analyze Task: parses the search target, identifies directories, patterns, file types, and lines of code, and estimates SCALE (number of subagents).",
-   "Uses multiple `search_files` patterns to find files and size the codebase.",
-   "Divide and Conquer: splits the codebase into non-overlapping logical chunks, each fitting one subagent context window.",
-   "Register Scout Work (skipped for 2 agents or fewer): registers each scope on the task-management surface or updates the active plan.",
-   "Spawns parallel Explore subagents (reference `internal-scouting.md`) only when the user explicitly asks for delegation/parallelism AND the runtime allows `delegate_agent` AND each scope has distinct work.",
-   "Otherwise it scouts in the main agent with `search_files`/`read_file`/`run_shell`.",
-   "With `ext`: uses OpenCode (`opencode run ... --model opencode/grok-code`) for bounded read-only scopes when local search is not enough and the user allows it.",
-   "It checks `command -v opencode` first, never auto-retries, and falls back to local search after two failures; Antigravity must go through `ak:orchestrate`.",
-   "Reads large files in chunks of about 500 lines (`wc -l`, then `sed -n`).",
-   "Collect Results: 3-minute timeout per agent (unresponsive agents are skipped, not restarted); dedupes paths, merges descriptions, and records timed-out scopes.",
-   "Calls the project-organization skill to organize output and emits a Scout Report with Relevant Files and Unresolved Questions.",
-   "With `--ultra`: an immutable evidence packet and rubric, exactly five parallel read-only scout candidates, and a verifier that returns a deduped, evidence-verified union of findings.",
-   "Unverifiable paths are dropped; there is no downgrade to main-agent scouting, so failing to dispatch five candidates is a hard stop."
+   "Answers one path or symbol directly with no report.",
+   "Sizes the codebase and splits it into non-overlapping scopes.",
+   "Spawns parallel Explore subagents only if you ask and the runtime allows; otherwise scouts inline.",
+   "`ext` uses OpenCode read-only when local search falls short; agents time out after 3 minutes.",
+   "`--ultra` runs five scouts in parallel and a verifier returns a deduped, verified union."
   ],
   "useWhen": [
-   "Starting a feature that spans several directories and you need to know which files matter.",
-   "The user wants to 'find', 'locate', or 'search for' files, or asks where feature X lives.",
-   "Starting a debugging session that requires understanding file relationships.",
+   "Starting a feature that spans several directories.",
+   "Finding where feature X lives, or file relationships before debugging.",
    "Before a change that may affect many parts of the codebase."
   ],
   "avoidWhen": [
-   "You already know exactly which file to read: read it directly.",
-   "You need deep semantic analysis (go-to-definition, impact analysis): use `ak:gkg` or `ak:graphify`.",
-   "You need to pack the whole repo as LLM context: use `ak:repomix`.",
-   "You need research outside the codebase: use `ak:research`."
+   "You already know which file to read.",
+   "Deep semantic analysis: use `ak:gkg` or `ak:graphify`.",
+   "Packing the whole repo as context: use `ak:repomix`."
   ],
   "params": [
    {
     "name": "[search-target]",
     "kind": "arg",
-    "desc": "What to find: a feature, symbol, path, or task description. Defaults to local search for one owner/path; splits into independent scopes only when delegation is allowed and useful."
+    "desc": "Feature, symbol, path, or task to find. Splits into scopes only when delegation is allowed and useful."
    },
    {
     "name": "ext",
     "kind": "subcommand",
-    "desc": "Scout with user-permitted OpenCode probes when native/local search is not enough (reference `external-scouting.md`). Read-only; never sends large private files wholesale to the external CLI; falls back to local search if OpenCode is not installed."
+    "desc": "Use permitted OpenCode probes when local search falls short. Read-only; falls back to local search if OpenCode is missing."
    },
    {
     "name": "--ultra",
     "kind": "flag",
-    "desc": "Best-of-5 verifier scouting: five parallel read-only candidates from the same evidence packet, scored on coverage, evidence quality, signal density, and honesty about gaps; the verifier returns a deduped, verified union. Fail-closed, with no downgrade to main-agent scouting."
+    "desc": "Best-of-5: five parallel read-only scouts; verifier returns a deduped, verified union. Fail-closed, no fallback to inline scouting."
    }
   ],
   "examples": [
    {
     "cmd": "/ak:scout \"files related to authentication and sessions\"",
-    "note": "Default scout; returns a Scout Report of relevant files."
+    "note": "Default Scout Report."
    },
    {
     "cmd": "/ak:scout \"payment webhook handler\" ext",
-    "note": "Large codebase where local search falls short and you allow OpenCode."
+    "note": "Large codebase; OpenCode allowed."
    },
    {
     "cmd": "/ak:scout \"the entire data migration flow\" --ultra",
-    "note": "Maximum coverage before a risky change; five scout runs merged and verified."
-   },
-   {
-    "cmd": "/ak:scout \"use parallel subagents to find every billing API call\"",
-    "note": "Explicit delegation request, so the skill may spawn several Explore agents by directory."
+    "note": "Maximum coverage before a risky change."
    }
   ],
   "tips": [
-   "To get parallel Explore subagents, ask for it explicitly; otherwise the skill scouts inline (similar results, just slower).",
-   "Each agent times out after 3 minutes and is not restarted; timed-out scopes appear in the report, so read Unresolved Questions.",
-   "A single symbol lookup produces no report and is very cheap; only multi-domain work runs the full workflow.",
-   "`--ultra` costs about five scouts plus a verifier and requires a runtime that supports five parallel subagents."
+   "Ask explicitly for parallel subagents; otherwise scouting runs inline.",
+   "Timed-out scopes are listed; read Unresolved Questions.",
+   "`--ultra` needs a runtime that supports five parallel subagents."
   ],
   "related": [
    "ak-fix",
@@ -814,61 +654,49 @@
   ],
   "artifacts": [
    "Markdown Scout Report (Relevant Files, Unresolved Questions)",
-   "Scope tracking entries on the task surface or active plan when 3 or more agents run"
+   "Scope tracking entries when 3+ agents run"
   ]
  },
  "ak-sowat": {
-  "tagline": "Review recent work like a product owner: so what, and what matters now.",
-  "summary": "ak:sowat ('so what') analyzes recently implemented work and related issues from the view of a product owner accountable for user and business outcomes. Input is recent changes, an issue, or a PR; output is a short, opinionated take: product meaning, a priority correction if needed, up to three next steps with success signals, and what to defer. It only analyzes and recommends: no implementing, no issue state changes, and no invented customer, revenue, or usage data.",
+  "tagline": "Review recent work like a product owner: so what, what next.",
+  "summary": "ak:sowat judges recent work, issues, or PRs by user and business outcome, correcting priorities when evidence supports it. It returns up to three next steps with success signals, and never implements, changes issues, or invents data.",
   "howItWorks": [
-   "Establishes the intended user outcome and the strongest evidence of what was actually implemented, verified, shipped, and still open.",
-   "Links only truly related issues: dependencies, regressions, adoption blockers, follow-on opportunities.",
-   "Scores each candidate on user impact, urgency, confidence, effort, risk, dependency leverage, and whether it unlocks learning or delivery.",
-   "Picks the few actions with real impact; deprioritizes polish, internal elegance, and busywork that does not change outcomes.",
-   "Corrects the user's priorities directly when evidence supports it: what they focus on, why it is lower value, and where attention should go.",
-   "It never pushes back for show without a concrete trade-off.",
-   "Proposes up to three ordered next steps, each with an action, a 'why now', and an observable success signal.",
-   "Output template: So what, Priority correction (only when focus is significantly off), Next steps, Defer or ignore (optional).",
-   "Separates facts from inference and says so when evidence is missing."
+   "Establishes the intended outcome and what was actually implemented, verified, shipped, and still open.",
+   "Scores candidates on impact, urgency, confidence, effort, risk, and leverage.",
+   "Corrects your priorities directly when evidence supports it, never for show.",
+   "Outputs So what, Priority correction, up to three Next steps, and Defer or ignore."
   ],
   "useWhen": [
-   "You just finished a feature and want to know what it means for users and what to do next.",
-   "You suspect the team is focused on the wrong thing (polishing a new feature while onboarding is broken).",
-   "Many issues are open and you need a short priority decision instead of a long list.",
-   "You are preparing the next sprint and want an outcome view, not an output view."
+   "You finished a feature and want to know what it means and what's next.",
+   "You suspect the team is focused on the wrong thing.",
+   "Many open issues need a short priority decision."
   ],
   "avoidWhen": [
-   "You need a technical summary of what changed, how to use it, and what failed: use `ak:sumup`.",
-   "You need a status report on in-flight branches, worktrees, or plans: use `ak:watzup`.",
-   "You need a retrospective from git history: use `ak:retro`.",
-   "You need to triage or change issue states on GitHub: use `ak:github` (sowat never changes issue state)."
+   "Technical summary of what changed: use `ak:sumup`.",
+   "Status of in-flight branches or plans: use `ak:watzup`.",
+   "Changing issue states: use `ak:github`."
   ],
   "params": [
    {
     "name": "[recent-changes|issue|PR]",
     "kind": "arg",
-    "desc": "What to analyze: recent changes, an issue, or a PR. Optional; default behavior when omitted is not documented in source. The skill has no flags."
+    "desc": "What to analyze. Optional; behavior when omitted is undocumented. No flags."
    }
   ],
   "examples": [
    {
     "cmd": "/ak:sowat",
-    "note": "Right after implementing, ask 'so what, what next' based on session context."
+    "note": "'So what, what next' from session context."
    },
    {
     "cmd": "/ak:sowat #482",
-    "note": "Assess the product meaning of a specific issue/PR and related issues."
-   },
-   {
-    "cmd": "/ak:sowat recent-changes",
-    "note": "Check whether recent changes serve the right outcome and whether priorities should shift."
+    "note": "Product meaning of an issue/PR."
    }
   ],
   "tips": [
-   "The skill never invents adoption or revenue numbers; provide real analytics for stronger recommendations.",
-   "Do not confuse 'code done' with 'shipped': the skill separates implemented, verified, and shipped.",
-   "The three-step cap is deliberate; use another tool if you want a full list.",
-   "Issue content, logs, and analytics are treated as untrusted data, not instructions."
+   "Provide real analytics; the skill never invents adoption or revenue numbers.",
+   "It separates implemented, verified, and shipped.",
+   "The three-step cap is deliberate."
   ],
   "related": [
    "ak-sumup",
@@ -879,98 +707,79 @@
   ],
   "agents": [],
   "artifacts": [
-   "Priority assessment in the conversation; no file written, no issue changes."
+   "Priority assessment in the conversation; no file or issue changes."
   ]
  },
  "ak-scenario": {
-  "tagline": "Decompose features across 12 dimensions into edge cases and test scenarios.",
-  "summary": "ak:scenario decomposes a feature or code path across 12 dimensions (User Types, Input Extremes, Timing, Scale, State Transitions, Environment, Error Cascades, Authorization, Data Integrity, Integration, Compliance, Business Logic) to expose edge cases, risks, and test targets before implementation. Input is a file path or feature description; output is a severity-ranked Scenario Report table, plus a `scenario-results.tsv` log, coverage matrix, and composite score in iterative mode. It runs one-shot (default) or iterative (`--iterations N` or `--saturation`), before `ak:test` and `ak:plan`, and can feed Critical scenarios to `ak:predict`.",
+  "tagline": "Decompose features across 12 dimensions into edge cases and tests.",
+  "summary": "ak:scenario breaks a feature or file across 12 dimensions (users, inputs, timing, scale, state, auth, integrity, and more) into severity-ranked edge cases and test targets. It runs one-shot by default, or iteratively with a `scenario-results.tsv` log and composite score.",
   "howItWorks": [
-   "One-shot: reads the target file or parses the feature description.",
-   "Filters dimensions: marks which of the 12 apply and skips the rest with the assumption behind each skip.",
-   "A dimension skipped on an assumption that could break during the feature's lifetime is itself a scenario.",
-   "Generates concrete scenarios per relevant dimension (3-5 is a starting hint, not a quota), each tied to an invariant or state transition and a test target; no padding.",
-   "Ranks severity: Critical (data loss, security breach, auth bypass, silent corruption), High, Medium, Low; outputs a table and counts per severity.",
-   "Iterative: builds an understanding of actors, components, and preconditions.",
-   "Each iteration picks an unexplored high-priority dimension or combination and generates ONE concrete situation.",
-   "It classifies it as New / Variant (kept) or Duplicate / Out of scope (dropped with a reason).",
-   "It expands edge cases (what-if, boundaries, interruptions, ordering, missing/stale data), logs one row to `scenario-results.tsv`, and prints a progress summary every 5 iterations.",
-   "After 3 consecutive iterations on one dimension, it forces rotation: Dimension walk, Combination, Negation, Amplification, Persona shift, Temporal shift.",
-   "Stops: `--iterations N` after exactly N iterations; `--saturation` after 2 consecutive iterations with nothing New; always within the declared iteration/time budget.",
-   "Final summary: kept scenarios by dimension, a coverage matrix (dimension x severity), invariant/test mapping, unresolved gaps, and the stop reason.",
-   "Composite score = scenarios x10 + edge cases x15 + dimensions x30 + unique actors x5 + high severity x3; it measures exploration, not correctness or absolute coverage."
+   "One-shot: marks applicable dimensions and states the assumption behind each skip.",
+   "Generates concrete scenarios tied to invariants and test targets, ranked Critical to Low.",
+   "Iterative: one new scenario per iteration, classified New/Variant/Duplicate, logged to `scenario-results.tsv`.",
+   "Forces dimension rotation after 3 iterations on one dimension.",
+   "Stops after N iterations or 2 with nothing New; ends with a coverage matrix and composite score."
   ],
   "useWhen": [
-   "Before implementing a complex or stateful feature (payments, OAuth, multi-tenancy).",
-   "Before writing tests, when you need a prioritized list of test targets.",
-   "Assessing risk during planning or code review; reviewing an API design to expose contract edge cases early.",
+   "Before implementing a complex or stateful feature (payments, OAuth).",
+   "Before writing tests, to get prioritized test targets.",
    "Deep coverage audit before a release (`--saturation`)."
   ],
   "avoidWhen": [
-   "One-line fixes or purely cosmetic UI tweaks.",
-   "Stable, well-tested code that has not changed recently.",
-   "Pure configuration changes with no logic branches.",
-   "A go/no-go debate on the whole design: use `ak:predict`; running real tests: use `ak:test`."
+   "One-line fixes, cosmetic tweaks, or config-only changes.",
+   "A go/no-go debate on the design: use `ak:predict`.",
+   "Running real tests: use `ak:test`."
   ],
   "params": [
    {
     "name": "<file path or feature description>",
     "kind": "arg",
-    "desc": "File path to analyze or a feature description. Required."
+    "desc": "Required. File to analyze or feature description."
    },
    {
     "name": "--iterations N",
     "kind": "flag",
-    "desc": "Bounded loop: runs exactly N iterations, then stops with a summary. No default; without `--iterations` or `--saturation` it runs one-shot."
+    "desc": "Run exactly N iterations. Without it or `--saturation`, runs one-shot."
    },
    {
     "name": "--saturation",
     "kind": "flag",
-    "desc": "Off by default. Iterates until 2 consecutive iterations produce nothing New (a novelty heuristic, not proof of completeness); still respects the declared iteration/time budget and reports remaining uncertainty."
+    "desc": "Iterate until 2 iterations find nothing New; a heuristic, still within the iteration/time budget."
    },
    {
     "name": "--domain <type>",
     "kind": "flag",
-    "desc": "Domain hint for ordering dimension priority: `software`, `product`, `business`, `security`, `marketing`. Default: auto. (In the SKILL.md Flags table, not in argument-hint.)"
+    "desc": "Dimension priority hint: `software`, `product`, `business`, `security`, `marketing`. Default auto."
    },
    {
     "name": "--focus <dim>",
     "kind": "flag",
-    "desc": "Prioritize a dimension group: `edge-cases`, `failures`, `security`, `scale`. Default: auto. (In the Flags table, not in argument-hint.)"
+    "desc": "Prioritize `edge-cases`, `failures`, `security`, or `scale`. Default auto."
    },
    {
     "name": "--format <type>",
     "kind": "flag",
-    "desc": "Output format: `table` (default), `use-cases`, `test-scenarios`, `threat-scenarios`. (In the Flags table, not in argument-hint.)"
+    "desc": "`table` (default), `use-cases`, `test-scenarios`, or `threat-scenarios`."
    }
   ],
   "examples": [
    {
     "cmd": "/ak:scenario src/api/payment.ts",
-    "note": "Default one-shot on a code file."
-   },
-   {
-    "cmd": "/ak:scenario \"User registration with OAuth providers\"",
-    "note": "One-shot from a feature description before implementation."
-   },
-   {
-    "cmd": "/ak:scenario src/api/payment.ts --iterations 25",
-    "note": "Bounded loop of exactly 25 iterations, with a TSV log and composite score."
+    "note": "One-shot on a code file."
    },
    {
     "cmd": "/ak:scenario src/middleware/auth.ts --saturation --domain security",
-    "note": "Iterate to saturation, prioritizing security dimensions; suits pre-release audits."
+    "note": "Pre-release security audit."
    },
    {
     "cmd": "/ak:scenario \"Checkout flow\" --format test-scenarios",
-    "note": "Output as test scenarios to hand straight to `ak:test`."
+    "note": "Test scenarios for `ak:test`."
    }
   ],
   "tips": [
-   "The composite score measures exploration volume, not full coverage; do not use it as a quality KPI.",
-   "`--saturation` can run long and cost many tokens; set a budget or use `--iterations N` to control cost.",
-   "Read 'Dimensions skipped' and the reasons: a wrong skip assumption is a hidden risk.",
-   "Paste Critical/High rows into the risk section of `ak:plan`, or propose Critical scenarios to `ak:predict`."
+   "The composite score measures exploration volume, not coverage quality.",
+   "`--saturation` can be costly; cap it or use `--iterations N`.",
+   "Check skipped dimensions: a wrong skip assumption is a hidden risk."
   ],
   "related": [
    "ak-test",
