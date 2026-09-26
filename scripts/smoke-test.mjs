@@ -1,7 +1,7 @@
 // Mở từng route của site, gom lỗi console/pageerror và chụp ảnh để review.
 import { chromium } from 'playwright';
 import { pathToFileURL } from 'node:url';
-const base = pathToFileURL(process.cwd() + '/site/index.html').href;
+const base = process.env.BASE || pathToFileURL(process.cwd() + '/site/index.html').href;
 const routes = ['home', 'start', 'architecture', 'lifecycle', 'hooks', 'rules', 'agents', 'skills', 'skill/ak-cook', 'skill/ak-plan', 'skill/ak-fix', 'skill/ak-handoff', 'flags', 'workflows', 'chooser', 'tips', 'config', 'cli', 'troubleshoot', 'sources'];
 const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
