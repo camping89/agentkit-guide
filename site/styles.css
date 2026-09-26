@@ -140,3 +140,11 @@ table.matrix th:first-child { z-index: 3; }
   .layer, .two-col { grid-template-columns: 1fr; }
   .hero h1 { font-size: 1.9rem; }
 }
+
+/* i18n: hide the inactive language */
+html[data-lang="en"] [lang="vi"], html[data-lang="vi"] [lang="en"] { display: none !important; }
+.lang-btn { background: var(--panel); border: 1px solid var(--line); color: var(--accent); border-radius: 6px; padding: 3px 10px; font-weight: 700; cursor: pointer; font-size: .82em; }
+.lang-btn:hover { border-color: var(--accent); }
+.lvl-easy { background: rgba(61,220,151,.15); color: var(--accent2); }
+.lvl-medium { background: rgba(124,156,255,.15); color: var(--accent); }
+.lvl-advanced { background: rgba(245,180,84,.15); color: var(--warn); }

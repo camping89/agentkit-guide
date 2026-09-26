@@ -1,0 +1,820 @@
+{
+ "ak-git": {
+  "tagline": "Conventional commits, push, PRs, merges, and stacked PRs, with secret scans.",
+  "summary": "ak:git wraps everyday git work in 6 subcommands: cm, cp, pr, merge, merge-pr, and stack. Input is the working tree (or a PR ref for merge-pr); output is commits split by type/scope, a pushed branch, a new PR, or a merged PR with green CI. Every commit passes a staged-diff secret scan, and ak:ship and ak:review-pr call it at the end of the delivery chain.",
+  "howItWorks": [
+   "No argument: asks the user (header \"Git Operation\") to pick cm, cp, pr, merge, merge-pr, or stack.",
+   "Stages only authorized paths, then checks git diff --cached --stat and --name-only; leaves unrelated staged changes alone.",
+   "Security check greps the staged diff for api_key|token|password|secret|credential; on a hit it stops, warns, and suggests .gitignore.",
+   "Splits commits on mixed types (feat + fix, code + docs), multiple scopes, config/deps with code, or >10 unrelated files.",
+   "Keeps one commit for same type/scope, ≤3 files, and ≤50 lines; links related GitHub issues in the body.",
+   "Commits as git commit -m \"type(scope): description\" per references/commit-standards.md.",
+   "cp pushes after commit: checks upstream, runs git push origin HEAD or push -u; never force-pushes main/master/production.",
+   "pr runs through git-manager: fetches and pushes, diffs the REMOTE (origin/BASE...origin/HEAD), writes a <72-char conventional title plus Summary and Test plan, then gh pr create.",
+   "merge fetches, checks out and pulls the target, runs git merge origin/{FROM_BRANCH} --no-ff, resolves conflicts, and pushes.",
+   "merge-pr gates readiness (OPEN, MERGEABLE, CI not red, no CHANGES_REQUESTED) and uses a REST fallback when GraphQL is blocked.",
+   "merge-pr picks the merge method from CLAUDE.md/CONTRIBUTING.md, then recent merged PRs, else merge commit; uses --auto when checks are pending.",
+   "After merge, watches CI on the target; on red it opens a fix branch and runs ak:fix --auto up to 3 times, then closes the linked plan with ak plan close.",
+   "stack uses the gh stack extension (init → add → submit --auto → sync/rebase → merge); history rewrites and multi-PR merges need user approval.",
+   "stack stops on exit codes (e.g. 9 = preview not enabled for the repo).",
+   "Reports staged file count, security result, commit hash, and push status."
+  ],
+  "useWhen": [
+   "You finished a change and want conventional commits split by type/scope automatically.",
+   "You want to commit and push in one command (cp).",
+   "You want a PR with a proper title/body based on the remote diff, not the local one.",
+   "Merge a ready GitHub PR and have the skill watch post-merge CI until green (merge-pr).",
+   "You work with GitHub native Stacked PRs (gh stack)."
+  ],
+  "avoidWhen": [
+   "Full test → review → commit → PR flow for a finished branch: use ak:ship.",
+   "Reviewing PR content, fixing findings, or posting reviews: use ak:review-pr.",
+   "GitHub work unrelated to commits (issues, labels, Actions, secrets, Projects): use ak:github.",
+   "Isolated parallel working branches: use ak:worktree."
+  ],
+  "params": [
+   {
+    "name": "cm",
+    "kind": "subcommand",
+    "desc": "Stage and commit with secret scan and split logic. No push."
+   },
+   {
+    "name": "cp",
+    "kind": "subcommand",
+    "desc": "cm then push; uses git push -u origin HEAD when no upstream exists. On rejected push, suggests git pull --rebase."
+   },
+   {
+    "name": "pr [to-branch] [from-branch]",
+    "kind": "subcommand",
+    "desc": "Create a Pull Request. to-branch defaults to main, from-branch to the current branch. Diffs the remote; pushes first if the branch isn't there yet."
+   },
+   {
+    "name": "merge [to-branch] [from-branch]",
+    "kind": "subcommand",
+    "desc": "Merge branches locally: to-branch defaults to main, from-branch to current. Merges origin/{from-branch} with --no-ff so only pushed changes land."
+   },
+   {
+    "name": "merge-pr <pr-ref>",
+    "kind": "subcommand",
+    "desc": "Merge a PR (number or URL, required) via gh, then watch post-merge CI until green. Refuses on conflicts, red CI, or CHANGES_REQUESTED. Uses --auto for pending checks; the REST path polls to green then PUTs the merge (~30 min cap)."
+   },
+   {
+    "name": "stack",
+    "kind": "subcommand",
+    "desc": "Drive GitHub native Stacked PRs via gh stack: init → add → submit --auto → sync/rebase → merge. History rewrites and multi-PR merges need approval; force-push only on stack branches."
+   },
+   {
+    "name": "[args]",
+    "kind": "arg",
+    "desc": "Subcommand arguments (target/source branch, PR ref, gh stack subcommand). Without a subcommand the skill asks which operation to run."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:git cm",
+    "note": "Commit current changes, split by type/scope, no push."
+   },
+   {
+    "cmd": "/ak:git cp",
+    "note": "Commit and push right after a small change."
+   },
+   {
+    "cmd": "/ak:git pr develop",
+    "note": "Open a PR from the current branch into develop instead of main."
+   },
+   {
+    "cmd": "/ak:git merge-pr 482",
+    "note": "Merge approved PR #482, then wait for green CI on the target."
+   },
+   {
+    "cmd": "/ak:git stack",
+    "note": "Start or continue a stacked PR chain with gh stack."
+   }
+  ],
+  "tips": [
+   "The secret scan is a keyword grep, so variables named token/password can trigger it; inspect the listed files instead of disabling the check.",
+   "pr always uses the remote diff; unpushed commits get pushed first, and uncommitted changes never appear.",
+   "merge-pr never forces an unready PR; if the repo allows one merge method, it retries with that method.",
+   "gh stack merge takes PR numbers, not layer indexes; the skill skips -y on purpose to keep multi-PR confirmation.",
+   "Pass a subcommand to skip the operation prompt and save a turn."
+  ],
+  "related": [
+   "ak-ship",
+   "ak-review-pr",
+   "ak-github",
+   "ak-worktree",
+   "ak-fix",
+   "ak-security"
+  ],
+  "agents": [
+   "git-manager"
+  ],
+  "artifacts": [
+   "Conventional git commits",
+   "Branch pushed to remote",
+   "GitHub Pull Request",
+   "Merge commit on the target branch (merge, merge-pr)"
+  ]
+ },
+ "ak-github": {
+  "tagline": "Evidence-driven GitHub operations via gh: issues, labels, PRs, Projects, Actions, admin.",
+  "summary": "ak:github runs GitHub work through the gh CLI: deduplicated issue create/update/close, labels, PR lifecycle, Projects v2, Actions CI/CD, and org/repo/environment/secret admin. Input is a task or issue/PR ref; output is mutations with URLs as proof plus a final report. Every claim traces to file:line, command output, a run URL, or a commit SHA, and specialized work goes to ak:review-pr, ak:security, ak:git, or ak:fix.",
+  "howItWorks": [
+   "Strips flags (--interactive, --advice) from $ARGUMENTS and interprets the task.",
+   "Preflight runs gh auth status and gh repo view; on auth failure it reports the exact error and stops.",
+   "Verified identity is reused in the session until repo, account, or host changes.",
+   "Resolves writing language via writing-language.cjs; PR titles stay English conventional commits.",
+   "Loads exactly one reference: issue-workflows.md, pr-workflows.md, projects-actions.md, or admin-operations.md.",
+   "New issues require dedup across all issues, search, merged PRs, and git log; duplicates get a comment, fixed bugs get no issue.",
+   "Checks labels exist, creates missing standard ones instead of near-duplicates, and prefers repo templates over bundled ones.",
+   "Always confirms destructive or irreversible actions (bulk delete, repo transfer, org membership, secret delete/rotate), even in Auto mode.",
+   "With --advice, spawns kongming after planning, before irreversible actions, and when stuck.",
+   "Final report: mutations with URLs, what was verified, what was skipped or refused, remaining work, open questions."
+  ],
+  "useWhen": [
+   "File an issue without duplicating an old one or a bug already fixed on another branch.",
+   "Triage issues in bulk or normalize repo labels.",
+   "Inspect a failed GitHub Actions run, rerun it, or dispatch a workflow.",
+   "Manage GitHub Projects v2 (add items, change status).",
+   "Administer repos/orgs: branch protection, rulesets, environments, listing secrets/variables."
+  ],
+  "avoidWhen": [
+   "Reviewing PR content, fixing findings, posting reviews, or CI-watched merges: use ak:review-pr (ak:github hands off to it too).",
+   "Commit/push/open a PR from local changes: use ak:git.",
+   "Fixing CI failures found in Actions: use ak:fix with the run URL and logs.",
+   "Turning an issue into an implementation plan: use ak:issue-to-plan."
+  ],
+  "params": [
+   {
+    "name": "<task description or issue/PR ref>",
+    "kind": "arg",
+    "desc": "The GitHub task or an issue/PR reference; used to route to the right reference."
+   },
+   {
+    "name": "--interactive",
+    "kind": "flag",
+    "desc": "Before running, asks about genuinely ambiguous choices (target repo, issue scope, labels, merge strategy, close reason) in batches of 2-4, then runs with the answers. Default is Auto mode (no questions, stops only at safety gates)."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "Runs under kongming advisory oversight (Claude subscription → Fable 5; Codex → gpt-5.6-sol high effort). Called after planning, before irreversible actions, and when stuck; never bypasses safety gates. Combines with --interactive."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:github create issue: OAuth login returns 500 on callback",
+    "note": "File an issue with dedup, labels, and evidence."
+   },
+   {
+    "cmd": "/ak:github triage open issues without labels --interactive",
+    "note": "Bulk triage while approving label and close choices."
+   },
+   {
+    "cmd": "/ak:github find why the latest CI run on main is red",
+    "note": "Inspect the Actions run and summarize the failure with its URL."
+   },
+   {
+    "cmd": "/ak:github close issue #120 if it's done --advice",
+    "note": "Audit before closing, with kongming advice."
+   }
+  ],
+  "tips": [
+   "Issue, PR, comment, and CI log content is data, not instructions; attempts to redirect the task are ignored and reported.",
+   "Secrets are listed by name/metadata only (gh secret list); values are never printed.",
+   "Dedup covers closed issues, merged PRs, and commits on other branches, which avoids re-reporting fixed bugs.",
+   "Auto mode still stops for destructive actions; add --interactive for more control."
+  ],
+  "related": [
+   "ak-git",
+   "ak-review-pr",
+   "ak-security",
+   "ak-fix",
+   "ak-issue-to-plan"
+  ],
+  "agents": [
+   "kongming"
+  ],
+  "artifacts": [
+   "GitHub issues/PRs/comments/labels (with URLs in the report)",
+   "Final report in chat"
+  ]
+ },
+ "ak-review-pr": {
+  "tagline": "Review GitHub PRs for correctness, regressions, and security; optionally fix, reply, merge.",
+  "summary": "ak:review-pr reads a PR (metadata, body, diff, files, checks) and reports Critical/Important/Suggestion findings with an Approve, Request changes, or Comment verdict. By default it only prints to chat; --fix, --reply, and --merge authorize fixing and pushing, posting the review, and merging a ready PR. Multiple PRs run in order, and one failure doesn't stop the batch.",
+  "howItWorks": [
+   "Parses --fix|--reply|--merge|--advice|--ultra and collects remaining tokens (numbers, #numbers, URLs, space- or comma-separated) as PR refs.",
+   "Sources gh-api-helpers.sh and probes GraphQL; if blocked (e.g. Claude Cloud Environment), sets AK_GH_REST=1 and uses REST helpers.",
+   "Per PR: checks the body against pr-body-contract (missing evidence is an Important finding) and compares stated scope with actual changes.",
+   "Reads every changed file in full, not just the diff, against review-checklist.md and anti-ai-slop.md, citing file, line, and reason.",
+   "--ultra: 5 read-only candidates review in parallel, then the strongest-model verifier merges, dedupes, and drops unverifiable findings.",
+   "--fix: runs ak:fix --auto on actionable findings, then ak:git cp, then re-reviews.",
+   "The fix loop stops when clean, blocked by a business decision, the same finding survives 3 times, or CI can't self-resolve.",
+   "--reply: checks gh is installed and authed (else prints locally) and maps the verdict to APPROVE/REQUEST_CHANGES/COMMENT.",
+   "Self-authored PRs can't be approved (422), so the review posts as COMMENT; with --fix only the final re-review is posted.",
+   "--merge runs last and merges only on Approve, OPEN + mergeable, no CHANGES_REQUESTED, and green or pending CI, via ak:git merge-pr.",
+   "--advice calls kongming per PR after first review, when fixes stall, before reply and merge, and after green CI to post an assessment.",
+   "Final report: per-PR table (Verdict, Iterations, Commits, Reply, Merge, CI) plus totals, REST mode, and remaining blockers."
+  ],
+  "useWhen": [
+   "Quickly review a teammate's or agent's PR before merging.",
+   "Have the agent fix every finding and push to the PR branch until clean (--fix).",
+   "Post an official review on GitHub instead of reading it in chat (--reply).",
+   "Go from review to merge and green post-merge CI in one command (--fix --reply --merge).",
+   "Review several PRs in order, each with its own verdict."
+  ],
+  "avoidWhen": [
+   "Reviewing local changes without a PR, a commit, or a whole codebase: use ak:code-review.",
+   "Merging an approved PR without review: use ak:git merge-pr.",
+   "Deep security audits (STRIDE/OWASP, red-team): use ak:security.",
+   "Going from issue to merged PR in one pipeline: use ak:vibe."
+  ],
+  "params": [
+   {
+    "name": "<PR number or URL> [...]",
+    "kind": "arg",
+    "desc": "One or more PRs: 123, #123, or a full URL, separated by spaces or commas. Processed in order; a failed PR is logged and the next one runs."
+   },
+   {
+    "name": "--fix",
+    "kind": "flag",
+    "desc": "Fix loop: review → ak:fix --auto on actionable findings → ak:git cp → re-review, until clean or a stop condition (blocked, same finding 3 times, unresolvable CI). Off by default: review-only makes no edits, commits, or pushes."
+   },
+   {
+    "name": "--reply",
+    "kind": "flag",
+    "desc": "Post the review via gh pr review (or REST) with the matching verdict; prints locally if gh is missing or unauthed. With --fix posts only the final re-review. No dedup: reruns post a new review."
+   },
+   {
+    "name": "--merge",
+    "kind": "flag",
+    "desc": "Runs last: if the PR passes the readiness gate (Approve, OPEN, mergeable, no CHANGES_REQUESTED, CI green/pending), calls ak:git merge-pr and watches post-merge CI. Permission to merge a ready PR, not a force merge."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "kongming advisory checkpoints per PR: after first review, when fixes stall, before reply, before merge, and required after green CI to comment on the PR. Never overrides the verdict; kongming errors are logged and the run continues."
+   },
+   {
+    "name": "--ultra",
+    "kind": "flag",
+    "desc": "First review per PR runs best-of-5: 5 independent candidates in parallel plus 1 verifier merging evidence-backed findings. Fix-loop re-reviews stay single-pass. Much higher token cost."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:review-pr 123",
+    "note": "Review-only; prints findings and verdict to chat."
+   },
+   {
+    "cmd": "/ak:review-pr 123 --fix --reply",
+    "note": "Fix until clean, then post the final review on GitHub."
+   },
+   {
+    "cmd": "/ak:review-pr 123 --fix --reply --merge",
+    "note": "Full pipeline: fix, post review, merge on Approve, watch CI."
+   },
+   {
+    "cmd": "/ak:review-pr 101 102 https://github.com/o/r/pull/103",
+    "note": "Review several PRs in order in one run."
+   },
+   {
+    "cmd": "/ak:review-pr 88 --ultra --advice",
+    "note": "High-risk PR that needs the most thorough review with verifier and kongming."
+   }
+  ],
+  "tips": [
+   "Where GraphQL is blocked, the skill switches to REST; auto-merge is GraphQL-only, so merge becomes poll-to-green then PUT.",
+   "GitHub won't let you approve your own PR; the skill posts COMMENT but the body still states Approve.",
+   "--ultra runs 5 reviews plus a verifier, about 6x the tokens; use it for large or risky PRs.",
+   "Findings and checks are reused only while the head SHA is unchanged; the head is rechecked before reply and merge.",
+   "The fix loop doesn't invent style nits to keep going; if it runs long, look for findings that keep surviving."
+  ],
+  "related": [
+   "ak-git",
+   "ak-fix",
+   "ak-code-review",
+   "ak-ship",
+   "ak-github",
+   "ak-vibe"
+  ],
+  "agents": [
+   "kongming"
+  ],
+  "artifacts": [
+   "Review/comments on the GitHub PR (with --reply, --advice)",
+   "Fix commits on the PR branch (with --fix)",
+   "Merge commit on the target branch (with --merge)",
+   "Per-PR report table in chat"
+  ]
+ },
+ "ak-worktree": {
+  "tagline": "Create, inspect, and clean isolated git worktrees, including monorepos and submodules.",
+  "summary": "ak:worktree uses worktree.cjs to create worktrees on branches prefixed by work type (feat/fix/refactor/...), and to list, health-check, remove, and prune them. Input is a feature description (or project + feature in a monorepo); output is a worktree folder on a new branch with env templates copied and dependencies installed when needed. It is the setup step before ak:cook or ak:fix for isolated work.",
+  "howItWorks": [
+   "Gets repo info with node scripts/worktree.cjs info --json (repoType, baseBranch, projects, worktreeRoot, dirtyState) and checks for a matching worktree.",
+   "Uses --no-prefix for pre-formatted names (uppercase, issue keys like ABC-1234, slashes); otherwise infers the prefix from the description (default feat).",
+   "Turns the description into a kebab-case slug of up to 50 chars (skipped with --no-prefix).",
+   "In a monorepo with no project given, asks the user to pick one.",
+   "Runs worktree.cjs create \"<PROJECT>\" \"<SLUG>\" --prefix <TYPE> (monorepo) or create \"<SLUG>\" --prefix <TYPE>; base branch auto-detects dev → develop → main → master.",
+   "Copies .env*.example files to names without .example.",
+   "Installs dependencies only when the work needs them, using the existing package manager's lockfile-preserving command.",
+   "Tracks background processes in the worktree; before removal checks dirty files and nested repos and asks before destructive deletes."
+  ],
+  "useWhen": [
+   "Start a feature without touching the current working tree.",
+   "Run several agents or sessions in parallel, each on its own branch.",
+   "You need branch names with Jira keys or a user/type/feature pattern.",
+   "Audit old worktrees and clean stale metadata (status, prune --dry-run).",
+   "Work in a monorepo or a repo whose submodules must init in the new worktree."
+  ],
+  "avoidWhen": [
+   "A simple branch switch in the same folder: use git checkout/switch or ak:git.",
+   "Splitting work across runtimes with isolated writes: use ak:orchestrate.",
+   "Worktrees created natively by Claude Code/Codex; this skill's worktree.root doesn't affect them."
+  ],
+  "params": [
+   {
+    "name": "[feature-description]",
+    "kind": "arg",
+    "desc": "Feature description for a standalone repo; used to infer branch prefix and slug."
+   },
+   {
+    "name": "[project] [feature]",
+    "kind": "arg",
+    "desc": "Monorepo form: project name plus feature description. Without a project the skill asks."
+   },
+   {
+    "name": "create [project] <feature>",
+    "kind": "subcommand",
+    "desc": "Create a new worktree (worktree.cjs command)."
+   },
+   {
+    "name": "remove <name-or-path>",
+    "kind": "subcommand",
+    "desc": "Remove a worktree; checks dirty files and asks before destructive removal."
+   },
+   {
+    "name": "info",
+    "kind": "subcommand",
+    "desc": "Repo info plus the worktree root location."
+   },
+   {
+    "name": "list",
+    "kind": "subcommand",
+    "desc": "List worktrees."
+   },
+   {
+    "name": "status",
+    "kind": "subcommand",
+    "desc": "Worktree health, normalized paths, and drift from the base branch."
+   },
+   {
+    "name": "prune",
+    "kind": "subcommand",
+    "desc": "Clean stale worktree metadata; supports --dry-run as a safe first pass."
+   },
+   {
+    "name": "--prefix <type>",
+    "kind": "flag",
+    "desc": "Branch type: feat|fix|refactor|docs|test|chore|perf."
+   },
+   {
+    "name": "--base <branch>",
+    "kind": "flag",
+    "desc": "Override the detected base branch (default dev → develop → main → master); useful for long-lived variants like main-dsl."
+   },
+   {
+    "name": "--checkout-submodules",
+    "kind": "flag",
+    "desc": "Run git submodule update --init --checkout --recursive in the new worktree."
+   },
+   {
+    "name": "--no-prefix",
+    "kind": "flag",
+    "desc": "No prefix; keeps uppercase and slashes in the branch name (Jira keys, user/type/feature)."
+   },
+   {
+    "name": "--worktree-root <path>",
+    "kind": "flag",
+    "desc": "Override where worktrees go; always wins over other sources (worktree.root project > user > WORKTREE_ROOT env > superproject > monorepo > sibling)."
+   },
+   {
+    "name": "--json",
+    "kind": "flag",
+    "desc": "JSON output (baseBranch, baseBranchSource, worktreePath, worktreeRootSource, warnings, ...)."
+   },
+   {
+    "name": "--dry-run",
+    "kind": "flag",
+    "desc": "Preview without executing."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:worktree add authentication system",
+    "note": "Creates branch feat/add-auth in a new worktree."
+   },
+   {
+    "cmd": "/ak:worktree fix login bug",
+    "note": "The fix prefix is inferred from the description."
+   },
+   {
+    "cmd": "/ak:worktree ND-1377-cleanup-docs",
+    "note": "Issue key in the name, so --no-prefix keeps the branch name as-is."
+   },
+   {
+    "cmd": "/ak:worktree web add dark mode",
+    "note": "Monorepo: creates a worktree for the web project."
+   },
+   {
+    "cmd": "/ak:worktree prune --dry-run",
+    "note": "Check stale metadata before a real cleanup."
+   }
+  ],
+  "tips": [
+   "Set a default with ak config prefs set worktree.root ... --scope project (relative paths only) or --scope user (absolute allowed) to skip --worktree-root.",
+   "Absolute paths in project config are ignored with a warning, since committed config may come from an untrusted repo.",
+   "Each worktree may run its own dev server; stop processes you started before removing it to avoid orphans.",
+   "Skip dependency installs for docs-only or small test edits to save time and disk."
+  ],
+  "related": [
+   "ak-cook",
+   "ak-fix",
+   "ak-git",
+   "ak-orchestrate",
+   "ak-vibe"
+  ],
+  "agents": [],
+  "artifacts": [
+   "New git worktree folder on branch <prefix>/<slug>",
+   ".env files copied from .env*.example",
+   "Worktree metadata in .git"
+  ]
+ },
+ "ak-security": {
+  "tagline": "Scan secrets, deps, and code patterns; STRIDE + OWASP; optional red-team and guarded fixes.",
+  "summary": "ak:security combines fast scans (secrets, dependency CVEs, exposed .env, risky code patterns) with STRIDE threat modeling mapped to OWASP Top 10. Input is a scope (default: whole project); output is a Security Audit Report with findings by severity, file:line, and fixes, with secrets always redacted. It reports only by default; --fix adds guarded fixes and --red-team adds a 4-persona attack discovery pass.",
+  "howItWorks": [
+   "Sets scope (default '.', excluding .git, node_modules, dist, vendor, __pycache__), assets, actors, and trust boundaries; detects stack from manifests.",
+   "Checks .env exposure with git ls-files .env* and .gitignore.",
+   "Scans secrets per references/secret-patterns.md, drops placeholders and env reads, and rates CRITICAL/HIGH/MEDIUM.",
+   "Audits dependencies with stack tools: npm audit, pip-audit, govulncheck, cargo audit, bundle audit, mvn dependency-check.",
+   "Finds code patterns (SQL injection, XSS, command injection, path traversal, weak random, eval/deserialize) per vulnerability-patterns.md.",
+   "Runs STRIDE mapped to OWASP A01–A10 (skipped with --secrets-only/--deps-only); large repos focus on auth/, api/, config/, and DB layers.",
+   "--red-team: before STRIDE, iterates Security Adversary → Supply Chain Attacker → Insider Threat → Infrastructure Attacker, logging to TSV.",
+   "Dedupes by root cause with path, reproducible evidence, impact, assumptions, and mitigation; lists rejected concerns as non-issues with proof.",
+   "--fix: one fix per finding by severity, each through a test/lint guard and committed as security(fix-N); stops if a guard fails.",
+   "Secrets are replaced with env vars plus rotation guidance; git history is never rewritten.",
+   "Outputs the report; under cook --auto it saves to {CK_REPORTS_PATH} or plans/reports/security-{date}.md."
+  ],
+  "useWhen": [
+   "Before a release or major deploy.",
+   "After adding auth, payments, or user-data handling.",
+   "You suspect hardcoded keys or tokens and want a quick scan (--secrets-only).",
+   "Check dependencies for CVEs (--deps-only).",
+   "Prepare for compliance (SOC 2, GDPR, PCI-DSS) or a periodic security review."
+  ],
+  "avoidWhen": [
+   "Pure UI changes (CSS, copy) that touch no credentials or data.",
+   "Active network pentests, DDoS, or physical/hardware security: out of scope.",
+   "OSINT or threat intel on domains, emails, or people: use ak:cti-expert.",
+   "Security review of one PR in the review flow: use ak:review-pr (you can attach ak:security results)."
+  ],
+  "params": [
+   {
+    "name": "[scope]",
+    "kind": "arg",
+    "desc": "Folder, glob, or 'full'. Empty scans the whole project root."
+   },
+   {
+    "name": "--secrets-only",
+    "kind": "flag",
+    "desc": "Scan only secrets/credentials; skips deps, code, and STRIDE. Overrides --red-team (dropped with a note). With --deps-only, runs both fast layers."
+   },
+   {
+    "name": "--deps-only",
+    "kind": "flag",
+    "desc": "Audit only dependencies for CVEs; skips code and STRIDE. Overrides --red-team."
+   },
+   {
+    "name": "--fix",
+    "kind": "flag",
+    "desc": "After the audit, fix confirmed findings by severity, each through a test/lint guard and committed as security(fix-N); stops on guard failure. With --red-team fixes only confirmed Critical/High. Off by default (report-only)."
+   },
+   {
+    "name": "--red-team",
+    "kind": "flag",
+    "desc": "Run multi-persona discovery (Adversary, Supply Chain, Insider, Infra) before the STRIDE/OWASP pass."
+   },
+   {
+    "name": "--iterations N",
+    "kind": "flag",
+    "desc": "Cap total red-team discovery iterations, or fix iterations when used with --fix."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:security",
+    "note": "Default full audit on the project root."
+   },
+   {
+    "cmd": "/ak:security --secrets-only",
+    "note": "Quick secret scan before pushing."
+   },
+   {
+    "cmd": "/ak:security src/api/**/*.ts",
+    "note": "Focused audit of the API layer."
+   },
+   {
+    "cmd": "/ak:security src/ --red-team --iterations 20",
+    "note": "Red-team capped at 20 iterations."
+   },
+   {
+    "cmd": "/ak:security full --red-team --fix",
+    "note": "Full discovery plus auto-fix of confirmed Critical/High."
+   }
+  ],
+  "tips": [
+   "Always rotate real leaked credentials; removing them from code doesn't revoke the token.",
+   "Reports keep only public prefixes (AKIA, ghp_, sk-) and never print a secret's length or last characters.",
+   "Full mode and --red-team are token-heavy; use --secrets-only/--deps-only for routine checks.",
+   "A scary-looking API isn't a vulnerability until a reachable path is verified; severity comes after.",
+   "The old name ak:security-scan still maps to /ak:security."
+  ],
+  "related": [
+   "ak-predict",
+   "ak-scenario",
+   "ak-plan",
+   "ak-autoresearch",
+   "ak-review-pr",
+   "ak-cti-expert"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Security Audit Report (chat, or plans/reports/security-{date}.md under cook --auto)",
+   "security(fix-N) commits with --fix",
+   "Red-team TSV log"
+  ]
+ },
+ "ak-cti-expert": {
+  "tagline": "Passive OSINT and threat intel cases, delivered as md + docx reports.",
+  "summary": "ak:cti-expert supports OSINT/CTI work: exposure reviews, domain recon, breach checks, username/email/phone research, image forensics, blockchain tracing, darknet checks, cloud tenant recon, CVE lookup, and threat modeling. It routes each request to one AEAD lifecycle branch and loads only that branch's references; a single IOC lookup returns source, observed time, and confidence without opening a case. /case, /report, and /brief save Markdown and Word reports, --format html adds an offline HTML mirror, and all work is passive and GDPR/CCPA-aware.",
+  "howItWorks": [
+   "Routes the request to acquire, enrich, assess, or deliver and loads only that branch's references.",
+   "Acquire collects raw data via /case, /sweep, /query (12–15 dorks), /username, /phone, /email-deep, /subdomain, /docleak, /vuln-check, /threat-check.",
+   "Enrich expands leads and finds links (/branch, /timeline, /crossref, /link-subjects, /graph, /pathfind).",
+   "Assess scores and verifies (/exposure 0–100, /threat-model, /signatures, /validate, /coverage, /verify-finding).",
+   "Deliver packages output (/report, /report brief, /report legal, /report ioc STIX 2.1, /workspace save) and saves .md and .docx.",
+   "With --format html, uses ak:frontend-design, then ak:diagram if available for relationship and threat-model diagrams, else inline SVG; no external requests.",
+   "Tool order: ak:agent-browser (if available) → direct web fetch → search dorks.",
+   "Visualizations default to ASCII; Mermaid only with --mermaid."
+  ],
+  "useWhen": [
+   "Assess the exposure of an organization or domain.",
+   "Check whether an email appears in breaches, or trace a username across platforms.",
+   "Look up CVEs, or score threats for an IP, domain, URL, or hash.",
+   "Check a domain for scams or phishing (/scam-check).",
+   "You need a structured intel report (executive brief, legal format, IOC export)."
+  ],
+  "avoidWhen": [
+   "Scanning your own project's source for vulnerabilities: use ak:security.",
+   "Active pentests, unauthorized port scans, brute force, or exploitation: forbidden.",
+   "Investigating private individuals to dox, harass, or stalk: refused."
+  ],
+  "params": [
+   {
+    "name": "[target]",
+    "kind": "arg",
+    "desc": "Investigation target: domain, IP, email, username, phone number, hash, and so on."
+   },
+   {
+    "name": "--yolo",
+    "kind": "flag",
+    "desc": "Skip onboarding (/onboard) and open an empty case; records onboarding_completed + onboarding_skipped in workspace_metadata."
+   },
+   {
+    "name": "--case",
+    "kind": "flag",
+    "desc": "Maps to /case [target]: full automated investigation across all relevant vectors; produces md + docx reports."
+   },
+   {
+    "name": "--sweep",
+    "kind": "flag",
+    "desc": "Maps to /sweep [target]: multi-vector recon on a domain, handle, email, or IP."
+   },
+   {
+    "name": "--query",
+    "kind": "flag",
+    "desc": "Maps to /query [subject]: generates 12–15 precise search engine dorks."
+   },
+   {
+    "name": "--flow",
+    "kind": "flag",
+    "desc": "Maps to /flow [type]: role-guided walkthrough for Threat Analyst, Journalist Source Verification, HR/Background Screening, or Private Investigator."
+   },
+   {
+    "name": "--format html|md",
+    "kind": "flag",
+    "desc": "md: Markdown + Word report (default). html: adds a self-contained offline mirror CTI-REPORT-<CASE-ID>-<YYYY-MM-DD>.html."
+   },
+   {
+    "name": "--no-antv",
+    "kind": "flag",
+    "desc": "Disable the AntV infographic layer in HTML for this run (uses Mermaid/Chart.js/SVG instead). CLI flag wins over project/user config."
+   },
+   {
+    "name": "--no-diagram-design",
+    "kind": "flag",
+    "desc": "Disable the diagram-design editorial layer in HTML for this run."
+   },
+   {
+    "name": "--no-editorial-visuals",
+    "kind": "flag",
+    "desc": "Disable the whole editorial visual layer (AntV and diagram-design); highest priority among the off switches."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:cti-expert example.com --case",
+    "note": "Full investigation of a domain, exported as md + docx."
+   },
+   {
+    "cmd": "/ak:cti-expert acme.io --case --format html",
+    "note": "Same, plus an offline HTML copy to share."
+   },
+   {
+    "cmd": "/ak:cti-expert john_doe --sweep",
+    "note": "Multi-vector recon around a handle."
+   },
+   {
+    "cmd": "/ak:cti-expert CVE-2024-3094",
+    "note": "Single IOC/CVE lookup without opening a case."
+   },
+   {
+    "cmd": "/ak:cti-expert --flow",
+    "note": "Pick a role walkthrough (analyst, journalist, HR, investigator)."
+   }
+  ],
+  "tips": [
+   "Single IOC lookups produce no report set; only /case, /report, and /brief save md + docx.",
+   "On airgapped machines use --no-antv or set visual.antv.enabled: false in ~/.agentkit/config.yaml.",
+   "Reports separate verified indicators from analyst hypotheses; run /validate and /verify-finding before delivery.",
+   "Use /workspace save [name] to store a case and /workspace open to resume later."
+  ],
+  "related": [
+   "ak-security",
+   "ak-agent-browser",
+   "ak-frontend-design",
+   "ak-diagram",
+   "ak-document-skills"
+  ],
+  "agents": [],
+  "artifacts": [
+   "CTI-REPORT-<CASE-ID>-<YYYY-MM-DD>.md",
+   "CTI-REPORT-<CASE-ID>-<YYYY-MM-DD>.docx",
+   "CTI-REPORT-<CASE-ID>-<YYYY-MM-DD>.html (with --format html)",
+   "Saved case workspace"
+  ]
+ },
+ "ak-web-testing": {
+  "tagline": "Web testing with Playwright, Vitest, k6: unit to E2E, load, visual, a11y, Web Vitals.",
+  "summary": "ak:web-testing is a knowledge base and script set for web testing. It first checks repo test scripts, runner versions, and the failure type, then picks one runner: the existing unit runner for unit failures, browser tests for UI behavior, k6 only for load. Input is a test type and target; output is new tests/config or a merged results report, backed by 24 topic references and 2 scripts.",
+  "howItWorks": [
+   "Checks repo test scripts, installed runner versions, and failure type before acting.",
+   "Picks the right runner and never sets up Vitest, Playwright, and k6 together; loads only the relevant reference.",
+   "Chooses a strategy model (Pyramid, Trophy, Honeycomb) by architecture when needed (testing-pyramid-strategy.md).",
+   "Runs node ./scripts/init-playwright.js [--ct] [--dir <path>] only when Playwright is missing and requested; keeps existing config.",
+   "Fixes flaky tests only after reproducing the cause and getting stable reruns; no arbitrary sleeps.",
+   "Visual, a11y, and performance claims rest on real browser checks and metric ranges.",
+   "Merges results with node ./scripts/analyze-test-results.js (Playwright/Vitest/JUnit → markdown).",
+   "Tracks and stops preview/test processes it started."
+  ],
+  "useWhen": [
+   "Write or fix Playwright E2E, component, or Vitest unit tests.",
+   "Investigate flaky tests on CI.",
+   "Run k6 load tests or measure Core Web Vitals / Lighthouse.",
+   "Check accessibility (axe-core, WCAG) or visual regression.",
+   "Set up a CI test pipeline (sharding, unit → e2e → a11y → perf gates)."
+  ],
+  "avoidWhen": [
+   "Just running the existing suite and reporting: use ak:test.",
+   "Driving a browser to act or scrape, not to write tests: use ak:agent-browser.",
+   "Security audits of the codebase: use ak:security.",
+   "Finding a bug's root cause before fixing: use ak:debug."
+  ],
+  "params": [
+   {
+    "name": "[test-type]",
+    "kind": "arg",
+    "desc": "Test type: unit, integration, e2e, load, security, visual, a11y, performance, etc.; selects runner and reference."
+   },
+   {
+    "name": "[target]",
+    "kind": "arg",
+    "desc": "What to test: file/folder, feature, or URL (e.g. for axe/lighthouse)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:web-testing e2e checkout flow",
+    "note": "Write Playwright E2E tests for checkout."
+   },
+   {
+    "cmd": "/ak:web-testing flaky tests/e2e/login.spec.ts",
+    "note": "Reproduce and fix a flaky test."
+   },
+   {
+    "cmd": "/ak:web-testing load /api/search",
+    "note": "Write a k6 script for the search endpoint."
+   },
+   {
+    "cmd": "/ak:web-testing a11y https://staging.example.com",
+    "note": "Check accessibility with axe-core."
+   }
+  ],
+  "tips": [
+   "Don't add waitForTimeout/sleep to 'fix' flakiness; the skill requires a reproducible cause and stable reruns.",
+   "Use init-playwright.js only when the repo has no Playwright; never re-init existing config.",
+   "Load only the references you need (there are 24) to save context.",
+   "Stop dev/preview servers you started for tests to avoid orphan processes."
+  ],
+  "related": [
+   "ak-test",
+   "ak-agent-browser",
+   "ak-debug",
+   "ak-security",
+   "ak-scenario"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Test files (spec/test) and Playwright/Vitest/k6 config",
+   "Merged test results report (markdown)",
+   "test-results/ and coverage/ folders from the runner"
+  ]
+ },
+ "ak-deep-swe": {
+  "tagline": "Benchmark a coding model on DeepSWE via Pier and OpenRouter, with cost control.",
+  "summary": "ak:deep-swe sets up and runs an independent coding-agent evaluation on the DeepSWE benchmark with Pier, calling models through OpenRouter. Input is an OpenRouter model slug; output is a report with the exact command, Pier version, task count, score/reward, cost, and blockers. It never optimizes metrics in your repo or spends model money without approval: one task first, then a small subset, and the full corpus only when you agree.",
+  "howItWorks": [
+   "Guardrail: confirms uv, git, Docker, and a running Docker daemon; checks OPENROUTER_API_KEY is set without printing it, and stops if missing.",
+   "Setup: git clone https://github.com/datacurve-ai/deep-swe, uv tool install datacurve-pier, reads pier --help and pier run --help, records task roster revision and count.",
+   "Verifies the exact model slug on openrouter.ai/models.",
+   "Runs one task: pier run -p deep-swe/tasks/<task-id> --agent mini-swe-agent --model openrouter/<vendor/model>.",
+   "Runs a fixed subset after confirming flags: pier run -p deep-swe/tasks ... --n-tasks 10 --sample-seed 0.",
+   "Before the full corpus, shows the exact command, expected cost, and stop conditions, and waits for approval.",
+   "Inspects job folders with pier view / pier analyze / pier critique when the version supports them.",
+   "Reports command, Pier version, tasks, model slug and config, prompt hash, attempted/completed/passed, score, cost, and blockers.",
+   "Separates observed results from vendor-published scores and never submits to the leaderboard unless asked."
+  ],
+  "useWhen": [
+   "Score a new model on DeepSWE before choosing it as a coding agent.",
+   "Compare two model configs on the same fixed task set.",
+   "Verify a published benchmark number with an independent run."
+  ],
+  "avoidWhen": [
+   "Iteratively optimizing a metric in your own repo: use ak-loop / ak:autoresearch.",
+   "Docker or OPENROUTER_API_KEY is missing; the skill will stop.",
+   "You only want published scores; check deepswe.datacurve.ai directly."
+  ],
+  "params": [
+   {
+    "name": "<OpenRouter model slug>",
+    "kind": "arg",
+    "desc": "OpenRouter model slug as vendor/model (passed to Pier as openrouter/<vendor/model>). Verified on openrouter.ai/models before running."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:deep-swe anthropic/claude-opus-5.5",
+    "note": "Run one trial task, then propose a subset for this model."
+   },
+   {
+    "cmd": "/ak:deep-swe openai/gpt-5.6",
+    "note": "Benchmark another model on the same fixed task set to compare."
+   },
+   {
+    "cmd": "/ak:deep-swe qwen/qwen3-coder",
+    "note": "Verify the published score of an open-source model."
+   }
+  ],
+  "tips": [
+   "Keep seed and task set fixed when comparing configs; keep held-out tasks separate from tuning tasks.",
+   "Pier changes fast; check help on unfamiliar flags instead of guessing syntax.",
+   "Never put the API key in commands, reports, or artifacts; only check that it's set.",
+   "Missing cache telemetry means unknown, not 0; report it that way."
+  ],
+  "related": [
+   "ak-autoresearch",
+   "ak-context-engineering",
+   "ak-research"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Cloned deep-swe/ folder",
+   "Job folders created by Pier",
+   "Benchmark results report in chat"
+  ]
+ }
+}

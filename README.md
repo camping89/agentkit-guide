@@ -1,26 +1,27 @@
 # AgentKit Guide (Engineer Kit)
 
-Tài liệu tiếng Việt chi tiết về AgentKit Engineer Kit: các layer, vòng đời một prompt, hooks, rules, agents, 102 skill kèm tham số, workflow theo feature và mẹo sử dụng.
+A concise guide to the AgentKit Engineer Kit: layers, the life of a prompt, hooks, rules, agents, 102 skills with parameters, workflows by task, and tips. English by default, Vietnamese via the **VI** toggle.
 
-**Xem site:** https://camping89.github.io/agentkit-guide/
+**Site:** https://camping89.github.io/agentkit-guide/ (`?lang=vi` opens Vietnamese)
 
-## Cấu trúc
+## Layout
 
-- `site/`: website tĩnh (HTML/CSS/JS thuần), mở trực tiếp `site/index.html` cũng chạy.
-- `data/skills.json`, `data/agents.json`, `data/groups.json`: metadata trích từ bản cài AgentKit.
-- `data/detail/*.json`: diễn giải chi tiết từng skill.
-- `scripts/extract.py`: trích metadata từ `~/.claude` (máy đã cài AgentKit).
-- `scripts/build.py`: gộp dữ liệu thành `site/data.js`, chỉ giữ phạm vi Engineer.
-- `scripts/smoke-test.mjs`: mở mọi route bằng Playwright và báo lỗi JS.
+- `site/`: static site (plain HTML/CSS/JS). Opening `site/index.html` directly also works.
+- `data/skills.json`, `data/agents.json`, `data/groups.json`, `data/meta.json`: metadata extracted from an AgentKit install.
+- `data/detail-en/*.json`, `data/detail/*.json`: per-skill explanations (English, Vietnamese).
+- `site/content-en.js`, `site/content-vi.js`: workflows, skill chooser, CLI tables.
+- `scripts/extract.py`: extract metadata from `~/.claude` on a machine with AgentKit.
+- `scripts/build.py`: bundle data into `site/data.js`, Engineer scope only.
+- `scripts/smoke-test.mjs`: open every route with Playwright and fail on JS errors (`BASE=<url>` tests a live site).
 
-## Cập nhật sau khi `ak update`
+## Update after `ak update`
 
 ```bash
-npm run extract   # trích lại metadata từ ~/.claude
-npm run build     # sinh site/data.js
-npm test          # smoke test (cần `npm i` để có playwright)
+npm run extract   # re-extract metadata from ~/.claude
+npm run build     # regenerate site/data.js
+npm test          # smoke test (run `npm i` once for playwright)
 ```
 
-Push lên `main` sẽ tự deploy GitHub Pages.
+Pushing to `main` deploys GitHub Pages.
 
-Nguồn tham khảo: bản cài AgentKit và [vividkit.dev/guides/agentkit](https://www.vividkit.dev/guides/agentkit/workflows). Site không đăng nguyên văn rules/hook của kit, chỉ đăng tóm tắt.
+Sources: a real AgentKit install and [vividkit.dev/guides/agentkit](https://www.vividkit.dev/guides/agentkit/workflows). The site publishes summaries only, never the kit's verbatim rules or hook source.

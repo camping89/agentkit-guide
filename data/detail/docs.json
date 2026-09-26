@@ -1107,5 +1107,66 @@
    "Plan dưới plans/ khi công việc nhiều artifact",
    "$AGENTKIT_HOME/show-off/preferences.json"
   ]
+ },
+ "ak-copywriting": {
+  "tagline": "Copy chuyển đổi: công thức, headline, email, landing page, CTA và trích xuất phong cách viết.",
+  "summary": "Viết copy chuyển đổi cao dựa trên deliverable, audience, mục đích và brand voice đã chấp nhận. Có thư viện công thức (AIDA, PAS, BAB, 4Ps, FAB), mẫu headline, email, landing page, CTA, power words và 30 phong cách viết; có script trích xuất phong cách viết từ file mẫu. Đầu ra là copy đúng định dạng/đường dẫn, mọi claim có bằng chứng.",
+  "howItWorks": [
+   "Xác định deliverable, audience, mục đích và brand voice từ brief; chỉ hỏi khi thiếu quyết định làm thay đổi copy.",
+   "Nạp nhóm reference phù hợp: landing/CTA, email, headline, social hoặc trích xuất phong cách.",
+   "Dùng công thức như cấu trúc tùy chọn, không để công thức lấn át voice (thương hiệu điềm đạm không bị ép tạo khan hiếm giả).",
+   "Neo mọi claim về sản phẩm, số liệu, testimonial vào bằng chứng; không bịa social proof.",
+   "Giao copy đúng định dạng/đường dẫn, kiểm độ phù hợp audience, cơ sở claim và CTA."
+  ],
+  "useWhen": [
+   "Viết headline, landing page, CTA hoặc email cần tỷ lệ chuyển đổi cao.",
+   "Muốn áp dụng phong cách viết riêng lưu trong assets/writing-styles/.",
+   "Cần nhiều biến thể copy để A/B test."
+  ],
+  "avoidWhen": [
+   "Cần tài liệu kỹ thuật cho dev hoặc CLAUDE.md: dùng ak-docs.",
+   "Cần trang demo HTML trình bày sản phẩm: dùng ak-show-off."
+  ],
+  "params": [
+   {
+    "name": "[copy-type]",
+    "kind": "arg",
+    "desc": "Loại copy: headline, landing page, email, CTA, social, product description..."
+   },
+   {
+    "name": "[context]",
+    "kind": "arg",
+    "desc": "Bối cảnh: sản phẩm, audience, ưu đãi, giọng thương hiệu, ràng buộc."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:copywriting headline \"app học tiếng Anh cho người đi làm, gói 99k/tháng\"",
+    "note": "Tạo loạt headline cho landing page."
+   },
+   {
+    "cmd": "/ak:copywriting landing-page \"CRM cho agency, audience là chủ agency 5-20 người\"",
+    "note": "Dựng cấu trúc và copy landing page."
+   },
+   {
+    "cmd": "/ak:copywriting email \"email chào mừng sau khi đăng ký dùng thử\"",
+    "note": "Viết một email đơn lẻ."
+   }
+  ],
+  "tips": [
+   "Script scripts/extract-writing-styles.py trích xuất phong cách viết từ file đa định dạng vào assets/writing-styles/.",
+   "Có template templates/copy-brief.md để chuẩn hóa brief trước khi viết.",
+   "Không có bằng chứng thì skill sẽ đánh dấu claim là đề xuất, không bịa số liệu hay review khách hàng."
+  ],
+  "related": [
+   "ak-docs",
+   "ak-show-off",
+   "ak-frontend-design"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Copy theo đường dẫn yêu cầu (fallback assets/copy/{type}/, assets/copy/headlines/, assets/copy/landing-pages/)",
+   "File phong cách viết assets/writing-styles/{slug}.md khi trích xuất"
+  ]
  }
 }

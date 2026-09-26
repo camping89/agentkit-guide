@@ -1,0 +1,1183 @@
+{
+ "ak-docs": {
+  "tagline": "Create, refresh, summarize, or audit evidence-based project docs.",
+  "summary": "ak:docs reads the codebase and keeps the smallest doc set that explains purpose, contracts, evidence, and operations. Code owns WHAT/HOW; docs own WHY/WHERE, and the root CLAUDE.md/AGENTS.md holds agent behavior rules. Writing nothing is the correct result when no durable guidance is new, and the skill never writes product code.",
+  "howItWorks": [
+   "Opening gate: a short brainstorm fixes readers (human, AI, or both), outcome, evidence sources, and acceptance criteria.",
+   "Reuses an accepted plan or brainstorm when one exists.",
+   "Routes on the first word: init, update, summarize, agent-context, agents, or llms, each with its own reference file.",
+   "Empty or ambiguous input triggers a question; it never defaults to init.",
+   "Discovery reads AGENTS.md/CLAUDE.md, README.md, the docs index, docs/, then source, tests, scripts, and live state.",
+   "An explicit route (repository instructions or --preset classic) overrides discovered file names.",
+   "Loads doc-content-rules.md for every write; loads operational-lookup.md when a route to an external system changes.",
+   "Operational route records cover when to use, scope, source of truth, lookup, access, limits, and fallback.",
+   "Route records store where to fetch a secret, never the secret value.",
+   "init inspects the project, designs the smallest route, has docs-manager write it, then validates links, paths, and commands.",
+   "update maps each changed claim to its owner and prunes: code restatements become pointers, WHY stays.",
+   "summarize returns an evidence-backed summary and writes a file only when the project or user asks.",
+   "agents mines git history and CI for recurring failures, ranks signals, distills DO/DON'T rules, and asks for diff approval.",
+   "llms updates llms.txt and llms-full.txt in place, following llmstxt.org grammar and keeping curated order.",
+   "Final check verifies every path, command, config key, and behavior claim, then reports created, changed, kept, and deleted files."
+  ],
+  "useWhen": [
+   "Onboard a repo with no docs and set up a minimal doc route (init).",
+   "A merge changed contracts, paths, or ops routes like deploy paths and log sources (update).",
+   "You need an evidence-backed summary of the codebase or a topic without new files (summarize).",
+   "Write, audit, or tighten the root CLAUDE.md/AGENTS.md (agent-context).",
+   "Distill DO/DON'T agent rules from repeated failures in git, CI, and source markers (agents).",
+   "Generate or refresh llms.txt/llms-full.txt (llms)."
+  ],
+  "avoidWhen": [
+   "Context for a subfolder, not the root: use ak-folder-context.",
+   "Content must come from the user's own decisions, not code: use ak-interview-docs.",
+   "You only need llms.txt with --url/--output and the generator script: use ak-llms.",
+   "You want a chronological session log: use ak-journal.",
+   "You need product code: use ak-cook; ak:docs never writes it."
+  ],
+  "params": [
+   {
+    "name": "init",
+    "kind": "subcommand",
+    "desc": "Set up a minimal, project-specific doc route. No empty placeholders, speculative roadmaps, or template-only ADRs; proposes the route before replacing existing docs."
+   },
+   {
+    "name": "update",
+    "kind": "subcommand",
+    "desc": "Reconcile affected docs with current evidence. Edits only affected surfaces, removes stale or duplicate content, adds no version notes or issue references."
+   },
+   {
+    "name": "summarize",
+    "kind": "subcommand",
+    "desc": "Summarize current evidence without forcing a new file; updates a summary file only when the project defines one or the user asks."
+   },
+   {
+    "name": "agent-context",
+    "kind": "subcommand",
+    "desc": "Write, audit, or optimize the root CLAUDE.md/AGENTS.md using a keep-or-cut filter and write/don't-write rules."
+   },
+   {
+    "name": "agents",
+    "kind": "subcommand",
+    "desc": "Mine bounded git and CI history for recurring failures and gotchas, then distill DO/DON'T rules into the root context file. Default window: 90 days or 300 commits (whichever is smaller) and 200 CI runs. Implies --advice and requires diff approval. Falls back to git-only if gh is not authenticated."
+   },
+   {
+    "name": "[bound]",
+    "kind": "arg",
+    "desc": "agents only: override the window with days (e.g. agents 30d) or a commit count (e.g. agents 500)."
+   },
+   {
+    "name": "llms",
+    "kind": "subcommand",
+    "desc": "Generate or update both llms.txt and llms-full.txt per llmstxt.org. Writes to the site's public/static folder if one exists, else repo root; updates in place."
+   },
+   {
+    "name": "--advice",
+    "kind": "flag",
+    "desc": "Spawn kongming for keep/cut/restructure advice before writing. kongming only advises; the skill owns all edits. Works with every operation; already implied by agents."
+   },
+   {
+    "name": "--audit",
+    "kind": "flag",
+    "desc": "agent-context: kongming audits the current file, then the user decides keep/cut/fix one question at a time; only confirmed changes apply. agents: same one-rule-per-question pace at approval."
+   },
+   {
+    "name": "--dry-run",
+    "kind": "flag",
+    "desc": "agents only: stop after signal ranking, report signals and watchlist, spawn no advisor, write nothing."
+   },
+   {
+    "name": "--source",
+    "kind": "flag",
+    "desc": "agents only: add a read-only source-tree pass via ak:scout alongside git/CI. Source-only clusters need 2+ anchors plus a code/test guard or git/CI corroboration. Combines with --dry-run and --audit."
+   },
+   {
+    "name": "--preset classic",
+    "kind": "flag",
+    "desc": "init only: use the classic docs/ layout (project-overview-pdr.md, code-standards.md, codebase-summary.md, design-guidelines.md, deployment-guide.md, system-architecture.md, project-roadmap.md). Picks file names only; files without real content are skipped."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:docs init",
+    "note": "New repo without docs; the skill designs the smallest route."
+   },
+   {
+    "cmd": "/ak:docs init --preset classic",
+    "note": "Team wants fixed file names across projects, or tooling reads fixed paths."
+   },
+   {
+    "cmd": "/ak:docs update",
+    "note": "After a refactor renamed modules, clean docs that drifted from code."
+   },
+   {
+    "cmd": "/ak:docs summarize auth flow",
+    "note": "Quick evidence-backed summary of the auth flow, no files written."
+   },
+   {
+    "cmd": "/ak:docs agent-context --audit",
+    "note": "Trim a bloated CLAUDE.md, deciding keep/cut per item by interview."
+   },
+   {
+    "cmd": "/ak:docs agents 30d --dry-run",
+    "note": "Preview 30 days of recurring-failure signals without writing."
+   },
+   {
+    "cmd": "/ak:docs agents --source",
+    "note": "Distill DO/DON'T rules from git/CI plus source-tree markers."
+   },
+   {
+    "cmd": "/ak:docs llms",
+    "note": "Create or sync llms.txt and llms-full.txt with current docs."
+   }
+  ],
+  "tips": [
+   "Always name the operation; without one the skill asks instead of running init.",
+   "Keep docs to WHY/WHERE; update turns code restatements and command lists into pointers.",
+   "No new durable guidance means no-op: no timestamp bumps, reorders, or cosmetic rewrites.",
+   "Keep the root context file to short policy plus a pointer to the operational guide; no runbooks, URLs, or account IDs.",
+   "agents needs gh auth status to pass for CI signals; otherwise it uses git only.",
+   "Evergreen docs carry no dates, issue IDs, or phase labels; mark plans, reports, and audits as stateful records.",
+   "When docs cover testing, init/update also load ak:test practice rules for cross-checking."
+  ],
+  "related": [
+   "ak-folder-context",
+   "ak-interview-docs",
+   "ak-llms",
+   "ak-scout",
+   "ak-diagram",
+   "ak-journal",
+   "ak-mintlify",
+   "ak-test"
+  ],
+  "agents": [
+   "docs-manager",
+   "kongming"
+  ],
+  "artifacts": [
+   "Doc files under docs/ (discovered route or classic preset)",
+   "Docs index / navigation file (when there are several docs)",
+   "Operational route records in the project's operational guide",
+   "Root CLAUDE.md / AGENTS.md (agent-context, agents)",
+   "llms.txt and llms-full.txt (llms)"
+  ]
+ },
+ "ak-docs-seeker": {
+  "tagline": "Look up current library and framework docs via context7.com llms.txt.",
+  "summary": "ak:docs-seeker finds technical docs script-first: it classifies the query, builds a context7.com URL, fetches llms.txt, and suggests a parallel reading plan. Input is a library plus optional topic, or an official docs URL; output is relevant doc URLs and content. Without llms.txt it falls back to repository analysis with Repomix.",
+  "howItWorks": [
+   "Given an exact official docs URL, reads it directly and checks the version matches.",
+   "Runs node scripts/detect-topic.js \"<query>\" to classify the query; returns JSON {topic, library, isTopicSpecific}.",
+   "Runs node scripts/fetch-docs.js \"<query>\" to build the context7.com URL and fetch llms.txt, falling back topic → general → error.",
+   "For many URLs, pipes llms.txt into analyze-llms-txt.js to rank URLs and suggest 1, 3, 7 agents, or a phased read.",
+   "Reads URLs with web fetch or parallel agents as suggested.",
+   "Last resort: clones the official GitHub repo to /tmp, packs it with Repomix, and reads README, docs/, examples/, and API."
+  ],
+  "useWhen": [
+   "You need the latest API or features and model knowledge may be stale.",
+   "You have a focused question, e.g. 'how to use the shadcn date picker' (topic search, about 10-15 s).",
+   "You need broad coverage of a framework like Next.js for planning (library search, about 30-60 s).",
+   "The library is not on context7 and has no llms.txt."
+  ],
+  "avoidWhen": [
+   "Generating llms.txt for your own project: use ak-llms or /ak:docs llms.",
+   "Comparing solutions, architectures, or best practices: use ak-research.",
+   "Packing the current repo as LLM context: use ak-repomix.",
+   "Questions about internal code, not an external library: use ak-scout."
+  ],
+  "params": [
+   {
+    "name": "[library-name]",
+    "kind": "arg",
+    "desc": "Library or framework to look up (e.g. next.js, shadcn); detect-topic.js extracts it from the query."
+   },
+   {
+    "name": "[topic]",
+    "kind": "arg",
+    "desc": "Specific topic in the library. With a topic: fast topic search (2-3 URLs). Without: general library search (8+ URLs)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:docs-seeker shadcn date picker",
+    "note": "Topic query; quickly returns 2-3 relevant URLs."
+   },
+   {
+    "cmd": "/ak:docs-seeker next.js",
+    "note": "Next.js overview; the script suggests how many agents read in parallel."
+   },
+   {
+    "cmd": "/ak:docs-seeker tanstack router search params",
+    "note": "Check the latest API before implementing."
+   },
+   {
+    "cmd": "/ak:docs-seeker some-niche-lib",
+    "note": "Niche library; may fall back to Repomix repo analysis."
+   }
+  ],
+  "tips": [
+   "Optional keys in the skill's .env: CONTEXT7_API_KEY, GITHUB_TOKEN (higher rate limits), GEMINI_API_KEY. Precedence: process.env > skill .env > plugin .env > project .env.",
+   "Scripts need Node; their output still costs context, so read only bounded output.",
+   "Pass the official docs URL if you know it to skip discovery.",
+   "Repo analysis is slow (5-10 min) and token-heavy; use it only without llms.txt.",
+   "Confirm the fetched docs match the library version your project uses (see references/advanced.md)."
+  ],
+  "related": [
+   "ak-research",
+   "ak-repomix",
+   "ak-llms",
+   "ak-scout"
+  ],
+  "agents": [
+   "Parallel reader agents as suggested by analyze-llms-txt.js (source names no specific subagent type)"
+  ],
+  "artifacts": [
+   "No fixed files; repo-analysis fallback clones into /tmp/docs-analysis and creates repomix-output.xml"
+  ]
+ },
+ "ak-document-skills": {
+  "tagline": "Read, create, and edit Office files: docx, pdf, pptx, xlsx.",
+  "summary": "ak:document-skills routes by format to Word (ak:docx), PDF (ak:pdf), PowerPoint (ak:pptx), or spreadsheet (ak:xlsx) workflows. Input is format, file path, and action; output is an extracted, created, or edited file that has been validated. It preserves templates and existing content, and runs and validates each workflow instead of stopping at routing.",
+  "howItWorks": [
+   "Detects the target format and loads the matching child skill: ak-docx, ak-pdf, ak-pptx, or ak-xlsx.",
+   "docx: extract, create (docx-js.md), edit (ooxml.md), or redline others' documents (redline.md); keeps runs, comments, and tracked changes, then validates and renders.",
+   "pdf: extract text/tables, create, merge/split/rotate, fill forms, OCR/watermark; checks page count, order, and fillable fields.",
+   "pptx: create (html2pptx.md), use a template, edit (ooxml.md), or extract; keeps masters, notes, and relationships; checks each slide for overlap, clipping, and contrast.",
+   "xlsx: pandas for data, openpyxl for formulas and formatting; uses Excel formulas, not hardcoded values.",
+   "xlsx: runs python recalc.py output.xlsx to recalculate and fix #REF!, #DIV/0!, #VALUE!, #NAME?.",
+   "Multi-format requests run each workflow and validate each file; missing renderers are reported, not faked."
+  ],
+  "useWhen": [
+   "Create a Word report, edit a contract with tracked changes, or extract text from .docx.",
+   "Extract tables from a PDF, merge/split PDFs, or fill PDF forms.",
+   "Build a .pptx deck from content or edit one on a company template.",
+   "Analyze data or build a spreadsheet with formulas, charts, or pivots in .xlsx/.csv."
+  ],
+  "avoidWhen": [
+   "Just reading long markdown in a browser: use ak-markdown-novel-viewer.",
+   "You need an HTML presentation page: use ak-show-off or ak-preview.",
+   "Pure image OCR/vision the model can't handle: consider ak-ai-multimodal."
+  ],
+  "params": [
+   {
+    "name": "<docx|pdf|pptx|xlsx>",
+    "kind": "arg",
+    "desc": "Required: format to process; selects the child skill (ak:docx, ak:pdf, ak:pptx, ak:xlsx)."
+   },
+   {
+    "name": "[path]",
+    "kind": "arg",
+    "desc": "Input or output file path."
+   },
+   {
+    "name": "[action]",
+    "kind": "arg",
+    "desc": "Per child skill: docx/pptx use create|edit|extract; pdf uses extract|create|merge|split|fill; xlsx uses create|edit|analyze."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:document-skills docx ./contract.docx edit",
+    "note": "Edit a contract, keep formatting, and track changes."
+   },
+   {
+    "cmd": "/ak:document-skills pdf ./invoices.pdf extract",
+    "note": "Extract figure tables from PDF invoices."
+   },
+   {
+    "cmd": "/ak:document-skills pdf ./form.pdf fill",
+    "note": "Fill a PDF form while keeping fields fillable."
+   },
+   {
+    "cmd": "/ak:document-skills pptx ./deck.pptx create",
+    "note": "Create a new deck without a template."
+   },
+   {
+    "cmd": "/ak:document-skills xlsx ./sales.xlsx analyze",
+    "note": "Analyze sales data and add summary formulas."
+   }
+  ],
+  "tips": [
+   "openpyxl writes formula text but not values; run recalc.py (needs an engine such as LibreOffice) or cells open empty.",
+   "Empty extraction from a scanned PDF does not mean no content; use OCR or inspect visually.",
+   "For legal or business documents from others, use the redline workflow for precise tracked changes.",
+   "Render and check layout after editing pptx/docx; without a renderer the skill reports it as unverified.",
+   "Leave master slides, styles, notes, and relationships untouched unless asked."
+  ],
+  "related": [
+   "ak-ai-multimodal",
+   "ak-preview",
+   "ak-markdown-novel-viewer"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Created or edited .docx/.pdf/.pptx/.xlsx files",
+   "Rendered layout-check images (when a renderer is available)"
+  ]
+ },
+ "ak-folder-context": {
+  "tagline": "Create a compact subfolder CLAUDE.md plus linked AGENTS.md for local conventions.",
+  "summary": "ak:folder-context writes durable context for one subfolder: decisions, conventions, or ongoing work a future agent can't infer. Input is the target folder; output is a compact CLAUDE.md there and an AGENTS.md symlink to it. It never touches the root CLAUDE.md/AGENTS.md and refuses static reference folders.",
+  "howItWorks": [
+   "Confirms the target is a subfolder, not the root, and reads key local source, config, and Markdown.",
+   "Sanity gate: skips static reference folders and folders whose context is easy to discover on demand.",
+   "On an explicit request, drafts the file in place for review; asks only on conflict with user content or overwrite.",
+   "Writes CLAUDE.md only from folder evidence or explicit user decisions, dropping empty sections.",
+   "Inherits root policy without repeating it; links to the operational guide instead of holding ops routes.",
+   "Creates AGENTS.md as a symlink to CLAUDE.md, or a one-line pointer file if symlinks fail.",
+   "Rereads user edits and flags contradictions, but never reverts them unless asked."
+  ],
+  "useWhen": [
+   "A monorepo package has its own conventions (naming, MUST NOTs) that differ from root.",
+   "A folder has dated, locked decisions the next session must know.",
+   "Long-running work in one module needs context across sessions.",
+   "You want agents to follow local constraints without bloating the root CLAUDE.md."
+  ],
+  "avoidWhen": [
+   "Editing the root CLAUDE.md/AGENTS.md: use /ak:docs agent-context.",
+   "Project docs under docs/: use ak-docs.",
+   "The folder holds only static reference material or easily discovered context.",
+   "Recording session history: use ak-journal."
+  ],
+  "params": [
+   {
+    "name": "<target-folder>",
+    "kind": "arg",
+    "desc": "Required: subfolder to create context for. Must not be the project root; the skill writes only inside the confirmed target."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:folder-context packages/billing",
+    "note": "Billing package with its own currency-handling constraints."
+   },
+   {
+    "cmd": "/ak:folder-context src/legacy",
+    "note": "Record the MUST NOT refactor rule for legacy code and why."
+   },
+   {
+    "cmd": "/ak:folder-context apps/mobile",
+    "note": "Mobile app in a monorepo with different build and naming conventions."
+   }
+  ],
+  "tips": [
+   "Useful sections: purpose and key files (one line each), constraints (especially MUST NOTs), naming, dated decisions, cross-session context.",
+   "Use bullets; no directory trees or copies of general project docs.",
+   "Don't repeat root rules, invent constraints, store credentials, or write outside the target folder.",
+   "Keep deploy, log, and secret lookups out; link to the operational guide instead.",
+   "Respect existing local user instructions before adding new context.",
+   "Where symlinks aren't supported (e.g. Windows without permission), AGENTS.md is a one-line pointer file."
+  ],
+  "related": [
+   "ak-docs",
+   "ak-journal",
+   "ak-project-organization"
+  ],
+  "agents": [],
+  "artifacts": [
+   "<target-folder>/CLAUDE.md",
+   "<target-folder>/AGENTS.md (symlink to CLAUDE.md or pointer file)"
+  ]
+ },
+ "ak-interview-docs": {
+  "tagline": "Guided interview that turns the user's vision and decisions into durable docs.",
+  "summary": "ak:interview-docs turns the user's own knowledge, taste, and decisions into a README, ADR, strategy, principles, or other structured doc. Input is a vision, doc path, or topic; the doc is patched after every answer. It never invents content, ranks the user's lists on its own, or derives docs from source code.",
+  "howItWorks": [
+   "Picks a mode: vision mode (project vision, README direction, ADR decisions) or structured-doc mode (principles, strategy, review, framework); asks once if both fit.",
+   "Vision mode reads README.md and docs navigation to find the existing owner of vision and decisions; it does not assume docs/adr exists.",
+   "Vision mode asks focused questions on open decisions, skipping answered ones, and patches the owner doc after each answer.",
+   "README keeps only vision; confirmed decisions go to the repo's chosen owner; ADRs only if already a convention.",
+   "Structured-doc mode reads nearby docs, creates a minimal skeleton once, then asks one concrete open question per turn.",
+   "Treats user lists as unordered until the user sets priority; keeps the user's wording and edits."
+  ],
+  "useWhen": [
+   "Write a README that states the project vision in the founder's words.",
+   "Record architecture decisions the user already made as ADRs (if the repo uses ADRs).",
+   "Draft principles, strategy, or a personal framework one question at a time.",
+   "The user has ideas in mind but no structure to write them down."
+  ],
+  "avoidWhen": [
+   "You want AI to propose and compare options: use ak-brainstorm.",
+   "The doc should be derived from code: use ak-docs.",
+   "You need a research brief for someone else: use ak-research-prompt.",
+   "You want a chronological technical log: use ak-journal."
+  ],
+  "params": [
+   {
+    "name": "<vision | document-path | topic>",
+    "kind": "arg",
+    "desc": "Required: a vision statement (vision mode), a doc path to build or finish, or a structured-doc topic (structured-doc mode)."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:interview-docs vision for the project README",
+    "note": "Vision mode: interview to write a direction-setting README."
+   },
+   {
+    "cmd": "/ak:interview-docs docs/principles.md",
+    "note": "Structured-doc mode: build a principles doc one question at a time."
+   },
+   {
+    "cmd": "/ak:interview-docs next year's go-to-market strategy",
+    "note": "Draft a strategy doc from the user's decisions."
+   },
+   {
+    "cmd": "/ak:interview-docs decision to choose PostgreSQL over MongoDB",
+    "note": "Record a settled decision in the repo's decision owner."
+   }
+  ],
+  "tips": [
+   "Tentative opinions never become decisions; ADRs hold only explicitly settled choices.",
+   "You can set an interview pace (e.g. one question at a time) and the skill keeps it.",
+   "The doc is patched after each answer, so you can stop midway without losing content.",
+   "It won't overwrite existing docs, add speculative sections, or store secrets or personal data."
+  ],
+  "related": [
+   "ak-brainstorm",
+   "ak-docs",
+   "ak-research-prompt",
+   "ak-journal"
+  ],
+  "agents": [],
+  "artifacts": [
+   "README.md (vision section)",
+   "Decision docs/ADRs per repo convention",
+   "User-specified structured doc (e.g. docs/principles.md)"
+  ]
+ },
+ "ak-llms": {
+  "tagline": "Generate llms.txt (and llms-full.txt) per llmstxt.org from docs or a URL.",
+  "summary": "ak:llms builds an LLM-friendly Markdown index of project docs following the llmstxt.org spec. Input is a docs path or URL (default: discovered from README, site config, and navigation); output is llms.txt and optionally llms-full.txt with inline content. It does not handle hosting, deploy, SEO, robots.txt, or sitemaps.",
+  "howItWorks": [
+   "Gather: reads README and docs/site navigation to build an allowlist of public sources; for a URL, uses web search to get the structure.",
+   "Analyze: takes titles from navigation, frontmatter, or H1; summarizes real page content; groups pages (API, Guides, Reference) as core or optional.",
+   "Generate: runs scripts/generate-llms-txt.py --source <path> --output <output-path> --base-url <url> [--full], or writes by hand per the spec.",
+   "Structure: H1 project name, summary blockquote, H2 sections of [Title](url): description links, ## Optional last.",
+   "Validate: H1 and blockquote present, valid Markdown links, Optional last, short jargon-free descriptions."
+  ],
+  "useWhen": [
+   "You publish a docs site and want AI tools to find it easily.",
+   "You need a compact context file for AI assistants reading project docs.",
+   "The user asks for 'llms.txt', 'LLM documentation', or 'AI-friendly docs'.",
+   "You need llms-full.txt with all content inline for one-shot loading."
+  ],
+  "avoidWhen": [
+   "Updating llms.txt as part of the general docs workflow (discovery, in-place update of both files): use /ak:docs llms.",
+   "Looking up external library docs via llms.txt: use ak-docs-seeker.",
+   "The docs site runs on Mintlify and needs its AI features configured: use ak-mintlify."
+  ],
+  "params": [
+   {
+    "name": "[path|url]",
+    "kind": "arg",
+    "desc": "Folder/file to scan or docs site URL. Omitted: discovered from root README, site config, and navigation."
+   },
+   {
+    "name": "--full",
+    "kind": "flag",
+    "desc": "Also generate llms-full.txt with inline doc content."
+   },
+   {
+    "name": "--output path",
+    "kind": "flag",
+    "desc": "Custom output location; default is project root."
+   },
+   {
+    "name": "--url base",
+    "kind": "flag",
+    "desc": "Base URL prefix for links (e.g. https://example.com/docs); maps to the script's --base-url. Listed under Arguments though not in argument-hint."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:llms",
+    "note": "Discover project docs and write llms.txt at root."
+   },
+   {
+    "cmd": "/ak:llms docs/ --full",
+    "note": "Scan docs/ and also write llms-full.txt."
+   },
+   {
+    "cmd": "/ak:llms docs/ --output public/ --url https://example.com/docs",
+    "note": "Write to the site's public folder with absolute links."
+   },
+   {
+    "cmd": "/ak:llms https://docs.example.com",
+    "note": "Build llms.txt from an existing docs site's structure."
+   }
+  ],
+  "tips": [
+   "## Optional must come last; agents may skip it on short context, so put changelogs and legacy there.",
+   "Don't copy a page's first paragraph as its description; it may be boilerplate. Summarize real content.",
+   "Exclude secrets, private docs, and unrelated config from public output.",
+   "generate-llms-txt.py needs Python; write by hand per the spec if the script doesn't fit."
+  ],
+  "related": [
+   "ak-docs",
+   "ak-docs-seeker",
+   "ak-mintlify"
+  ],
+  "agents": [],
+  "artifacts": [
+   "llms.txt",
+   "llms-full.txt (with --full)"
+  ]
+ },
+ "ak-markdown-novel-viewer": {
+  "tagline": "Read markdown in a calm, book-like viewer served over local HTTP.",
+  "summary": "ak:markdown-novel-viewer serves a Markdown file or folder from a local Node server with a book-style reader: novel theme, dark mode, progress bar, auto-hiding header. Input is a file or folder path; output is a localhost URL. Use it for long content such as RFCs, runbooks, design docs, reports, plans, or novels; HTML generation belongs to ak:preview --html.",
+  "howItWorks": [
+   "Resolves and quotes the path, including Windows paths with spaces.",
+   "Reuses a known server for the project; checks processes and ports before starting a new one.",
+   "Checks Node and the marked, highlight.js, and gray-matter deps; runs npm install in the skill folder only if missing.",
+   "Runs node scripts/server.cjs --file \"<absolute-path>\" --open (or --dir), binds to localhost unless remote access is asked, and returns the real printed URL.",
+   "Records PID, port, and project; stops only its own server when done (--stop kills all viewer servers)."
+  ],
+  "useWhen": [
+   "Read a long RFC, design doc, or report without distractions.",
+   "Browse a multi-phase plan with a status sidebar and Previous/Next navigation.",
+   "Read docs with Mermaid diagrams, rendered to match the theme.",
+   "Browse a whole markdown folder with the directory browser."
+  ],
+  "avoidWhen": [
+   "Generating an HTML explainer or slides: use ak-preview (--html).",
+   "A public showcase page: use ak-show-off.",
+   "A kanban plan dashboard: use ak-plans-kanban.",
+   "Reading a few lines in the terminal; no server needed."
+  ],
+  "params": [
+   {
+    "name": "[file-or-directory]",
+    "kind": "arg",
+    "desc": "Markdown file (maps to --file) or folder (maps to --dir) to open."
+   },
+   {
+    "name": "--file <path>",
+    "kind": "flag",
+    "desc": "scripts/server.cjs option: markdown file to view."
+   },
+   {
+    "name": "--dir <path>",
+    "kind": "flag",
+    "desc": "CLI option: folder to browse."
+   },
+   {
+    "name": "--port <number>",
+    "kind": "flag",
+    "desc": "CLI option: server port, default 3456."
+   },
+   {
+    "name": "--host <addr>",
+    "kind": "flag",
+    "desc": "CLI option: bind host, default localhost; 0.0.0.0 for remote access (only when asked)."
+   },
+   {
+    "name": "--open",
+    "kind": "flag",
+    "desc": "CLI option: open the browser automatically, default false."
+   },
+   {
+    "name": "--background",
+    "kind": "flag",
+    "desc": "CLI option: run in the background, default false."
+   },
+   {
+    "name": "--stop",
+    "kind": "flag",
+    "desc": "CLI option: stops ALL viewer servers. Use only if every server belongs to this task; otherwise stop the specific PID."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:markdown-novel-viewer docs/rfc-001.md",
+    "note": "Read a long RFC in the browser."
+   },
+   {
+    "cmd": "/ak:markdown-novel-viewer plans/260926-auth-refactor/",
+    "note": "Browse a multi-phase plan with sidebar and navigation."
+   },
+   {
+    "cmd": "/ak:markdown-novel-viewer ./book",
+    "note": "Browse a folder of novel chapters."
+   }
+  ],
+  "tips": [
+   "Shortcuts: ? cheatsheet, T theme, S sidebar, ←/→ switch phase, Esc close.",
+   "Always use the URL the server prints; it may not be port 3456.",
+   "Check processes and ports first to avoid duplicate servers; stop yours when done.",
+   "Mermaid errors usually come from bad syntax (e.g. -> instead of -->); see references/mermaid-diagrams.md."
+  ],
+  "related": [
+   "ak-preview",
+   "ak-plans-kanban",
+   "ak-mermaidjs-v11"
+  ],
+  "agents": [],
+  "artifacts": [
+   "No doc files; starts a local Node server process (track its PID and port)"
+  ]
+ },
+ "ak-mintlify": {
+  "tagline": "Build and maintain Mintlify docs: docs.json, MDX, navigation, OpenAPI, AI assets.",
+  "summary": "ak:mintlify builds and maintains Mintlify docs sites that turn Markdown/MDX into interactive docs. Input is a task (config, content, navigation, OpenAPI, deploy, AI) and a docs root; output is edited docs.json, MDX pages, and navigation/theme config with validation run. It uses the installed CLI and version-matched official docs, and never installs a global CLI or inits a site just to edit MDX.",
+  "howItWorks": [
+   "Inspects the docs root, package manifest, lockfile, config, and navigation before choosing commands.",
+   "Checks the installed CLI version and help, and uses matching official docs for config or API changes.",
+   "Routes by change: config/theme, content, navigation, OpenAPI, preview/deploy, or AI, each to its own reference file.",
+   "Loads quick-examples.md only when starting new content or config.",
+   "Runs installed validators (e.g. mint validate, mint broken-links, mint a11y, mint openapi-check) and checks affected links and rendering.",
+   "Reuses a running preview, tracks any process it starts, and stops it when done.",
+   "Deploys only to a requested target, with proof of the real result."
+  ],
+  "useWhen": [
+   "Add a new MDX page using Mintlify components (Card, Tabs, Steps).",
+   "Reorganize navigation, tabs, or groups in docs.json.",
+   "Integrate OpenAPI/AsyncAPI to generate API reference pages.",
+   "Configure AI features such as llms.txt, skill.md, or MCP for the docs site.",
+   "Set up CI checks for broken links and a11y before deploy."
+  ],
+  "avoidWhen": [
+   "The project doesn't use Mintlify and only needs in-repo markdown docs: use ak-docs.",
+   "You need a standalone llms.txt unrelated to Mintlify: use ak-llms.",
+   "Deploying an app to general hosting: use ak-deploy.",
+   "ASP.NET API docs: use dotnet-claude-kit:openapi or scalar."
+  ],
+  "params": [
+   {
+    "name": "[task]",
+    "kind": "arg",
+    "desc": "Work to do (config/theme, content, navigation, OpenAPI, preview/deploy, AI integration); decides which reference loads."
+   },
+   {
+    "name": "[path]",
+    "kind": "arg",
+    "desc": "Docs root or file to edit."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:mintlify add a quickstart page docs/",
+    "note": "Write a new MDX page and add it to navigation."
+   },
+   {
+    "cmd": "/ak:mintlify integrate openapi.yaml docs/",
+    "note": "Generate API reference from an OpenAPI file."
+   },
+   {
+    "cmd": "/ak:mintlify change theme and brand colors docs/docs.json",
+    "note": "Edit theme config in docs.json."
+   },
+   {
+    "cmd": "/ak:mintlify check broken links",
+    "note": "Run local validation before merging."
+   }
+  ],
+  "tips": [
+   "Don't install a global CLI or run init just to edit one MDX file; use the project's CLI.",
+   "Checks in the references: mint validate, mint broken-links, mint a11y, mint openapi-check; MINTLIFY_CONFIG selects a docs.json per environment.",
+   "Mintlify auto-deploys from the connected Git repo; other targets (Vercel, AWS) need a static build and proof of result.",
+   "Stop any mint dev process you started so it doesn't hold the port."
+  ],
+  "related": [
+   "ak-docs",
+   "ak-llms",
+   "ak-deploy",
+   "ak-docs-seeker"
+  ],
+  "agents": [],
+  "artifacts": [
+   "docs.json",
+   ".mdx pages",
+   "CI validation config (when requested)"
+  ]
+ },
+ "ak-diagram": {
+  "tagline": "Compile typed JSON IR into validated SVG, fragments, or interactive HTML readers.",
+  "summary": "ak:diagram (v3) compiles a typed JSON IR into deterministic SVG, an embeddable HTML fragment, or a self-contained interactive HTML reader, fully offline. The compiler handles layout: ranking, column ordering, orthogonal edge routing, and role-based cards with a legend, so you describe topology and never enter coordinates. It supports 5 archetypes, 4 visual presets, and light/dark themes; the reader only queries nodes and relations declared in the IR.",
+  "howItWorks": [
+   "Pick an archetype: architecture (components, boundaries, connections), workflow (lanes, steps, transitions), sequence (participants, messages), dataflow (stages, nodes, flows), or lifecycle (states, transitions).",
+   "Write the IR envelope {\"schema_version\": 1, \"diagram_type\": \"<type>\", \"meta\": {...}}, choose preset and theme, optionally \"trace\" animation and up to 5 meta.views chapters.",
+   "Schema rules: strict role enum on nodes (checked at compile) and IDs matching ^[a-zA-Z0-9_-]{1,64}$.",
+   "Placement comes from the IR: layer sets architecture columns, lane sets workflow rows, stage.order sets dataflow columns, initial state starts lifecycles.",
+   "Unranked nodes take the longest path from predecessors; cycles render as return routes.",
+   "Compile offline: node scripts/compiler/compile.mjs --input diagram.json --format html|svg|fragment --out <path> --preset <preset> --theme <theme>.",
+   "python3 scripts/render.py auto-detects IR, Mermaid, or legacy templates.",
+   "Deterministic: same IR gives same geometry and same SHA-256 output; no overlaps, no routes through unrelated nodes (tested on every fixture).",
+   "Each role maps to a visual family (client, service, data, queue, gateway, and more) with its own color, sigil, and legend entry.",
+   "Motion is CSS-only, staggered by column, under 8 seconds total; prefers-reduced-motion shows the final frame.",
+   "Delivers .html (reader with search, focus, routes, role lens, chapters, share card, theme toggle, replay) or clean .svg."
+  ],
+  "useWhen": [
+   "Microservice architecture with boundaries and layers, as an interactive reader for search, focus, and tracing.",
+   "Multi-lane workflows with handoffs and decision points, without hand-placing coordinates.",
+   "API call sequences or ETL/stream/data-lineage pipelines (dataflow).",
+   "An order-status state machine (lifecycle) with storytelling chapters via meta.views.",
+   "Deterministic output (same IR, same SHA-256) to commit and diff in review."
+  ],
+  "avoidWhen": [
+   "Freeform, editable whiteboard sketches: use ak-excalidraw.",
+   "Static publication-grade diagrams or print infographics: use ak-tech-graph.",
+   "Inline diagrams in markdown: use ak-mermaidjs-v11.",
+   "Slides or a broad visual explanation instead of a system map: use ak-preview."
+  ],
+  "params": [
+   {
+    "name": "[input-file]",
+    "kind": "arg",
+    "desc": "Typed JSON IR file (compile.mjs --input). The render.py wrapper also takes Mermaid .mmd (vendored v11.4.1) or legacy templates."
+   },
+   {
+    "name": "--format <svg|fragment|html>",
+    "kind": "flag",
+    "desc": "svg: clean vector (keeps CSS animation). fragment: scoped HTML for an existing page. html: self-contained interactive reader with shortcuts."
+   },
+   {
+    "name": "--preset <classic|signal-flow|blueprint|editorial>",
+    "kind": "flag",
+    "desc": "Visual preset; changes typography, strokes, and density, not graph meaning. classic (default, neutral), signal-flow (emerald/cyan glow), blueprint (technical grid, monospace), editorial (warm serif)."
+   },
+   {
+    "name": "--theme <light|dark>",
+    "kind": "flag",
+    "desc": "Light or dark theme; the reader has a toggle that keeps geometry and preset."
+   },
+   {
+    "name": "--out <path>",
+    "kind": "flag",
+    "desc": "Output file path (e.g. ./build/diagram.html). For render.py, --out is an output folder."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:diagram diagram.json --format html --preset signal-flow --theme dark --out ./build/diagram.html",
+    "note": "Interactive reader for a system architecture, dark theme."
+   },
+   {
+    "cmd": "/ak:diagram diagram.json --format svg --out ./build/diagram.svg",
+    "note": "Vector SVG to embed in docs."
+   },
+   {
+    "cmd": "/ak:diagram diagram.json --format fragment --preset blueprint --theme dark",
+    "note": "Scoped fragment for an existing HTML page."
+   },
+   {
+    "cmd": "/ak:diagram draw an order status lifecycle",
+    "note": "The skill picks the lifecycle archetype and writes the IR."
+   },
+   {
+    "cmd": "python3 scripts/render.py --input diagram.mmd --out ./build/",
+    "note": "Legacy wrapper: detects Mermaid and wraps it in the editorial frame."
+   }
+  ],
+  "tips": [
+   "Never declare coordinates; steer placement with layer, lane, stage.order, or initial state.",
+   "Reader keys: / search, click to focus, Escape unfocus, R shortest path, L role filter, F present, [ and ] chapters, M replay.",
+   "Compilation is offline Node: no network calls, telemetry, or font downloads.",
+   "Animation is always finite (under 8 s) and disabled by prefers-reduced-motion: reduce.",
+   "Mermaid is vendored at v11.4.1; avoid newer features. For heavy motion, prefer IR or templates.",
+   "Compile errors usually mean a wrong role enum or invalid ID characters; see references/schema-and-reader.md."
+  ],
+  "related": [
+   "ak-excalidraw",
+   "ak-tech-graph",
+   "ak-mermaidjs-v11",
+   "ak-preview",
+   "ak-show-off"
+  ],
+  "agents": [],
+  "artifacts": [
+   "JSON IR file (e.g. diagram.json)",
+   "diagram.html (self-contained interactive reader)",
+   "diagram.svg",
+   "Scoped HTML fragment",
+   "1200×630 share card SVG exported from the reader"
+  ]
+ },
+ "ak-excalidraw": {
+  "tagline": "Draw reasoning Excalidraw diagrams via live MCP canvas or Playwright-rendered files.",
+  "summary": "ak:excalidraw makes editable Excalidraw diagrams for architecture, data flow, workflows, and system design. Shapes should carry meaning, not just be labeled boxes. Mode A uses a live MCP canvas (preferred); Mode B writes a .excalidraw file and renders PNG with Playwright. Input is a description or path (including 'diagram this repo'); output is a .excalidraw file plus PNG/SVG.",
+  "howItWorks": [
+   "Mode detection: uses Mode A if mcp__excalidraw__read_diagram_guide is available and works, else Mode B file-based; guides setup if neither works.",
+   "Assess depth: simple concept or full technical diagram; technical ones need real specs, events, and APIs as evidence.",
+   "Map concepts to visual patterns (fan-out, convergence, tree, timeline, cycle, assembly line, side-by-side, gap), varying patterns per major concept.",
+   "Plan layout left→right or top→bottom, giving important parts more whitespace.",
+   "Repo auto-diagram: detect, discover components (≤15 tool calls), map connections (≤10), verify, then generate (max 12 components, 20 arrows).",
+   "Self-critique loop: render, compare with the design, fix overlap, clipped text, and wrong arrows (usually 2-4 rounds, max 2 with MCP).",
+   "Export on request: MCP uses export_to_image (PNG/SVG); file mode runs render_excalidraw.py for PNG."
+  ],
+  "useWhen": [
+   "The user says 'diagram this repo' or 'visualize the architecture'.",
+   "You need a diagram that stays editable in Excalidraw.",
+   "Explain a concept or mental model with a diagram that argues visually.",
+   "Draw data flow or system design live on a canvas with the user."
+  ],
+  "avoidWhen": [
+   "Validated system maps from JSON IR with an interactive reader: use ak-diagram.",
+   "Static publication-grade diagrams with fixed styles: use ak-tech-graph.",
+   "Inline diagrams in markdown: use ak-mermaidjs-v11.",
+   "Slides or page-style visual explanations: use ak-preview."
+  ],
+  "params": [
+   {
+    "name": "[diagram description|path]",
+    "kind": "arg",
+    "desc": "Diagram description, or a path: a .excalidraw file to edit/render, or a folder/repo to auto-diagram."
+   },
+   {
+    "name": "--export <png|svg>",
+    "kind": "flag",
+    "desc": "Export PNG or SVG. MCP mode uses export_to_image; file mode's render_excalidraw.py outputs PNG (supports --output, --scale default 2, --width default 1920). (not documented in source: how the flag maps to each mode)"
+   },
+   {
+    "name": "--live",
+    "kind": "flag",
+    "desc": "Use the live MCP canvas (Mode A, real-time in the browser). (not documented in source; SKILL.md only describes automatic mode detection)"
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:excalidraw diagram this repo",
+    "note": "Auto-diagram the current codebase architecture."
+   },
+   {
+    "cmd": "/ak:excalidraw OAuth flow between client, API, and IdP --export png",
+    "note": "Data-flow diagram exported as PNG."
+   },
+   {
+    "cmd": "/ak:excalidraw event-driven architecture with Kafka --live",
+    "note": "Draw directly on the MCP canvas."
+   },
+   {
+    "cmd": "/ak:excalidraw docs/arch.excalidraw --export svg",
+    "note": "Re-render an existing file to SVG."
+   }
+  ],
+  "tips": [
+   "Mode B needs uv and Playwright Chromium (uv run playwright install chromium); Mode A needs a running canvas (e.g. docker ghcr.io/yctimlin/mcp_excalidraw-canvas) and mcp-excalidraw-server configured.",
+   "The most common flaw is cramped spacing: boxes 200-240px, labeled arrow gaps 150-200px, rows 280-350px.",
+   "Keep under 30% of text inside containers; use 3-4 fill colors max; same role, same color (Frontend #a5d8ff, Backend #d0bfff, Database #b2f2bb).",
+   "When editing an existing diagram, keep element IDs, bindings, palette, and fonts.",
+   "With MCP, clear the canvas and screenshot to confirm it's empty before drawing."
+  ],
+  "related": [
+   "ak-diagram",
+   "ak-tech-graph",
+   "ak-mermaidjs-v11",
+   "ak-preview"
+  ],
+  "agents": [],
+  "artifacts": [
+   ".excalidraw file (JSON)",
+   "Rendered PNG (same name, or per --output)",
+   "SVG/PNG exported from the MCP canvas"
+  ]
+ },
+ "ak-mermaidjs-v11": {
+  "tagline": "Write Mermaid.js v11 diagrams: flowchart, sequence, class, ER, Gantt, state, and more.",
+  "summary": "ak:mermaidjs-v11 writes text diagrams in Mermaid.js v11 declarative syntax, covering 24+ diagram types. Input is a diagram type or description; output is a mermaid code block for inline Markdown, or SVG/PNG/PDF via mermaid-cli when needed. It is the lightest option for diagrams in docs, READMEs, and PRs.",
+  "howItWorks": [
+   "Picks a diagram type (flowchart, sequenceDiagram, classDiagram, stateDiagram, erDiagram, gantt, journey; see references/diagram-types.md).",
+   "Writes {diagram-type} plus content, with optional frontmatter config (theme, look) and %% comments.",
+   "For Markdown hosts, outputs a mermaid code block with no CLI; checks host support for less common v11 features.",
+   "Exports only when needed with mmdc (@mermaid-js/mermaid-cli): -i/-o, -t theme, -b background, --cssFile; checks the result.",
+   "Customizes via configuration.md (theme, look, fontFamily, securityLevel) or embeds via the JavaScript API (integration.md)."
+  ],
+  "useWhen": [
+   "Add inline diagrams to a README, docs, or PR description.",
+   "Draw an ER diagram for a database schema.",
+   "Build a Gantt timeline or user journey.",
+   "Draw a sequence diagram of an API flow in docs."
+  ],
+  "avoidWhen": [
+   "Validated interactive system maps: use ak-diagram.",
+   "Publication-grade diagrams in multiple styles: use ak-tech-graph.",
+   "Freeform editable canvas: use ak-excalidraw.",
+   "Complex data charts: use the dataviz skill."
+  ],
+  "params": [
+   {
+    "name": "[diagram-type or description]",
+    "kind": "arg",
+    "desc": "Mermaid diagram type (e.g. flowchart, erDiagram) or a description of what to illustrate."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:mermaidjs-v11 erDiagram for users, orders, products tables",
+    "note": "Database relationship diagram for docs."
+   },
+   {
+    "cmd": "/ak:mermaidjs-v11 sequence of the OAuth login flow",
+    "note": "Sequence diagram embedded in a README."
+   },
+   {
+    "cmd": "/ak:mermaidjs-v11 gantt Q4 roadmap",
+    "note": "Project timeline."
+   },
+   {
+    "cmd": "/ak:mermaidjs-v11 flowchart for order processing, export SVG",
+    "note": "Export a file with mmdc when an image is needed."
+   }
+  ],
+  "tips": [
+   "Inline use needs no CLI; install mermaid-cli (npm install -g @mermaid-js/mermaid-cli) only to export images.",
+   "Check that the host renderer (GitHub, GitLab, docs site) supports newer v11 features first.",
+   "Common errors: -> instead of -->, typos in diagram type; test quickly on mermaid.live.",
+   "If rendered SVG labels overlap, apply ak:tech-graph layout rules.",
+   "Use look: handDrawn for a sketch style, theme base for custom colors."
+  ],
+  "related": [
+   "ak-diagram",
+   "ak-tech-graph",
+   "ak-excalidraw",
+   "ak-markdown-novel-viewer"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Inline mermaid code block",
+   ".mmd file and SVG/PNG/PDF when exported"
+  ]
+ },
+ "ak-tech-graph": {
+  "tagline": "Generate publication-grade SVG+PNG technical diagrams in 7 visual styles.",
+  "summary": "ak:tech-graph creates technical diagrams as SVG and exports PNG via rsvg-convert: architecture, data flow, flowchart, sequence, agent/memory, concept map, UML, ER, network topology, and more. Styles: Flat Icon (default), Dark Terminal, Blueprint, Notion Clean, Glassmorphism, Claude Official, OpenAI Official. Input is a diagram type or system description; output is a .svg and .png pair for publishing.",
+  "howItWorks": [
+   "Recovers entities, edges, and claims from source evidence or the user's description; flags uncertain relations.",
+   "Keeps any supplied style or brand, else defaults to Flat Icon; loads the style reference and diagram-type-layout-rules.md.",
+   "Builds SVG with a helper (generate-from-template.py from template + JSON) or by hand per drawing-recipes.md; keeps arrow meaning and readable labels.",
+   "Validates and exports with generate-diagram.sh (or validate-svg.sh plus rsvg-convert -w 1920).",
+   "Inspects the export for collisions, clipped text, and wrong relations, then fixes and re-exports; reports quality as unverified if it can't view images.",
+   "Returns SVG and PNG paths with the real validation status."
+  ],
+  "useWhen": [
+   "Polished architecture diagrams for blogs, articles, or slides.",
+   "Illustrate a RAG pipeline, agentic search, multi-agent system, or memory layer.",
+   "Diagrams in Anthropic or OpenAI house style.",
+   "Both SVG and retina PNG (1920px) for publishing."
+  ],
+  "avoidWhen": [
+   "Inline diagrams in markdown docs: use ak-mermaidjs-v11.",
+   "Interactive HTML readers from JSON IR: use ak-diagram.",
+   "Editable canvas: use ak-excalidraw.",
+   "Quick visual self-review only: use /ak:preview --diagram."
+  ],
+  "params": [
+   {
+    "name": "[diagram-type or system description]",
+    "kind": "arg",
+    "desc": "Diagram type (architecture, data flow, flowchart, sequence, agent, memory, comparison matrix, timeline, mind map, UML class/use case/state, ER, network) or a system description."
+   },
+   {
+    "name": "--output /path/",
+    "kind": "flag",
+    "desc": "Custom output path (mentioned under Output, not in argument-hint); default ./[derived-name].svg and .png in the current folder."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:tech-graph architecture of a RAG system with a vector DB",
+    "note": "Architecture diagram in default Flat Icon style."
+   },
+   {
+    "cmd": "/ak:tech-graph multi-agent orchestrator style Claude Official",
+    "note": "Agent diagram in Anthropic style."
+   },
+   {
+    "cmd": "/ak:tech-graph Stripe payment sequence style Dark Terminal",
+    "note": "Diagram for a developer post on GitHub."
+   },
+   {
+    "cmd": "/ak:tech-graph ER diagram for a blog schema --output ./docs/img/",
+    "note": "Export into the docs image folder."
+   }
+  ],
+  "tips": [
+   "Requires rsvg-convert (librsvg); verify it exists before promising PNG export.",
+   "Don't install upstream fireworks-tech-graph via npx skills add; it's already vendored.",
+   "Use helper scripts for complex SVG to avoid syntax errors; simple diagrams can be hand-written.",
+   "See references/style-diagram-matrix.md to match style to diagram type.",
+   "Its SVG layout rules (spacing, arrow routing, labels, z-index) are also reused by excalidraw and mermaid reviews."
+  ],
+  "related": [
+   "ak-mermaidjs-v11",
+   "ak-diagram",
+   "ak-excalidraw",
+   "ak-preview"
+  ],
+  "agents": [],
+  "artifacts": [
+   "./[derived-name].svg",
+   "./[derived-name].png"
+  ]
+ },
+ "ak-show-off": {
+  "tagline": "Build self-contained HTML showcase pages with section screenshots and optional publishing.",
+  "summary": "ak:show-off builds a self-contained, responsive HTML showcase with a striking hero and smooth-scrolling sections for demos, social posts, or article images. Input is markdown or a prompt; output is content.md, the HTML page, per-section screenshots in landscape/portrait/square, and an optional agentwiki publish. It remembers user preferences (screenshots, publishing, languages) and builds with ak:frontend-design and ak:diagram.",
+  "howItWorks": [
+   "Resolves preferences with node scripts/preferences.js get (defaults: screenshots=true, publishing=true, languages=[vi,en]).",
+   "Detects intent to turn off screenshots or publishing, change language, or reset; saves it unless the user says 'just this once'.",
+   "For multi-artifact or publish work, creates or reuses a plan via project-management with a checklist.",
+   "Splits the request into 2-6 sections (including hero), fact-checks online, and writes assets/showoff/<mission-name>/content.md with citations.",
+   "Publishes the document with the agentwiki CLI when publishing=true.",
+   "Builds HTML with ak:frontend-design first, then ak:diagram for system maps, falling back to inline SVG; adds parallax and a system/light/dark toggle.",
+   "Editorial visuals: AntV Infographic for KPI/list/quadrant panels (3+ tiles), diagram-design for section diagrams; each can be turned off by flag.",
+   "With screenshots=true, runs node scripts/capture-sections.js; the rws screenshot API fallback needs publishing=true, RWEB_API_KEY, and public HTML.",
+   "Runs a 5-point handoff gate (context fit, hierarchy, craft, usability/a11y, safety), publishes if enabled, and opens the page."
+  ],
+  "useWhen": [
+   "Show off a finished feature or project with a polished HTML page.",
+   "You need section images at 16:9, 9:16, and 1:1 for social media.",
+   "Build a bilingual Vietnamese-English showcase with cited sources.",
+   "Turn a markdown file into an interactive showcase with diagrams."
+  ],
+  "avoidWhen": [
+   "Explaining code or architecture, or internal slides: use ak-preview.",
+   "Real product UI: use ak-frontend-design.",
+   "Just reading long markdown: use ak-markdown-novel-viewer."
+  ],
+  "params": [
+   {
+    "name": "[markdown-or-prompt]",
+    "kind": "arg",
+    "desc": "Markdown content or a prompt describing the showcase ($ARGUMENTS)."
+   },
+   {
+    "name": "--no-antv",
+    "kind": "flag",
+    "desc": "Disable AntV Infographic for KPI/ranked-list/quadrant panels (on by default when prefs.visual.antv.enabled and 3+ tiles)."
+   },
+   {
+    "name": "--no-diagram-design",
+    "kind": "flag",
+    "desc": "Disable diagram-design (Architecture, Process, Data flow) for section diagrams."
+   },
+   {
+    "name": "--no-editorial-visuals",
+    "kind": "flag",
+    "desc": "Disable the whole editorial visual layer (AntV and diagram-design); the hero still uses ak:frontend-design."
+   },
+   {
+    "name": "--no-screenshots",
+    "kind": "flag",
+    "desc": "Workflow intent read from the request: skip section screenshots; saved as a preference unless just for this run."
+   },
+   {
+    "name": "--no-publish",
+    "kind": "flag",
+    "desc": "Workflow intent: keep local, no agentwiki publish or rws fallback; saved as a preference unless just for this run."
+   },
+   {
+    "name": "--languages en|vi|en,vi",
+    "kind": "flag",
+    "desc": "Workflow intent: content language mode (vi,en bilingual with toggle; en or vi single-language, no toggle)."
+   },
+   {
+    "name": "preferences.js set|get|reset",
+    "kind": "subcommand",
+    "desc": "Preference helper stored at $AGENTKIT_HOME/show-off/preferences.json (or ~/.agentkit/show-off/preferences.json; override with SHOW_OFF_PREFS_PATH). set accepts --screenshots on|off, --no-screenshots, --publishing on|off, --publish on|off, --no-publishing, --no-publish, --languages, --language, --dual-language on|off, --no-dual-language."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:show-off introduce the realtime sync feature we just shipped",
+    "note": "Full showcase with images and publishing per preferences."
+   },
+   {
+    "cmd": "/ak:show-off ./notes/launch.md --no-antv",
+    "note": "Build from existing markdown without AntV infographics."
+   },
+   {
+    "cmd": "/ak:show-off demo dashboard, English only, local only",
+    "note": "English only, no publishing; saved as a preference."
+   },
+   {
+    "cmd": "/ak:show-off new system architecture, no screenshots this time",
+    "note": "Skip screenshots once without saving the preference."
+   }
+  ],
+  "tips": [
+   "Local capture needs Node and puppeteer/headless Chrome; the rws fallback needs rws on PATH and RWEB_API_KEY (never pass the key on the command line).",
+   "Publishing needs the agentwiki CLI; say 'local only' once and the skill remembers.",
+   "Note each section's id/class; the capture script uses selectors (e.g. #hero,#section-2).",
+   "Use fonts with Vietnamese support when vi is on; never put API keys in HTML.",
+   "Raise --settle-delay if the page has animations or lazy reveals."
+  ],
+  "related": [
+   "ak-frontend-design",
+   "ak-diagram",
+   "ak-preview",
+   "ak-agent-browser",
+   "ak-project-management",
+   "ak-design"
+  ],
+  "agents": [],
+  "artifacts": [
+   "assets/showoff/<mission-name>/content.md",
+   "Showcase HTML page (index.html) in assets/showoff/<mission-name>/",
+   "assets/showoff/<mission-name>/images/ (horizontal-/vertical-/square- images per section)",
+   "Plan under plans/ for multi-artifact work",
+   "$AGENTKIT_HOME/show-off/preferences.json"
+  ]
+ },
+ "ak-copywriting": {
+  "tagline": "Conversion copy: formulas, headlines, emails, landing pages, CTAs, style extraction.",
+  "summary": "Writes high-converting copy from an agreed deliverable, audience, goal, and brand voice. Ships a formula library (AIDA, PAS, BAB, 4Ps, FAB), headline/email/landing/CTA templates, power words, and 30 writing styles, plus a script that extracts a style from sample files.",
+  "howItWorks": [
+   "Identify deliverable, audience, goal, and brand voice from the brief; ask only when a missing choice changes the copy.",
+   "Load the matching references: landing/CTA, email, headlines, social, or style extraction.",
+   "Use formulas as optional structure; voice wins (no fake urgency for a calm brand).",
+   "Tie every product claim, number, or testimonial to evidence; never invent social proof.",
+   "Deliver in the requested format and path; check audience fit, claim support, and CTA."
+  ],
+  "useWhen": [
+   "Headlines, landing pages, CTAs, or emails that must convert.",
+   "Applying a custom writing style stored in assets/writing-styles/.",
+   "Generating copy variants for an A/B test."
+  ],
+  "avoidWhen": [
+   "Technical docs for developers or CLAUDE.md: use ak-docs.",
+   "An HTML demo page showcasing the product: use ak-show-off."
+  ],
+  "params": [
+   {
+    "name": "[copy-type]",
+    "kind": "arg",
+    "desc": "Copy type: headline, landing page, email, CTA, social, product description…"
+   },
+   {
+    "name": "[context]",
+    "kind": "arg",
+    "desc": "Context: product, audience, offer, brand voice, constraints."
+   }
+  ],
+  "examples": [
+   {
+    "cmd": "/ak:copywriting headline \"English-learning app for professionals, $4/month\"",
+    "note": "A batch of landing-page headlines."
+   },
+   {
+    "cmd": "/ak:copywriting landing-page \"CRM for agencies, audience: owners of 5–20 person agencies\"",
+    "note": "Landing page structure and copy."
+   },
+   {
+    "cmd": "/ak:copywriting email \"welcome email after trial signup\"",
+    "note": "One standalone email."
+   }
+  ],
+  "tips": [
+   "scripts/extract-writing-styles.py extracts a writing style from mixed-format files into assets/writing-styles/.",
+   "templates/copy-brief.md standardizes the brief before writing.",
+   "Without evidence, claims are flagged as suggestions; no invented numbers or reviews."
+  ],
+  "related": [
+   "ak-docs",
+   "ak-show-off",
+   "ak-frontend-design"
+  ],
+  "agents": [],
+  "artifacts": [
+   "Copy at the requested path (fallback assets/copy/{type}/, assets/copy/headlines/, assets/copy/landing-pages/)",
+   "Style file assets/writing-styles/{slug}.md when extracting"
+  ]
+ }
+}

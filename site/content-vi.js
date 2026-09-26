@@ -1,10 +1,10 @@
-// Nội dung biên soạn tay: workflow recipes, bảng chọn skill, bảng CLI.
-window.AK_CONTENT = {
+// Nội dung biên soạn tay (tiếng Việt): workflow recipes, bảng chọn skill, bảng CLI.
+window.AK_CONTENT_VI = {
   common: ['ak-brainstorm', 'ak-plan', 'ak-cook', 'ak-fix', 'ak-scout', 'ak-ship', 'ak-git', 'ak-code-review', 'ak-debug', 'ak-test', 'ak-agentkit', 'ak-advise', 'ak-watzup', 'ak-handoff'],
 
   workflows: [
     {
-      id: 'new-feature', title: 'Build một feature mới', level: 'Vừa', time: '30–90 phút',
+      id: 'new-feature', title: 'Build một feature mới', level: 'medium', time: '30–90 phút',
       when: 'Hình dạng feature chưa rõ, hoặc chạm nhiều file hay module.',
       steps: [
         ['/ak:brainstorm "mô tả feature"', 'Làm rõ outcome, constraints, non-goals, acceptance và so sánh 2–3 hướng. Thêm --html để có báo cáo trực quan.'],
@@ -18,7 +18,7 @@ window.AK_CONTENT = {
       options: ['Thêm --hard vào plan nếu stack lạ hoặc nhiều module.', 'Thêm --tdd ở cả plan lẫn cook.', 'Thêm --advice để kongming giám sát.'],
     },
     {
-      id: 'quick', title: 'Implement nhanh', level: 'Dễ', time: '5–20 phút',
+      id: 'quick', title: 'Implement nhanh', level: 'easy', time: '5–20 phút',
       when: 'Fix nhỏ hoặc feature nhỏ, yêu cầu rõ ràng, dễ đảo ngược.',
       steps: [
         ['/ak:cook "task" --fast', 'Đường ngắn nhất. Cook vẫn qua một gate brainstorm gọn, sau đó implement và verify.'],
@@ -28,7 +28,7 @@ window.AK_CONTENT = {
       options: ['Muốn cắt scope tới mức MVP thì thêm --yagni.'],
     },
     {
-      id: 'advised', title: 'Chuỗi feature có cố vấn', level: 'Nâng cao', time: '45–120 phút',
+      id: 'advised', title: 'Chuỗi feature có cố vấn', level: 'advanced', time: '45–120 phút',
       when: 'Nhiều module, refactor lớn, hoặc thay đổi một luồng quan trọng với người dùng.',
       steps: [
         ['/ak:advise "vấn đề"', 'Tùy chọn: được phỏng vấn từng câu để kiểm tra lại cách đặt vấn đề. Thêm --agent để chạy cô lập trên fable.'],
@@ -42,7 +42,7 @@ window.AK_CONTENT = {
       options: ['Kết hợp --hard --advice nghĩa là research, red-team và kongming cùng lúc, rất tốn token.'],
     },
     {
-      id: 'plan-gates', title: 'Plan có cổng kiểm soát (kiến trúc, DB, API, payment, security)', level: 'Nâng cao', time: '30–60 phút',
+      id: 'plan-gates', title: 'Plan có cổng kiểm soát (kiến trúc, DB, API, payment, security)', level: 'advanced', time: '30–60 phút',
       when: 'Thay đổi khó đảo ngược: schema DB, public API, thanh toán, bảo mật.',
       steps: [
         ['/ak:predict "đề xuất"', 'Tùy chọn: 5 persona chuyên gia tranh luận về các rủi ro kiến trúc, bảo mật, hiệu năng, UX.'],
@@ -56,7 +56,7 @@ window.AK_CONTENT = {
       options: [],
     },
     {
-      id: 'bugfix', title: 'Sửa bug / test fail / CI đỏ', level: 'Dễ', time: '5–40 phút',
+      id: 'bugfix', title: 'Sửa bug / test fail / CI đỏ', level: 'easy', time: '5–40 phút',
       when: 'Có lỗi cụ thể: stack trace, test fail, lint/type error, CI fail.',
       steps: [
         ['/ak:fix "mô tả lỗi + log"', 'Tự định tuyến theo loại lỗi (CI, log, test, type, UI) và chứng minh nguyên nhân trước khi sửa. --auto là mặc định: tự chạy qua sửa và verify, chỉ hỏi khi thiếu quyết định quan trọng. --review dừng xin duyệt ở mỗi bước lớn (nên dùng cho production hoặc lỗi bảo mật). --quick là đường sửa gọn: scout, diagnose, fix, verify. --parallel xử lý nhiều issue độc lập.'],
@@ -66,7 +66,7 @@ window.AK_CONTENT = {
       options: ['Lỗi đã sửa 2 lần mà vẫn tái diễn thì thêm --advice để kongming nhìn lại toàn bộ bằng chứng.'],
     },
     {
-      id: 'investigate', title: 'Điều tra trước khi quyết (bug khó, hành vi lạ)', level: 'Vừa', time: '15–60 phút',
+      id: 'investigate', title: 'Điều tra trước khi quyết (bug khó, hành vi lạ)', level: 'medium', time: '15–60 phút',
       when: 'Chưa biết lỗi nằm ở đâu, hoặc có nhiều giả thuyết.',
       steps: [
         ['/ak:scout "khu vực nghi ngờ"', 'Tìm file liên quan nhanh qua Explore agent, song song.'],
@@ -77,7 +77,7 @@ window.AK_CONTENT = {
       options: ['Dùng /ak:fable-thinking khi cần suy luận chặt: đa giả thuyết và tự phản biện.'],
     },
     {
-      id: 'review-pr', title: 'Review và xử lý PR', level: 'Dễ', time: '10–30 phút',
+      id: 'review-pr', title: 'Review và xử lý PR', level: 'easy', time: '10–30 phút',
       when: 'Cần review PR của người khác, hoặc xử lý feedback trên PR của mình.',
       steps: [
         ['/ak:review-pr 123', 'Review correctness, regression, security, AI slop. Nếu GraphQL lỗi thì lùi về REST.'],
@@ -88,7 +88,7 @@ window.AK_CONTENT = {
       options: ['Muốn review cục bộ trước khi push thì dùng /ak:code-review --pending.'],
     },
     {
-      id: 'ship', title: 'Ship một branch đã xong', level: 'Dễ', time: '5–20 phút',
+      id: 'ship', title: 'Ship một branch đã xong', level: 'easy', time: '5–20 phút',
       when: 'Implement, test và review đã xong.',
       steps: [
         ['/ak:ship', 'Merge main, chạy test, review, commit, push rồi mở PR. Target: official/stable/main hoặc beta/dev/next.'],
@@ -98,7 +98,7 @@ window.AK_CONTENT = {
       options: ['Các flag --skip-tests, --skip-review, --skip-docs chỉ nên dùng khi đã có bằng chứng từ bước trước.', 'Hook simplify-gate chặn ship khi diff quá lớn. Hãy simplify trước.'],
     },
     {
-      id: 'vibe', title: 'Từ issue tới PR bằng một lệnh', level: 'Nâng cao', time: '30–180 phút',
+      id: 'vibe', title: 'Từ issue tới PR bằng một lệnh', level: 'advanced', time: '30–180 phút',
       when: 'Có GitHub issue hoặc yêu cầu rõ và muốn pipeline tự chạy.',
       steps: [
         ['/ak:vibe https://github.com/org/repo/issues/42', 'Chạy chuỗi worktree → plan → cook/fix → code-review → ship → review-pr.'],
@@ -107,7 +107,7 @@ window.AK_CONTENT = {
       options: ['Nếu chỉ muốn tới bước plan đã được validate thì dùng /ak:issue-to-plan.'],
     },
     {
-      id: 'new-project', title: 'Dựng dự án mới từ đầu', level: 'Vừa', time: '1–4 giờ',
+      id: 'new-project', title: 'Dựng dự án mới từ đầu', level: 'medium', time: '1–4 giờ',
       when: 'Repo trống, cần chọn stack, thiết kế và dựng khung.',
       steps: [
         ['/ak:bootstrap "yêu cầu"', 'Research → chọn stack → design → plan → implement. Mode: --full (mặc định, kỹ), --fast (bỏ research), --auto (tự chạy), --parallel (nhiều agent).'],
@@ -117,7 +117,7 @@ window.AK_CONTENT = {
       options: ['Với .NET, dùng /dotnet-claude-kit:dotnet-init và architecture-advisor.'],
     },
     {
-      id: 'ui', title: 'Làm UI từ thiết kế hoặc ảnh chụp', level: 'Vừa', time: '20–90 phút',
+      id: 'ui', title: 'Làm UI từ thiết kế hoặc ảnh chụp', level: 'medium', time: '20–90 phút',
       when: 'Có Figma, screenshot hoặc video, hoặc cần giao diện đẹp.',
       steps: [
         ['/ak:ui-ux-pro-max "trang dashboard" --framework react', 'Chọn style, màu, typography, a11y.'],
@@ -129,7 +129,7 @@ window.AK_CONTENT = {
       options: ['Dùng /ak:stitch để sinh nhanh UI bằng Google Stitch.'],
     },
     {
-      id: 'understand', title: 'Hiểu một codebase lạ', level: 'Dễ', time: '10–30 phút',
+      id: 'understand', title: 'Hiểu một codebase lạ', level: 'easy', time: '10–30 phút',
       when: 'Mới vào dự án, hoặc cần giải thích một hệ thống.',
       steps: [
         ['/ak:scout "chủ đề"', 'Tìm file liên quan.'],
@@ -140,7 +140,7 @@ window.AK_CONTENT = {
       options: ['/ak:repomix đóng gói repo cho LLM khác đọc.'],
     },
     {
-      id: 'docs', title: 'Cập nhật tài liệu', level: 'Dễ', time: '10–30 phút',
+      id: 'docs', title: 'Cập nhật tài liệu', level: 'easy', time: '10–30 phút',
       when: 'Hành vi, setup, lệnh hoặc kiến trúc đã thay đổi.',
       steps: [
         ['/ak:docs update', 'Đối chiếu docs với code và cập nhật phần docs sở hữu nội dung đó.'],
@@ -150,7 +150,7 @@ window.AK_CONTENT = {
       options: ['Muốn tài liệu phản ánh ý định của bạn thay vì code thì dùng /ak:interview-docs.'],
     },
     {
-      id: 'security', title: 'Audit bảo mật trước release', level: 'Nâng cao', time: '20–60 phút',
+      id: 'security', title: 'Audit bảo mật trước release', level: 'advanced', time: '20–60 phút',
       when: 'Trước release lớn, hoặc sau khi thêm auth/payment.',
       steps: [
         ['/ak:security --secrets-only', 'Quét nhanh secret hardcode.'],
@@ -161,7 +161,7 @@ window.AK_CONTENT = {
       options: [],
     },
     {
-      id: 'long-run', title: 'Việc dài chạy tự động (/goal)', level: 'Nâng cao', time: 'Nhiều giờ',
+      id: 'long-run', title: 'Việc dài chạy tự động (/goal)', level: 'advanced', time: 'Nhiều giờ',
       when: 'Mục tiêu nhiều phase, muốn agent tự chạy lâu mà không lệch scope.',
       steps: [
         ['/ak:goal-warmup "goal"', 'Phỏng vấn để chốt Outcome Contract, lập plan, preflight và trả về Ready, Blocked hoặc cần Decision. Không tự khởi động /goal.'],
@@ -171,7 +171,7 @@ window.AK_CONTENT = {
       options: ['Với Codex dùng /ak:codex-goal. Tối ưu theo metric thì dùng /ak:loop hoặc /ak:autoresearch.'],
     },
     {
-      id: 'handoff', title: 'Chuyển phiên, chuyển model, chuyển runtime', level: 'Dễ', time: '2–5 phút',
+      id: 'handoff', title: 'Chuyển phiên, chuyển model, chuyển runtime', level: 'easy', time: '2–5 phút',
       when: 'Sắp hết context, muốn đổi sang Codex/Cursor, hoặc cuối ngày.',
       steps: [
         ['/ak:handoff', 'Tạo file continuation contract đã lược bỏ thông tin nhạy cảm: quyết định, trạng thái verify, blocker.'],
@@ -182,7 +182,7 @@ window.AK_CONTENT = {
       options: [],
     },
     {
-      id: 'parallel', title: 'Chia việc cho nhiều agent / runtime', level: 'Nâng cao', time: 'tùy',
+      id: 'parallel', title: 'Chia việc cho nhiều agent / runtime', level: 'advanced', time: 'tùy',
       when: 'Nhiều phần độc lập, cần chạy song song.',
       steps: [
         ['/ak:worktree "feature-x"', 'Tạo worktree cô lập. Skill tự suy prefix branch; base mặc định là dev, rồi develop, main.'],

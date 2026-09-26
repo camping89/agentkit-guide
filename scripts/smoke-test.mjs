@@ -15,6 +15,14 @@ for (const r of routes) {
   console.log(r.padEnd(16), visible.join(','));
   if (process.env.SHOTS) await page.screenshot({ path: `/tmp/akg-${r.replace('/', '_')}.png`, fullPage: false });
 }
+const lang0 = await page.evaluate(() => document.documentElement.dataset.lang);
+await page.goto(`${base}#/home`);
+await page.click('#langBtn');
+const lang1 = await page.evaluate(() => document.documentElement.dataset.lang);
+const viText = await page.$eval('section[data-page="home"]', (s) => s.innerText.slice(0, 40));
+if (process.env.SHOTS) await page.screenshot({ path: '/tmp/akg-home-vi.png' });
+await page.click('#langBtn');
+console.log('lang default', lang0, '-> toggled', lang1, '|', viText.replace(/\n/g, ' '));
 await page.fill('#globalSearch', '--tdd');
 console.log('search hits', await page.$$eval('#searchResults a', (a) => a.length));
 await page.setViewportSize({ width: 390, height: 800 });

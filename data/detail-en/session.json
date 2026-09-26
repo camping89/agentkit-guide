@@ -1,0 +1,1667 @@
+{
+  "ak-context-engineering": {
+    "tagline": "Manage context, task budgets, compaction, and model choice from outcome evidence.",
+    "summary": "ak:context-engineering finishes the right work with the least wasted context, cost, time, and agent steps, never by cutting scope or verification. It takes a context or budget question and returns grounded advice, a state checkpoint, or numbers from offline analysis scripts. Other skills load it only when a real context or budget problem exists.",
+    "howItWorks": [
+      "Frame: sets outcome, constraints, and acceptance check; reuses accepted plans; short tasks need no extra plan or ledger.",
+      "Observe: uses available runtime telemetry, separating context occupancy, task spend, provider quota, and money cost.",
+      "Missing values are recorded as unknown, never estimated.",
+      "Allocate: reserves room for the next result, response, and checkpoint; budgets verification and integration before delegating.",
+      "Execute: finds the owner first, reads one sufficient logical unit, caps tool output but keeps errors, records worthwhile decisions.",
+      "Reassess: expands only when evidence is missing, stops exploring at acceptance, checkpoints before steps that may exceed headroom.",
+      "Context bands: Green <50%, Yellow 50–<70%, Orange 70–<85%, Red ≥85%.",
+      "At Orange, finish the atomic boundary, checkpoint, then use supported compaction; at Red, prioritize recovery.",
+      "Model choice uses 4 metrics on matched task cohorts: Average cost per task, Average task duration, Estimated cost per successful first attempt, Average agent steps.",
+      "Metrics are never blended into arbitrary scores, and models are never switched automatically.",
+      "Delegates only when independence or context isolation outweighs startup and communication cost.",
+      "Delegation packets include task, read/owned paths, acceptance, constraints, budget, and stop condition.",
+      "Checkpoints merge into existing plans/notes: intent, verbatim constraints, files/revision, decisions, commands/results, open doubts, next safe step.",
+      "After compaction, rereads the note and rechecks state that may have changed.",
+      "Offline scripts: context_analyzer.py (estimate/analyze/budget), compression_evaluator.py, benchmark_metrics.py."
+    ],
+    "useWhen": [
+      "A long session slows down, forgets decisions, or is running out of context.",
+      "Deciding whether to split work across subagents and how to package it.",
+      "Comparing cost, time, or steps across models or effort settings on the same task set.",
+      "Designing memory systems, agent pipelines, or evaluating context compression.",
+      "Hitting usage limits and cutting token waste without dropping verification."
+    ],
+    "avoidWhen": [
+      "Short tasks with no context problem: no ledger or checkpoint ritual needed.",
+      "Handing a session to another agent: use ak:handoff (add --dispatch --agent <id> to dispatch).",
+      "Benchmarking models on DeepSWE: use ak:deep-swe.",
+      "Choosing a skill for a task: use ak:agentkit."
+    ],
+    "params": [
+      {
+        "name": "[topic or question]",
+        "kind": "arg",
+        "desc": "Context or budget question: token waste, remaining context, compaction, model choice, delegation, memory, compression evaluation. Loads only one reference per question."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:context-engineering how much context is left in this session, and should I checkpoint?",
+        "note": "Assesses headroom and decides on checkpoint/compaction."
+      },
+      {
+        "cmd": "/ak:context-engineering should this refactor be split across 3 subagents?",
+        "note": "Weighs delegation cost against inline work."
+      },
+      {
+        "cmd": "/ak:context-engineering compare opus and sonnet on this repo's bug-fix tasks",
+        "note": "Model choice from 4 metrics on matched cohorts."
+      },
+      {
+        "cmd": "/ak:context-engineering design memory for an agent that runs for days",
+        "note": "Uses memory-systems.md."
+      }
+    ],
+    "tips": [
+      "Without telemetry, record unknown; never convert 20 or 40 tool calls into a context percentage.",
+      "Search before reading large files (~2k tokens is a hint), but read whole files when structure or contracts are the question.",
+      "Batch independent commands but still cap total output; batching adds no context capacity.",
+      "Renaming skills or reordering prompts does not prove cache gains; compare baseline and candidate runs.",
+      "Fix the cause of deterministic errors before retrying; retry with backoff only for transient errors."
+    ],
+    "related": [
+      "ak-handoff",
+      "ak-orchestrate",
+      "ak-team",
+      "ak-fable-thinking",
+      "ak-deep-swe"
+    ],
+    "agents": [],
+    "artifacts": [
+      "Checkpoint merged into an existing plan/note",
+      "Analysis output from scripts/context_analyzer.py, compression_evaluator.py, benchmark_metrics.py"
+    ]
+  },
+  "ak-handoff": {
+    "tagline": "Write a redacted continuation contract for a fresh agent; optionally dispatch it.",
+    "summary": "ak:handoff writes one Markdown file with 9 required sections at plans/handoffs/<slug>-<YYYYMMDD-HHmm>.md, then prints its path and a one-line instruction for the next session. By default it only reads the workspace and writes that file. With --dispatch --agent <id>, it validates the artifact, builds a single job spec, and hands it to ak:orchestrate on the runtime you choose.",
+    "howItWorks": [
+      "Refuses a task focus that looks like a credential before writing anything.",
+      "Runs read-only probes: git rev-parse (work tree, toplevel, branch, HEAD) and git status --short (max 200 lines, marked truncated).",
+      "Runs git diff --stat and the first 200 diff lines only with --include-diff.",
+      "Without a git repo, git fields say 'Not captured in this session' and the run continues.",
+      "Summarizes decisions, user constraints, and commands run; no transcript dumps or hidden reasoning; facts kept apart from claims.",
+      "Checks older handoffs in plans/handoffs/*.md and legacy plans/reports/handoff-*.md.",
+      "Writes all 9 H2 sections in the order of references/artifact-schema.md; unknown sections say 'Not captured in this session'.",
+      "The 9 sections: mission, guardrails, live state, decisions, work done, verification, risks/blockers, exact next actions, source pointers.",
+      "Exact next actions starts with a **First safe step** marker.",
+      "Redacts API keys, tokens, JWTs, private keys, .env values, passwords, credentialed DB URLs, internal URLs, and personal data as [REDACTED:type].",
+      "A collision guard refuses to overwrite without --force.",
+      "Default mode prints the absolute path and 'Read <path> and verify the Current state section against the repo before acting.', not the content.",
+      "--dispatch step 1: capture as above, unless a valid --handoff PATH is given.",
+      "Step 2, validate: all H2s spelled right, First safe step first, no secret patterns, handoff-version 1 if present; any failure is a hard blocker.",
+      "Step 3, spec: one job from references/dispatch-job-spec-template.md; prompt = read-handoff instruction + task text; task enum defaults to implement.",
+      "Spec defaults: effect scoped-write, approval require (inherit with --yes or recorded authorization; destructive always require), isolation worktree, timeout 10m.",
+      "The spec is saved to plans/reports/orchestrate-<timestamp>/jobs.yaml.",
+      "Step 4: dispatch via ak:orchestrate, which owns preflight, live runtime matrix, capture, resume, and arbiter.",
+      "A missing runtime or failed preflight is reported as a blocker; no substitute runtime; the artifact path is still returned.",
+      "Step 5: prints a **Handoff Dispatch Result** block (artifact, run, runtime, model, result, verification, first safe step, next action, Unresolved)."
+    ],
+    "useWhen": [
+      "Context is running out or the session ends, and the next session must continue without rediscovery.",
+      "Moving work to another model or runtime (Codex, Cursor, OpenCode); add --dispatch --agent <id> to hand it off.",
+      "Preserving decisions, verification state, and blockers of unfinished work.",
+      "You already have a handoff file and want another runtime to continue it (--dispatch --handoff PATH)."
+    ],
+    "avoidWhen": [
+      "Human status report from branches, worktrees, and plans: use ak:watzup.",
+      "Splitting work across parallel runtimes with stages and an arbiter: use ak:orchestrate directly.",
+      "Writing a plan or ADR: use ak:plan or a docs skill.",
+      "Summarizing implemented results for people: use ak:sumup.",
+      "Wanting the skill to pick the \"best\" agent: --dispatch uses only your choice; ask kongming or ak:advise for advice."
+    ],
+    "params": [
+      {
+        "name": "[task focus]",
+        "kind": "arg",
+        "desc": "Focus for the successor agent; copied verbatim into Mission and used as the file slug. Credentials are refused. Empty derives the slug from the branch or goal."
+      },
+      {
+        "name": "--output PATH",
+        "kind": "flag",
+        "desc": "Explicit artifact path inside the workspace; parent folders are created; no auto slug/timestamp; still needs --force to overwrite."
+      },
+      {
+        "name": "--include-diff",
+        "kind": "flag",
+        "desc": "Adds a bounded, redacted diff summary: git diff --stat and the first 200 diff lines, with truncation marked."
+      },
+      {
+        "name": "--include-status",
+        "kind": "flag",
+        "desc": "Adds a redacted git status --short snapshot."
+      },
+      {
+        "name": "--force",
+        "kind": "flag",
+        "desc": "Allows overwriting an existing artifact; otherwise refuses and shows the old file's mtime. Not implied by --output."
+      },
+      {
+        "name": "--dispatch",
+        "kind": "flag",
+        "desc": "Dispatch mode: capture (or use --handoff), validate, build one job spec, and call ak:orchestrate. Needs ak:orchestrate installed; otherwise stops after capture."
+      },
+      {
+        "name": "--agent <id>",
+        "kind": "flag",
+        "desc": "Required with --dispatch; no default, no substitution. First-class: claude-code, codex, ak-run, internal. Via preflight: opencode, copilot, cursor, cline, qwen-code, grok, kimi, agy. gemini-cli and unknown IDs are refused."
+      },
+      {
+        "name": "--handoff PATH",
+        "kind": "flag",
+        "desc": "Reuses an existing handoff instead of capturing; the file must exist and pass schema and redaction checks."
+      },
+      {
+        "name": "--cwd PATH",
+        "kind": "flag",
+        "desc": "Workspace root for the dispatched job; defaults to the current workspace and goes verbatim into the job's cwd:. --cwd . on a clean tree may use isolation none."
+      },
+      {
+        "name": "--model NAME",
+        "kind": "flag",
+        "desc": "Overrides the model for CLI runtime jobs; refused with --agent internal. Without it, orchestrate's model-routing policy decides."
+      },
+      {
+        "name": "--yes",
+        "kind": "flag",
+        "desc": "Approves writes in the dispatched job (approval require → inherit). Does not apply to changes Scope marks destructive or external-destructive."
+      },
+      {
+        "name": "--task TEXT",
+        "kind": "flag",
+        "desc": "Alternative to the positional task focus with --dispatch; if both are given, the positional wins and --task is ignored with a warning."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:handoff \"continue the OAuth callback fix\"",
+        "note": "Writes only the continuation contract with a clear focus."
+      },
+      {
+        "cmd": "/ak:handoff --include-diff --include-status",
+        "note": "Includes diff and status when many changes are uncommitted."
+      },
+      {
+        "cmd": "/ak:handoff --force --output plans/handoffs/oauth-callback.md",
+        "note": "Overwrites a fixed-path handoff."
+      },
+      {
+        "cmd": "/ak:handoff --dispatch --agent claude-code \"continue the OAuth callback fix\"",
+        "note": "Captures, then dispatches to Claude Code via orchestrate with approval: require."
+      },
+      {
+        "cmd": "/ak:handoff --dispatch --agent cursor --handoff plans/handoffs/oauth-callback.md",
+        "note": "Reuses an existing handoff without a new capture."
+      },
+      {
+        "cmd": "/ak:handoff --dispatch --agent opencode --model anthropic/claude-sonnet-5 --yes",
+        "note": "Picks a CLI runtime model and allows writes (approval: inherit)."
+      }
+    ],
+    "tips": [
+      "Without a plans/ folder, the skill asks for a safe location before writing.",
+      "The next session should verify Current state against the repo before acting; state may have changed.",
+      "Never put secrets in the task focus; the whole call is refused.",
+      "--include-diff makes the file much longer; enable it only when uncommitted changes matter.",
+      "There is no --fallback-agent: a missing or unauthenticated runtime returns a blocker; pick another --agent. The artifact is kept.",
+      "Bypass flags like --dangerously-skip-permissions, --allow-all-tools, or --yolo are never added; specs containing them are refused.",
+      "Runtime availability, auth, and models come from ak:orchestrate's live runtime matrix at dispatch time."
+    ],
+    "related": [
+      "ak-orchestrate",
+      "ak-watzup",
+      "ak-sumup",
+      "ak-context-engineering",
+      "ak-plan"
+    ],
+    "agents": [],
+    "artifacts": [
+      "plans/handoffs/<slug>-<YYYYMMDD-HHmm>.md (or the --output path)",
+      "plans/reports/orchestrate-<timestamp>/jobs.yaml (with --dispatch)",
+      "Handoff Dispatch Result block (with --dispatch)"
+    ]
+  },
+  "ak-journal": {
+    "tagline": "Write chronological technical journal entries via `ak journal create`.",
+    "summary": "ak:journal captures a session's key facts (root cause, main changes, impact, decisions, next steps) as a Markdown entry under plans/journals/. It outputs YYYY-MM-DD-<slug>.md created with ak journal create. Journals record history; they do not replace current docs or ADRs, and usually run automatically at the end of ak:plan, ak:cook, ak:fix, ak:ship, and ak:bootstrap.",
+    "howItWorks": [
+      "Collects key facts: root cause, main changes, impact, decisions, next steps.",
+      "Writes a short title and Markdown body, favoring specific errors, paths, and results over generic summaries.",
+      "Saves via CLI: ak journal create \"<title>\" --summary \"<one-line>\" --stdin (optional --date YYYY-MM-DD, --project <registry-name>).",
+      "Validates when needed: ak journal validate <slug-or-filename-stem>.",
+      "AgentWiki publishing is deferred: reports 'AgentWiki publish skipped'; the local file is canonical.",
+      "Optionally uses the journal-writer subagent for candid failure write-ups, still saved via ak journal create.",
+      "Loads social-publishing-workflow.md only on an explicit social posting request.",
+      "Social posts need a preview of target and content, and a provider receipt before reporting success."
+    ],
+    "useWhen": [
+      "You just fixed a hard bug and want the root cause and fix recorded.",
+      "End of session: saving decisions and lessons on a timeline.",
+      "An approach failed and you want to dig into why later (journal-writer).",
+      "Writing an entry manually when the automatic journal step was disabled."
+    ],
+    "avoidWhen": [
+      "Long-lived architecture decisions: use ADRs/docs (ak:docs).",
+      "Handing work to another agent: use ak:handoff.",
+      "Summarizing implementation results for readers: use ak:sumup.",
+      "Retros based on git metrics: use ak:retro."
+    ],
+    "params": [
+      {
+        "name": "[topic or reflection]",
+        "kind": "arg",
+        "desc": "Topic or reflection for the entry. Empty summarizes the current session."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:journal",
+        "note": "Journals the session just completed."
+      },
+      {
+        "cmd": "/ak:journal failed Postgres migration and how we rolled back",
+        "note": "Focuses on one specific incident."
+      },
+      {
+        "cmd": "/ak:journal lessons from splitting out the payments service",
+        "note": "Reflects on an architecture decision."
+      }
+    ],
+    "tips": [
+      "Disable auto-journal with --skip-journal on the calling skill or `ak config prefs set journal.auto false`; precedence is flag > project config > user config > default true.",
+      "An explicit /ak:journal call always runs, regardless of journal.auto.",
+      "Duplicate filenames get -2, -3 suffixes.",
+      "Review entries with ak journal list / ak journal show <slug> or the dashboard Journals page."
+    ],
+    "related": [
+      "ak-cook",
+      "ak-fix",
+      "ak-ship",
+      "ak-plan",
+      "ak-sumup",
+      "ak-retro"
+    ],
+    "agents": [
+      "journal-writer"
+    ],
+    "artifacts": [
+      "plans/journals/YYYY-MM-DD-<slug>.md"
+    ]
+  },
+  "ak-orchestrate": {
+    "tagline": "Run staged or parallel jobs across verified runtimes, Pi sessions, and subagents.",
+    "summary": "ak:orchestrate turns a task description or YAML job spec into a job graph and routes each job to a runtime, model, or agent by capability and risk, using live evidence (model-routing.md is the only routing source). Parallel writers get worktrees, state is saved for resume, and an independent C3 route reviews results before completion. It supports Pi coding-agent sessions and onboards Pi when requested but missing; output is plans/reports/orchestrate-<timestamp>/report.md.",
+    "howItWorks": [
+      "Intake: clarifies outcome, constraints, non-goals, acceptance evidence, workspace root, dependencies, and destructive or external intent.",
+      "Refuses plans that put secrets in prompts or captures; prefers one agent when orchestration adds nothing.",
+      "Job graph: each job has task, cwd, timeout, expected_output, and ownership; depends_on creates stages.",
+      "Same-stage jobs run in parallel only without overlapping ownership.",
+      "importance: high marks public-contract, security, or hard-to-revert work; isolation: worktree for parallel writers.",
+      "Free-form requests produce plans/reports/orchestrate-<timestamp>/jobs.yaml.",
+      "Discover: builds a live runtime inventory (runtime-matrix.md) and harness profiles (harness-profiles.md).",
+      "Pi evidence follows pi-sessions.md: probe, pi auth check, --list-models, pi list.",
+      "Routes via model-routing.md, recording runtime, model/agent, tier, controls, and fallback reason; no qualifying candidate means blocked.",
+      "Onboarding runs visibly when a pinned, fallback, or user-named runtime (e.g. \"as pi sessions\") is missing or unauthenticated.",
+      "Pi onboarding (pi-onboarding.md): detect → npm install -g @earendil-works/pi-coding-agent → profile (snapshot first) → user auth, checked by pi auth check.",
+      "Then ak kit init <kit> --target pi [--global] → probe + smoke test → report with rollback commands.",
+      "Discovery alone never installs or logs in.",
+      "Safety gate: confirms cwd, allowed files, writable roots, side effects; least verified permissions; all bypass modes off.",
+      "Existing authorization is recorded as authority; only out-of-scope actions prompt again; each CLI process has an outer timeout.",
+      "Dispatch: creates worktrees, runs ak orchestrate prepare <jobs.yaml> <run-dir>, then ak orchestrate advance <run-dir> --json.",
+      "Internal jobs use the native harness; Pi jobs use --session-dir <run-dir>/pi-sessions and store the session id as a handle.",
+      "Dependent Pi jobs continue (-c/--session) or --fork upstream sessions.",
+      "Watches status/events/output until all_settled; retries only within a bounded policy.",
+      "Arbiter: after all jobs settle, a separate C3 route (prefer another family) checks results against expected_output, runs checks, and flags contradictions or missing artifacts.",
+      "A Pi arbiter counts as independent only with a different model family.",
+      "Report: report.md with per-job status, route, artifacts, errors, arbiter verdict, repro commands, pending worktree diffs, Pi session handles, onboarding actions, and an Orchestrate Result block."
+    ],
+    "useWhen": [
+      "Researching several options in parallel, then comparing them.",
+      "Getting an independent review from a runtime of a different model family.",
+      "Staged work (scout → implement → review) that should be repeatable via YAML spec.",
+      "Running jobs as resumable Pi sessions (e.g. scouts then an arbiter), even if Pi is not installed yet.",
+      "Splitting implementation across writers with separate worktrees and ownership.",
+      "Resuming an interrupted orchestrate run (--resume)."
+    ],
+    "avoidWhen": [
+      "Simple single-agent tasks: orchestration only adds cost; a simple scout is rarely worth it.",
+      "Handing the current session to one agent: use ak:handoff --dispatch --agent <id>.",
+      "Multi-session teams that talk to each other: use ak:team.",
+      "External process supervision on non-Darwin machines: a documented ak orchestrate limit.",
+      "Destructive or external-credential work on Pi only: headless Pi has no sandbox or per-action approval."
+    ],
+    "params": [
+      {
+        "name": "<job-spec.yaml>",
+        "kind": "arg",
+        "desc": "Path to a repeatable YAML job spec (schema in references/job-spec.md); runtimes may be verified CLIs, internal, or pi."
+      },
+      {
+        "name": "<task description>",
+        "kind": "arg",
+        "desc": "Free-form request; the skill writes plans/reports/orchestrate-<timestamp>/jobs.yaml before dispatch. Naming a runtime (e.g. \"as pi sessions\") adds it as a candidate and triggers onboarding if missing."
+      },
+      {
+        "name": "--resume <run-dir>",
+        "kind": "flag",
+        "desc": "Continues an existing run; advance reconciles existing attempts before dispatch and never manually relaunches attempts of unknown state."
+      },
+      {
+        "name": "--yes",
+        "kind": "flag",
+        "desc": "Approves actions within the spec's scope (not documented in source). Per the safety gate, existing authorization is recorded as authority and only out-of-scope actions prompt again."
+      },
+      {
+        "name": "--internal",
+        "kind": "flag",
+        "desc": "Routing preference, not a hard mode: tries in-session subagents first for unpinned jobs; jobs needing model choice or stronger isolation may still use a verified CLI; never overrides pinned routes."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:orchestrate \"research three implementation options and compare them\"",
+        "note": "Researches 3 options in parallel; the arbiter compares them."
+      },
+      {
+        "cmd": "/ak:orchestrate \"run the three scouts as pi sessions, then one arbiter\"",
+        "note": "Scouts run as Pi sessions; Pi is onboarded first if missing or unauthenticated."
+      },
+      {
+        "cmd": "/ak:orchestrate \"compare the auth options\" --internal",
+        "note": "Prefers in-session subagents for unpinned jobs."
+      },
+      {
+        "cmd": "/ak:orchestrate plans/orchestrate-jobs.yaml --yes",
+        "note": "Runs an approved, repeatable spec."
+      },
+      {
+        "cmd": "/ak:orchestrate --resume plans/reports/orchestrate-20260926-1030",
+        "note": "Resumes an interrupted run."
+      }
+    ],
+    "tips": [
+      "Never fill runtimes, models, or flags from memory; routes come from live evidence, and names do not transfer between runtimes.",
+      "Worktrees prevent edit conflicts but are not OS sandboxes; lockfiles, migrations, and shared config still run serially.",
+      "A silent process is not necessarily hung, and a cancelled request does not mean the writer stopped; check all_settled.",
+      "Pi jobs start with PI_OFFLINE=1 to avoid mid-run installs, default to --no-approve, and load skills via --skill <path>.",
+      "Pi onboarding never types, copies, or stores your API keys or tokens, and never restores another machine's auth.json; auth is your step.",
+      "A continued Pi session carries context, not proof; acceptance still checks the spec's artifacts and checks.",
+      "Failed worktrees are kept for diagnosis; metrics are advisory and never auto-change routing policy."
+    ],
+    "related": [
+      "ak-handoff",
+      "ak-team",
+      "ak-worktree",
+      "ak-context-engineering",
+      "ak-ak"
+    ],
+    "agents": [],
+    "artifacts": [
+      "plans/reports/orchestrate-<timestamp>/jobs.yaml",
+      "plans/reports/orchestrate-<timestamp>/report.md",
+      "<run-dir>/runtimes.json and supervisor captures",
+      "<run-dir>/pi-sessions/ and <job-id>/session.json (Pi session handles)",
+      "Per-job worktrees"
+    ]
+  },
+  "ak-team": {
+    "tagline": "Coordinate Agent Teams: parallel teammate sessions via a lead, shared state, and messages.",
+    "summary": "ak:team builds a multi-session agent team from 4 templates: research, cook, review, debug. The lead decomposes work, registers items with acceptance and ownership, spawns teammates, coordinates, integrates, verifies, and shuts down. It uses only the runtime's live collaboration surface and stops if missing, never silently falling back to plain subagents.",
+    "howItWorks": [
+      "Discovers the live collaboration surface: team create/cleanup, shared work (dependency, ownership, status), delegation, messages, waits, plan approval, graceful shutdown.",
+      "Stops with an error when a required capability is missing.",
+      "Decompose: splits the request into independent items with clear outputs; picks the smallest team.",
+      "Creates the team via the live lifecycle and registers work with acceptance criteria, dependencies, ownership, and report targets.",
+      "Each spawned teammate gets work context root, reports/plans locations, branch/worktree, active plan, assigned files, dependencies, commit rules, and team-coordination-rules.md.",
+      "Templates: research (one researcher per angle), cook (devs on non-overlapping files plus dependent verify work).",
+      "review (one read-only focus per reviewer), debug (one hypothesis per debugger, cross-challenge encouraged).",
+      "Plan approval (when on): teammates stay read-only while planning scope, ownership, validation, risk, and rollback; they write only after lead approval.",
+      "Coordinate: idle means waiting, not done; integrate only after prerequisites finish; verify merged results, since completion messages are not proof.",
+      "Shuts teammates down gracefully, waits for confirmation or handoff, runs live cleanup, then reports and runs /ak:journal unless opted out."
+    ],
+    "useWhen": [
+      "You have 3 or more independent workstreams.",
+      "Debugging with several competing hypotheses that need debate.",
+      "Parallel multi-angle review (security, performance, test coverage, architecture).",
+      "Cross-layer implementation with clearly separated file ownership.",
+      "Researching several angles (proven option, alternatives, risks) and then synthesizing."
+    ],
+    "avoidWhen": [
+      "A single test, lint, or review pass: use a plain subagent.",
+      "Sequential plan → code → test: use a plain subagent or ak:cook.",
+      "Tight runtime budget: each teammate has its own context and adds cost.",
+      "Coordinating different CLI runtimes with an arbiter: use ak:orchestrate."
+    ],
+    "params": [
+      {
+        "name": "<template>",
+        "kind": "arg",
+        "desc": "One of research, cook, review, debug."
+      },
+      {
+        "name": "<context>",
+        "kind": "arg",
+        "desc": "Task description or plan path for the team."
+      },
+      {
+        "name": "--devs N",
+        "kind": "flag",
+        "desc": "Number of developer teammates (cook template)."
+      },
+      {
+        "name": "--researchers N",
+        "kind": "flag",
+        "desc": "Number of researcher teammates (research template)."
+      },
+      {
+        "name": "--reviewers N",
+        "kind": "flag",
+        "desc": "Number of reviewer teammates (review template)."
+      },
+      {
+        "name": "--debuggers N",
+        "kind": "flag",
+        "desc": "Number of debugger teammates (debug template)."
+      },
+      {
+        "name": "--delegate",
+        "kind": "flag",
+        "desc": "The lead only coordinates, approves, synthesizes, and reports; it edits no files and runs no implementation, test, or merge commands."
+      },
+      {
+        "name": "--plan-approval / --no-plan-approval",
+        "kind": "flag",
+        "desc": "Turns the implementation plan approval gate on or off before teammates may write."
+      },
+      {
+        "name": "--worktree",
+        "kind": "flag",
+        "desc": "Requires isolated worktrees for implementation teammates."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:team research \"compare 3 queue libraries for Node\" --researchers 3",
+        "note": "One researcher per library; the lead synthesizes."
+      },
+      {
+        "cmd": "/ak:team cook plans/260926-auth/plan.md --devs 3 --worktree --plan-approval",
+        "note": "Parallel implementation from a plan with worktrees and plan approval."
+      },
+      {
+        "cmd": "/ak:team review \"PR #214\" --reviewers 4",
+        "note": "Parallel multi-angle review."
+      },
+      {
+        "cmd": "/ak:team debug \"random request timeouts at the API gateway\" --debuggers 3 --delegate",
+        "note": "Several hypotheses; the lead only coordinates."
+      }
+    ],
+    "tips": [
+      "Pick the smallest team with truly independent workstreams; compare cost with an inline baseline on the same workload.",
+      "Worktrees do not replace ownership; each teammate still owns its own file set.",
+      "For a stuck teammate, send specific guidance; if still stuck, save a handoff, shut it down, and reassign the scope.",
+      "Never delete state folders by guesswork when cleanup fails; report the live error and follow runtime guidance."
+    ],
+    "related": [
+      "ak-orchestrate",
+      "ak-cook",
+      "ak-journal",
+      "ak-worktree",
+      "ak-code-review",
+      "ak-debug"
+    ],
+    "agents": [
+      "Teammate researcher",
+      "Teammate developer",
+      "Teammate reviewer",
+      "Teammate debugger"
+    ],
+    "artifacts": [
+      "Durable report/plan per work item",
+      "Lead's synthesis report",
+      "Branches/worktrees of implementation teammates",
+      "Closing journal (plans/journals/)"
+    ]
+  },
+  "ak-sumup": {
+    "tagline": "Recap implemented work: results, failures and recovery, decisions, usage, and follow-ups.",
+    "summary": "ak:sumup lets readers understand results, evidence, trade-offs, behavior, and remaining work without replaying the session. It takes a task, PR, branch, or recent work and returns a short recap: Outcome, Highlights, Failures and recovery, Decisions, How it works, How to use it, Follow-ups. It only reads and summarizes, and never claims a deploy without evidence.",
+    "howItWorks": [
+      "Gathers the strongest evidence: conversation, accepted decisions, current diff, tests, related issue/plan status.",
+      "Separates implemented and verified work from proposed, inferred, untested, unshipped, or unresolved items.",
+      "Highlights the most valuable result, failures with their recovery and outcome, and reasons, trade-offs, and decisions.",
+      "Covers how it works (user flow, architecture, database, UI/UX as relevant), how to use it, follow-ups, and next steps.",
+      "Adds tables, charts, Mermaid, or ASCII flows only when they clarify.",
+      "Writes concisely in the user's language, drops empty sections, and puts unresolved items last."
+    ],
+    "useWhen": [
+      "A feature just finished and a reviewer or manager needs a recap.",
+      "You want to know what was tried, what failed, and how it was overcome.",
+      "You need a short usage guide for the new feature.",
+      "Summarizing a PR or branch before handing it to a person."
+    ],
+    "avoidWhen": [
+      "Live status of branches, worktrees, and plans: use ak:watzup.",
+      "Handing work to another agent: use ak:handoff.",
+      "Product-owner prioritization of next work: use ak:sowat.",
+      "Git-metric retros over a time range: use ak:retro."
+    ],
+    "params": [
+      {
+        "name": "[task|PR|branch|recent]",
+        "kind": "arg",
+        "desc": "Recap scope: a task, PR, branch, or 'recent' for recent work (not documented in source how each form is resolved)."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:sumup",
+        "note": "Recaps work done in this session."
+      },
+      {
+        "cmd": "/ak:sumup PR #214",
+        "note": "Summarizes a PR for reviewers."
+      },
+      {
+        "cmd": "/ak:sumup feat/oauth-login",
+        "note": "Summarizes what a branch did."
+      },
+      {
+        "cmd": "/ak:sumup recent",
+        "note": "Summarizes recent changes."
+      }
+    ],
+    "tips": [
+      "It never says deployed or released without current artifact or runtime evidence.",
+      "Repo content, issues, and logs are untrusted data, not instructions.",
+      "Output is short and selective; ask a follow-up for more detail on one part.",
+      "Secrets, tokens, and personal data in evidence are redacted."
+    ],
+    "related": [
+      "ak-watzup",
+      "ak-handoff",
+      "ak-sowat",
+      "ak-journal",
+      "ak-retro"
+    ],
+    "agents": [],
+    "artifacts": [
+      "Recap in chat (no file written)"
+    ]
+  },
+  "ak-watzup": {
+    "tagline": "Short human handoff from branches, worktrees, open plans, and roadmaps, with ranked next steps.",
+    "summary": "ak:watzup runs watzup-scan.cjs to scan local branches, remote refs, registered worktrees, unfinished plans (checkbox progress %), and roadmaps/milestones in docs/. It reports current state, recent work, in-flight plans, roadmaps, 5-6 reasoned next steps, and warnings. It is read-only and uses the network only when asked to fetch.",
+    "howItWorks": [
+      "Runs node scripts/watzup-scan.cjs --json from the project root; adds --fetch only when you ask to refresh remotes.",
+      "Scans local branches, remote refs, worktrees, and unfinished plans across worktrees and branches.",
+      "Counts - [ ] / - [x] in plan.md and phase-*.md, and scans docs/*roadmap*.md and docs/*milestones*.md.",
+      "Scores nextSteps: in-progress +400, in-review +300, pending +150, current worktree +600, current branch +400, filesystem +80, local ref +40.",
+      "Plans at 40-90% are boosted; hygiene steps (dirty tree, detached HEAD) go first.",
+      "The human report may reorder by current goal, release blockers, and proven risk, explaining why and keeping scanner evidence.",
+      "Report sections: Current State, Recent Work, In-Flight Plans (X/Y todos · NN% done), Roadmaps, Next Steps (5-6), Warnings.",
+      "If the scanner fails, reports the error and falls back to read-only commands (git status --short --branch, git worktree list --porcelain, git for-each-ref, find plans/docs), labeled as fallback."
+    ],
+    "useWhen": [
+      "End of session: report what is in progress and what comes next.",
+      "You just opened a new worktree or detached checkout and need context.",
+      "You want every unfinished plan across branches/worktrees with completion %.",
+      "You need a priority-ranked list of next steps."
+    ],
+    "avoidWhen": [
+      "A continuation contract for an AI agent: use ak:handoff.",
+      "A detailed recap of what was just implemented: use ak:sumup.",
+      "Updating plan status or syncing checkboxes: use ak:project-management.",
+      "Git-metric retros over a time range: use ak:retro."
+    ],
+    "params": [
+      {
+        "name": "[branch|worktree|status]",
+        "kind": "arg",
+        "desc": "Report focus: a branch, worktree, or general status (not documented in source how each value is handled)."
+      },
+      {
+        "name": "--fetch",
+        "kind": "flag",
+        "desc": "watzup-scan.cjs flag that refreshes remote refs before reporting. Use only on request; default is no network."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:watzup",
+        "note": "Project status and next steps."
+      },
+      {
+        "cmd": "/ak:watzup worktree",
+        "note": "Focuses on the current worktree."
+      },
+      {
+        "cmd": "/ak:watzup status",
+        "note": "Quick end-of-session status."
+      },
+      {
+        "cmd": "/ak:watzup refresh remotes first, then report",
+        "note": "Explicit request that makes the scanner run --fetch."
+      }
+    ],
+    "tips": [
+      "Without fetch, remote refs may be stale; the report warns about stale remote refs.",
+      "A dirty tree is a hygiene step, not a blocker, and never a reason to discard changes.",
+      "Scanner ranking is heuristic; the human report may reorder it but must explain why.",
+      "Plan progress comes from checkboxes; plans without updated checkboxes look less complete than they are."
+    ],
+    "related": [
+      "ak-handoff",
+      "ak-sumup",
+      "ak-project-management",
+      "ak-plans-kanban",
+      "ak-worktree"
+    ],
+    "agents": [],
+    "artifacts": [
+      "Status report in chat (no file written)"
+    ]
+  },
+  "ak-retro": {
+    "tagline": "Git-data sprint retrospectives: velocity, code health, hotspots, plan progress, no invented numbers.",
+    "summary": "ak:retro collects objective git metrics for a time range (commit frequency, test-to-code ratio, churn, active-day ratio) and checks plan progress in plans/. It writes a Markdown or self-contained HTML report at plans/reports/retro-{YYMMDD}-{slug}.md with 3-5 concrete recommendations. It is read-only, works for solo or team repos, and marks missing data N/A.",
+    "howItWorks": [
+      "Parses the timeframe into SINCE/UNTIL: 7d, 2w, 1m, sprint (asks for a start date if no tag helps), or YYYY-MM-DD:YYYY-MM-DD.",
+      "--compare also computes the previous period of equal length.",
+      "Runs python scripts/collect-git-metrics.py --repo <repo> --since <iso> --until <iso> once per period, keeping pinned HEAD, shallow-history flags, and date/diff/path policy.",
+      "Computes metrics with formulas: commit frequency, test-to-code ratio (path-name heuristic, not coverage), churn rate, active day ratio, optional GitHub issue activity.",
+      "Scans plans/ for plans changed in the period and counts - [x] vs - [ ].",
+      "Fills references/report-template.md with real data (N/A when missing), plus Highlights and 3-5 Recommendations.",
+      "--compare adds delta columns; --team splits by author.",
+      "--format html activates ak:frontend-design then ak:diagram (inline SVG fallback); editorial visuals (AntV, diagram-design) are on unless disabled.",
+      "Keeps reports under 200 lines; never commits, pushes, or edits source files."
+    ],
+    "useWhen": [
+      "End-of-sprint retros that need objective numbers.",
+      "Quarterly engineering reviews of velocity and code health.",
+      "Finding high-churn hotspot files to plan refactors.",
+      "Comparing with the previous period (--compare) or per member (--team)."
+    ],
+    "avoidWhen": [
+      "Judging individual productivity or quality: commits and LOC are descriptive signals only.",
+      "Summarizing a feature just built: use ak:sumup.",
+      "Current status and next steps: use ak:watzup.",
+      "Eve work reports from GitHub for managers: use the eve-report skill."
+    ],
+    "params": [
+      {
+        "name": "[timeframe]",
+        "kind": "arg",
+        "desc": "Analysis window, default 7d. Accepts 7d, 2w, 1m, sprint, or YYYY-MM-DD:YYYY-MM-DD."
+      },
+      {
+        "name": "--compare",
+        "kind": "flag",
+        "desc": "Compares with the previous equal-length period, adding +/- delta columns to Velocity and Code Health. Off by default."
+      },
+      {
+        "name": "--team",
+        "kind": "flag",
+        "desc": "Splits metrics by author. Off by default."
+      },
+      {
+        "name": "--format html|md",
+        "kind": "flag",
+        "desc": "md (default) or html: a self-contained page with inline CSS saved at plans/reports/retro-{YYMMDD}-{slug}.html."
+      },
+      {
+        "name": "--no-antv",
+        "kind": "flag",
+        "desc": "Disables AntV Infographic in the HTML output for this call."
+      },
+      {
+        "name": "--no-diagram-design",
+        "kind": "flag",
+        "desc": "Disables the diagram-design layer in the HTML output for this call."
+      },
+      {
+        "name": "--no-editorial-visuals",
+        "kind": "flag",
+        "desc": "Disables the whole editorial visual layer; highest precedence, beats project/user config."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:retro",
+        "note": "Markdown retro for the last 7 days."
+      },
+      {
+        "cmd": "/ak:retro 2w --compare",
+        "note": "2-week sprint compared with the prior 2 weeks."
+      },
+      {
+        "cmd": "/ak:retro 2026-07-01:2026-09-30 --team --format html",
+        "note": "Quarterly review per member, as HTML."
+      },
+      {
+        "cmd": "/ak:retro 1m --format html --no-antv",
+        "note": "HTML without AntV."
+      }
+    ],
+    "tips": [
+      "Shallow clones may lack history; the report states this limit. Fetch full history for accuracy.",
+      "Git filters by committer date; a failed git command means no evidence, not zero activity.",
+      "Test-to-code ratio uses path names, not execution coverage.",
+      "Binary file changes have no LOC and are listed separately."
+    ],
+    "related": [
+      "ak-sumup",
+      "ak-watzup",
+      "ak-journal",
+      "ak-preview",
+      "ak-frontend-design"
+    ],
+    "agents": [],
+    "artifacts": [
+      "plans/reports/retro-{YYMMDD}-{slug}.md",
+      "plans/reports/retro-{YYMMDD}-{slug}.html (with --format html)"
+    ]
+  },
+  "ak-plans-kanban": {
+    "tagline": "Thin launcher for the AgentKit CLI plans dashboard: kanban, timeline, progress.",
+    "summary": "ak:plans-kanban runs scripts/open-dashboard.cjs to open the /plans route of the dashboard built into the AgentKit CLI (default http://127.0.0.1:8766/plans). It starts the dashboard if needed or follows the URL of a running one. All plan changes belong to ak plan; the launcher only opens the UI.",
+    "howItWorks": [
+      "Checks that the ak CLI exists (ak --version, or the AGENTKIT_CLI variable).",
+      "Reads ak config status --json to find a running dashboard and its real URL.",
+      "If none is running: ak config start --port 8766 --no-open --no-interactive.",
+      "Probes capability: 'plans-dashboard' in /api/health features, or /api/plans returning 2xx.",
+      "On probe failure, prints an upgrade notice and exits with code 1.",
+      "Opens /plans in the browser unless --no-open.",
+      "Old standalone-server flags are accepted only to warn and ignore."
+    ],
+    "useWhen": [
+      "Seeing many plans at once as a kanban board or grid.",
+      "Checking timelines and progress of active versus finished plans.",
+      "Jumping into plan.md and phase-*.md from a UI.",
+      "Showing progress to others visually."
+    ],
+    "avoidWhen": [
+      "Updating plan status or checking items: use ak plan or ak:project-management.",
+      "A text status report with next steps: use ak:watzup.",
+      "Custom host/port: run ak config start directly with the flags you need."
+    ],
+    "params": [
+      {
+        "name": "--stop",
+        "kind": "flag",
+        "desc": "Stops the dashboard this launcher started (like ak config stop); only stops dashboards this task owns."
+      },
+      {
+        "name": "--no-open",
+        "kind": "flag",
+        "desc": "Does not open a browser; only ensures the dashboard is running."
+      },
+      {
+        "name": "--open",
+        "kind": "flag",
+        "desc": "Opens the browser (default)."
+      },
+      {
+        "name": "--dir | --plans | --port | --host",
+        "kind": "flag",
+        "desc": "Deprecated: ignored with a warning because the AgentKit dashboard manages plan scope. Use ak config start for another port/host."
+      },
+      {
+        "name": "--background | --foreground",
+        "kind": "flag",
+        "desc": "Deprecated: ignored with a warning because ak config manages the dashboard process."
+      },
+      {
+        "name": "[path]",
+        "kind": "arg",
+        "desc": "Legacy positional path: ignored with a warning; /plans still opens."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:plans-kanban",
+        "note": "Opens the plans dashboard, starting it if needed."
+      },
+      {
+        "cmd": "/ak:plans-kanban --no-open",
+        "note": "Starts the dashboard without opening a browser."
+      },
+      {
+        "cmd": "/ak:plans-kanban --stop",
+        "note": "Stops the dashboard the launcher started."
+      }
+    ],
+    "tips": [
+      "On 'ak not found', install the AgentKit CLI or point AGENTKIT_CLI at the binary.",
+      "If the dashboard will not open, run ak config start --port 8766 and open /plans on the reported port.",
+      "A project dashboard shows only project plans; a global dashboard shows only global plans.",
+      "Never stop another session's dashboard; stop only the one this task started."
+    ],
+    "related": [
+      "ak-project-management",
+      "ak-plan",
+      "ak-watzup",
+      "ak-ak"
+    ],
+    "agents": [],
+    "artifacts": [
+      "ak config dashboard process on port 8766 (if the launcher started it)"
+    ]
+  },
+  "ak-project-management": {
+    "tagline": "Track progress, update plan status, sync runtime tasks with plan files, and report.",
+    "summary": "ak:project-management treats plan files as the durable source of truth and the runtime's live task surface as a temporary tracking layer. It shows status, hydrates tasks from unchecked items, syncs checkboxes and YAML frontmatter back on completion or handoff, writes pm-{date}-{time}-{slug}.md reports, and triggers doc updates. ak:cook calls it (via project-manager) to finalize, and it carries multi-phase work across sessions.",
+    "howItWorks": [
+      "Routes requests: status (read durable state and evidence), update (edit affected items), hydrate (rebuild live view), close/handoff (full sync-back).",
+      "Loads only the matching reference.",
+      "Discovers the live task surface; without one, updates the active plan directly.",
+      "Hydrate: mirrors unchecked - [ ] items into the live surface with enough context to map back.",
+      "Progress: scans ./plans/*/plan.md, reads YAML frontmatter (status, priority, effort), counts [x]/[ ] in phase files.",
+      "Checks acceptance criteria before marking anything done.",
+      "Sync-back on completion/handoff: scans every phase-XX-*.md, maps finished tasks to source checklists, backfills old checkboxes, updates plan.md from real counts.",
+      "Unmappable tasks are reported and never claimed complete.",
+      "Writes {reports-path}/pm-{date}-{time}-{slug}.md, outcome first, open questions last.",
+      "Delegates doc updates to docs-manager when user behavior, commands, config, APIs, architecture, or security change."
+    ],
+    "useWhen": [
+      "Checking overall progress of running plans.",
+      "Updating checkboxes and plan status after a phase or feature.",
+      "Resuming multi-phase work in a new session (hydrate from unchecked items).",
+      "Needing a file-based project or plan status report.",
+      "Verifying tasks meet acceptance criteria before closing a plan."
+    ],
+    "avoidWhen": [
+      "Creating a new plan: use ak:plan.",
+      "Implementing a plan: use ak:cook.",
+      "Only viewing a visual kanban: use ak:plans-kanban.",
+      "Quick branch/worktree status and next steps: use ak:watzup."
+    ],
+    "params": [
+      {
+        "name": "status",
+        "kind": "subcommand",
+        "desc": "Reads durable plan state and evidence; reports progress from checkboxes and frontmatter."
+      },
+      {
+        "name": "hydrate",
+        "kind": "subcommand",
+        "desc": "Rebuilds the live task view from unchecked plan items when the live surface is empty."
+      },
+      {
+        "name": "sync",
+        "kind": "subcommand",
+        "desc": "Sync-back: matches finished tasks against all phase files, flips [ ] → [x], backfills earlier phases, updates YAML frontmatter status."
+      },
+      {
+        "name": "report",
+        "kind": "subcommand",
+        "desc": "Writes a status report at {reports-path}/pm-{date}-{time}-{slug}.md (session summary, plan completion, multi-plan overview)."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:project-management status",
+        "note": "Shows progress of active plans."
+      },
+      {
+        "cmd": "/ak:project-management hydrate",
+        "note": "At session start, rebuilds the task list from the plan."
+      },
+      {
+        "cmd": "/ak:project-management sync",
+        "note": "After a phase finishes, syncs checkboxes and status."
+      },
+      {
+        "cmd": "/ak:project-management report",
+        "note": "Writes a file-based progress report."
+      }
+    ],
+    "tips": [
+      "Losing the live task list loses no progress; plan files are the source of truth.",
+      "While working, update only changed items; sweep all phases only on completion or handoff.",
+      "Un-backfilled checkboxes in earlier phases skew completion percentages.",
+      "Frontmatter status accepts only pending | in-progress | completed."
+    ],
+    "related": [
+      "ak-plan",
+      "ak-cook",
+      "ak-plans-kanban",
+      "ak-watzup",
+      "ak-docs"
+    ],
+    "agents": [
+      "docs-manager",
+      "project-manager"
+    ],
+    "artifacts": [
+      "Updated checkboxes and YAML frontmatter in plans/*/plan.md, phase-XX-*.md",
+      "{reports-path}/pm-{date}-{time}-{slug}.md"
+    ]
+  },
+  "ak-project-organization": {
+    "tagline": "Fallback rules for file locations, naming, folder structure, and Markdown templates.",
+    "summary": "ak:project-organization gives fallback rules for where to put files and how to name them when repo conventions do not answer. Advisory mode answers path and name questions from other skills; Organize mode scans given folders, proposes moves, and executes after confirmation. Repo, language, and code-generation conventions always win.",
+    "howItWorks": [
+      "Reads repo guidance and nearby files first; uses the fallback catalog only when no layout owns the artifact.",
+      "Rule 1, folders: src/, docs/ (decisions/ for ADRs), plans/ ({date-slug}/, reports/, journals/, templates/, visuals/), tests/, scripts/, assets/{type}/, config, guides/.",
+      "Rule 2, naming: Timestamped {YYMMDD-HHmm}-{slug} for plans/reports/journals; Evergreen {slug} for stable docs; Variant {slug}-{variant}.{ext}.",
+      "Slugs are lowercase, hyphenated, max 50 characters.",
+      "Rule 3, nesting: one file stays flat; several files get a self-contained subfolder; children nest under parents; empty folders get .gitkeep.",
+      "Rule 4: per-type Markdown templates (Plan, Phase, Report, Journal, ADR, README) in markdown-body-templates.md.",
+      "Rule 5, path decision tree: source → test → plan/agent output → docs → asset → script → config.",
+      "Organize mode: Scan → Analyze (naming violations, misplaced files) → Propose a from → to table.",
+      "Then Check effects (approval for overwrites, uncommitted state loss, unclear structure) → Execute moves/renames → Verify the final layout.",
+      "Safety: never overwrites existing files, never touches .git/, node_modules/, .env, and respects .gitignore."
+    ],
+    "useWhen": [
+      "Cleaning a messy folder with inconsistent names or misplaced files.",
+      "Designing structure for a new project without existing conventions.",
+      "Unsure where to save plans, reports, assets, or tests and how to name them.",
+      "Standardizing Markdown templates for plans, journals, reports, and ADRs."
+    ],
+    "avoidWhen": [
+      "Ordinary file creation when the repo has clear conventions: follow them.",
+      "Writing or updating project docs: use ak:docs.",
+      "Creating a subfolder CLAUDE.md: use ak:folder-context."
+    ],
+    "params": [
+      {
+        "name": "[directories or files to organize]",
+        "kind": "arg",
+        "desc": "Folders or files to organize; passing them runs Organize mode (scan → propose → execute after confirmation). References from other skills run Advisory mode."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:project-organization docs/",
+        "note": "Standardizes doc names and locations."
+      },
+      {
+        "cmd": "/ak:project-organization assets/ plans/",
+        "note": "Organizes assets and plans by category."
+      },
+      {
+        "cmd": "/ak:project-organization where should scout reports be saved?",
+        "note": "Advisory question about path and name."
+      }
+    ],
+    "tips": [
+      "Git does not protect untracked or uncommitted content; review the proposal table before approving moves.",
+      "Date format comes from $CK_PLAN_DATE_FORMAT, default YYMMDD-HHmm.",
+      "Code file names follow the descriptive-name hook: kebab-case for JS/TS/Python/Shell, PascalCase for C#/Java/Swift, snake_case for Go/Rust.",
+      "This is a fallback; repo conventions and generator contracts always win."
+    ],
+    "related": [
+      "ak-docs",
+      "ak-folder-context",
+      "ak-plan",
+      "ak-journal"
+    ],
+    "agents": [],
+    "artifacts": [
+      "Moved or renamed files/folders",
+      "New category folders, .gitkeep for empty folders"
+    ]
+  },
+  "ak-ak": {
+    "tagline": "Operate the ak CLI safely: install, inspect, update, recover, and remove kits and skills.",
+    "summary": "ak:ak teaches agents to use the ak CLI without damaging user state. It classifies command effects (read-only, mutating, diagnostic), resolves project vs user/global scope, inspects before changing, and snapshots before recover or uninstall. ak --help and --json are canonical; references/command-reference.md is only a starting index.",
+    "howItWorks": [
+      "Triages the goal as read-only, mutating, or diagnostic (TUI, GUI, watch, daemon).",
+      "Runs ak <cmd> --help; scripted read-only work adds --json --no-interactive for an envelope with schema_version, kind, data.",
+      "Confirms scope: project (working tree) or user/global (~/.claude, ~/.agents, ~/.codex).",
+      "Also confirms kit source (embedded, registry, local path) and adapter/delivery mode.",
+      "Inspects before mutating: ak doctor, ak kit list-kits, ak kit validate, ak skill verify, ak plan status, ak backups list.",
+      "Snapshots with ak backups create before ak recover, ak backups restore, ak uninstall, or any --fresh command.",
+      "Keeps unknown files; never combines --force with --fresh; reports conflicts instead of overwriting.",
+      "Smoke-tests installers, refresh, and recovery in a temp home (AGENTKIT_HOME, AGENTKIT_CLAUDE_HOME, CODEX_HOME), never on real state.",
+      "Reports the exact command, scope, result, and unresolved constraints."
+    ],
+    "useWhen": [
+      "Installing, refreshing, validating, or removing an AgentKit kit.",
+      "Listing, searching, installing, or verifying skills (ak skills / ak skill).",
+      "Diagnosing installs with ak doctor or ak diagnostics export.",
+      "Safely recovering from a broken install (ak recover, ak backups restore).",
+      "Reading and interpreting ak <cmd> --json output."
+    ],
+    "avoidWhen": [
+      "Writing or editing a skill: use ak:skill-creator.",
+      "Choosing a skill for a task: use ak:agentkit.",
+      "Writing or executing plans: use ak:plan, ak:cook.",
+      "Writing a journal: use ak:journal."
+    ],
+    "params": [
+      {
+        "name": "[goal or subcommand]",
+        "kind": "arg",
+        "desc": "Goal (e.g. 'install the engineer kit for this project') or a specific ak subcommand. Exact flags always come from ak <cmd> --help."
+      },
+      {
+        "name": "init | new | setup | onboard",
+        "kind": "subcommand",
+        "desc": "Bootstrap/setup group, all mutating. ak setup only writes user config; ak onboard runs setup, login, then kit install."
+      },
+      {
+        "name": "kit",
+        "kind": "subcommand",
+        "desc": "init|install|refresh|validate|uninstall|list-kits|repair-install-mode. list-kits and validate are read-only; the rest mutate."
+      },
+      {
+        "name": "skills / skill",
+        "kind": "subcommand",
+        "desc": "ak skills list|show|search|install|remove|graph for inventory; ak skill install|remove|repair|upgrade|verify per skill."
+      },
+      {
+        "name": "plan / journal",
+        "kind": "subcommand",
+        "desc": "plan list|show|status|search|validate|resolve|parse are read-only; create|check|uncheck|add-phase|update|use|archive|close|reindex|migrate mutate; plan kanban is a diagnostic TUI. journal list|show|validate read; journal create writes."
+      },
+      {
+        "name": "doctor / diagnostics / backups",
+        "kind": "subcommand",
+        "desc": "Mostly read-only diagnostics (doctor, activity, audit, sessions, analytics, versions, changelog, diagnostics export); backups create/list snapshot before mutating."
+      },
+      {
+        "name": "recover",
+        "kind": "subcommand",
+        "desc": "Recovery; mutating and irreversible without a prior ak backups create. Always confirm scope and preview."
+      },
+      {
+        "name": "self-update",
+        "kind": "subcommand",
+        "desc": "Updates the binary; run ak versions and read ak changelog first. The binary may be newer than installed skills until the next ak update."
+      },
+      {
+        "name": "login",
+        "kind": "subcommand",
+        "desc": "Top-level auth command (with logout, whoami, licenses), not under ak auth; writes user state."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:ak check whether the AgentKit install has problems",
+        "note": "Runs ak doctor and interprets the result."
+      },
+      {
+        "cmd": "/ak:ak install the engineer kit for this project",
+        "note": "Confirms project scope before mutating."
+      },
+      {
+        "cmd": "/ak:ak recover",
+        "note": "Snapshots with ak backups create before recovering."
+      },
+      {
+        "cmd": "/ak:ak self-update",
+        "note": "Checks versions/changelog before updating the binary."
+      }
+    ],
+    "tips": [
+      "Never invent flags: if it is not in ak <cmd> --help, it is not released.",
+      "\"Kit installed\" is not enough; always state project or global scope, adapter, and skipped conflicts.",
+      "--quiet beats --verbose; --verbose does not change the JSON envelope.",
+      "Never rerun a mutating command for more diagnostics; use --verbose on a read-only reproduction."
+    ],
+    "related": [
+      "ak-agentkit",
+      "ak-skill-creator",
+      "ak-plan",
+      "ak-journal",
+      "ak-plans-kanban",
+      "ak-orchestrate"
+    ],
+    "agents": [],
+    "artifacts": [
+      "Changes made by ak commands (kits/skills in project or user scope)",
+      "Backups from ak backups create",
+      "JSON envelopes from --json"
+    ]
+  },
+  "ak-find-skills": {
+    "tagline": "Find and install agent skills from the open ecosystem when you need new capability.",
+    "summary": "ak:find-skills discovers, compares, and installs skills via the Skills CLI (npx skills) and skills.sh. It runs only when you explicitly ask about finding or installing skills, or a verified capability gap blocks the task. For choosing among installed AgentKit skills, it checks the live catalog and domain-routing.md first.",
+    "howItWorks": [
+      "Identifies the need: domain, specific task, and whether a skill likely exists.",
+      "Choosing among installed AgentKit skills loads references/domain-routing.md, not the Skills CLI.",
+      "External search: npx skills find [query] with specific keywords.",
+      "Presents options: skill name, purpose, install command, skills.sh link.",
+      "On approval: npx skills add <owner/repo@skill>, with scope taken from the request and CLI help for scope and noninteractive flags.",
+      "Uses -g only when you choose a user-wide install.",
+      "Reports package origin, runtime, target scope, and observed result.",
+      "If nothing is found, says so, continues with existing capabilities, and suggests npx skills init."
+    ],
+    "useWhen": [
+      "You ask \"is there a skill for X?\".",
+      "You want to compare a few community skills before installing.",
+      "A verified missing capability is blocking the task.",
+      "You want to check or update installed skills (npx skills check, npx skills update)."
+    ],
+    "avoidWhen": [
+      "Ordinary requests already covered by installed workflows: just do the work.",
+      "Choosing an AgentKit skill for a task: use ak:agentkit.",
+      "Writing a new skill: use ak:skill-creator.",
+      "Installing or removing AgentKit kits: use ak:ak."
+    ],
+    "params": [
+      {
+        "name": "[capability or task description]",
+        "kind": "arg",
+        "desc": "Capability or task to find a skill for; used as the npx skills find query."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:find-skills react performance",
+        "note": "Finds React performance skills."
+      },
+      {
+        "cmd": "/ak:find-skills changelog",
+        "note": "Finds changelog generation skills."
+      },
+      {
+        "cmd": "/ak:find-skills which installed skill fits SEO work?",
+        "note": "Picks from the installed catalog via domain-routing.md."
+      }
+    ],
+    "tips": [
+      "Use specific keywords ('react testing' beats 'testing'); try synonyms like deploy/deployment/ci-cd.",
+      "Common sources: vercel-labs/agent-skills, ComposioHQ/awesome-claude-skills.",
+      "Use -g only for a user-wide install; default is the current project scope.",
+      "External skills are third-party code and prompts; check provenance before installing."
+    ],
+    "related": [
+      "ak-agentkit",
+      "ak-skill-creator",
+      "ak-ak",
+      "ak-help"
+    ],
+    "agents": [],
+    "artifacts": [
+      "Skill installed via npx skills add (skill folder in project or user scope)"
+    ]
+  },
+  "ak-skill-creator": {
+    "tagline": "Create, update, audit, optimize, and package agent skills with validation and evals.",
+    "summary": "ak:skill-creator has 4 workflows: create, update (bumps metadata.version), audit (report only), and optimize (proposes a diff, applies only with --apply). It resolves scope (project by default, kit only inside the AgentKit repo, user on request) and writes guidance for a fresh consumer on the target runtime. It requires evidence proportional to the change type before calling work done.",
+    "howItWorks": [
+      "Picks the workflow: create → skill-creation-workflow.md; update → writing-effective-instructions.md + testing-and-iteration.md; audit/optimize → prompt-cruft-patterns.md.",
+      "Resolves scope via agentkit-kit-skill-contract.md: kits/<kit>/skills/ak-<slug>/, .claude/skills/<slug>/ or .agents/skills/<slug>/, or the runtime's user skill folder.",
+      "Creates a skeleton when needed: scripts/init_skill.py <name> --path <dir> [--kit <kit>].",
+      "Writes outcome, context, constraints, and verification; keeps routing short and specific per metadata-quality-criteria.md.",
+      "States permission boundaries and sensitive-data rules.",
+      "Validates with uv run scripts/quick_validate.py <skill-dir> and uv run --with PyYAML==6.0.3 scripts/lint_cruft.py <skill-dir> --routing.",
+      "High findings are rewritten or recorded as scoped exceptions.",
+      "Evidence by change type: metadata → real routing traces (positive and nearby negative).",
+      "Instructions/scripts → compare baseline and candidate consumer artifacts (create compares with no skill); packaging → inspect package contents.",
+      "--advice calls kongming at checkpoints; --long-horizon follows long-horizon-repository-architecture.md for new targets only.",
+      "Audit ends with findings, kept constraints, and proposed changes; optimize ends with a diff or applied change plus comparison results."
+    ],
+    "useWhen": [
+      "Creating a skill for a recurring team workflow.",
+      "A skill does not trigger at the right time and routing needs diagnosis.",
+      "Auditing a skill or whole kit for stale or redundant instructions.",
+      "Optimizing a skill from an existing audit report.",
+      "Packaging a skill for marketplace distribution."
+    ],
+    "avoidWhen": [
+      "Building a CLI or MCP server: use ak:agentize or ak:mcp-builder.",
+      "Finding or installing existing skills: use ak:find-skills.",
+      "Installing or removing kits or skills via CLI: use ak:ak.",
+      "Only rewording a rule file in imperative style: use imperative-writing."
+    ],
+    "params": [
+      {
+        "name": "create <name or description>",
+        "kind": "subcommand",
+        "desc": "Creates a new skill: resolves target, captures intent, writes, and evaluates."
+      },
+      {
+        "name": "update <path> <change>",
+        "kind": "subcommand",
+        "desc": "Edits an existing skill and its resources, keeps accepted behavior, bumps metadata.version."
+      },
+      {
+        "name": "audit [path|kit|--all]",
+        "kind": "subcommand",
+        "desc": "Inventory, provenance, lint, and semantic review with proposed hunks. Report only, no edits. Accepts --target-model <model>."
+      },
+      {
+        "name": "optimize <path>",
+        "kind": "subcommand",
+        "desc": "Classifies findings, compares baseline with a scratch candidate, keeps justified constraints; proposes a diff by default."
+      },
+      {
+        "name": "[skill-name|path|kit|--all]",
+        "kind": "arg",
+        "desc": "Target: skill name, path, kit name, or --all for every skill (with audit)."
+      },
+      {
+        "name": "--kit <kit>",
+        "kind": "flag",
+        "desc": "Creates the skill in an AgentKit kit (kits/<kit>/skills/ak-<slug>/, namespace ak:<slug>); valid only inside the AgentKit repo."
+      },
+      {
+        "name": "--project",
+        "kind": "flag",
+        "desc": "Creates the skill in project scope (.claude/skills/<slug>/ or .agents/skills/<slug>/). Default scope."
+      },
+      {
+        "name": "--user",
+        "kind": "flag",
+        "desc": "Creates the skill in the runtime's user skill folder; only on request."
+      },
+      {
+        "name": "--long-horizon",
+        "kind": "flag",
+        "desc": "Follows the long-horizon repository architecture with scaffold template and building loop; new targets only, protecting existing targets and global host config."
+      },
+      {
+        "name": "--apply",
+        "kind": "flag",
+        "desc": "With optimize: applies the proposed diff instead of only presenting it."
+      },
+      {
+        "name": "--from-audit <report>",
+        "kind": "flag",
+        "desc": "With optimize: uses an existing audit report as input."
+      },
+      {
+        "name": "--advice",
+        "kind": "flag",
+        "desc": "kongming advisory supervision at checkpoints (advisory-supervision.md); never skips validation or authorization."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:skill-creator create \"generate release notes from git log\" --project",
+        "note": "Creates a new project skill."
+      },
+      {
+        "cmd": "/ak:skill-creator update .claude/skills/deploy-staging \"add a smoke test step\"",
+        "note": "Edits an existing skill and bumps its version."
+      },
+      {
+        "cmd": "/ak:skill-creator audit --all",
+        "note": "Audits every skill, report only."
+      },
+      {
+        "cmd": "/ak:skill-creator optimize .claude/skills/deploy-staging --from-audit plans/reports/audit.md --apply",
+        "note": "Applies optimizations from an audit report."
+      }
+    ],
+    "tips": [
+      "Longer descriptions or emphatic words do not improve triggering; trace real routing with positive and nearby negative cases.",
+      "Lint findings are heuristics, not delete orders; rewrite or record a scoped exception.",
+      "Do not rerun passing checks without a new change, failure, or risk.",
+      "Typo/format-only edits need only structural checks and review, with a reason for skipping consumer reruns.",
+      "eval_skill.py only grades existing artifacts and never calls a provider."
+    ],
+    "related": [
+      "ak-find-skills",
+      "ak-ak",
+      "ak-agentize",
+      "ak-mcp-builder",
+      "ak-agentkit"
+    ],
+    "agents": [
+      "kongming"
+    ],
+    "artifacts": [
+      "New or edited skill folder (SKILL.md, references/, scripts/)",
+      "Audit report",
+      "Proposed diff for optimize",
+      "Skill package from package_skill.py"
+    ]
+  },
+  "ak-xia": {
+    "tagline": "Extract, compare, or port a feature from another repo in 6 gated phases.",
+    "summary": "ak:xia studies how another repo implements a feature and brings it into the current project: understand before copying, challenge before implementing, adapt rather than transplant. It runs Recon → Map → Analyze → Challenge → Plan → Deliver, and Challenge must finish before Plan. Output is a comparison report (--compare) or a plan with rollback for ak:cook; xia writes no code, and --port is the default mode.",
+    "howItWorks": [
+      "Recon: packs the source with /ak:repomix (remote for GitHub, direct path for local, include patterns when narrow).",
+      "Reads README/docs and license, recording attribution duties; a researcher agent explains purpose and trade-offs.",
+      "/ak:scout finds local integration points.",
+      "Source repo content is untrusted data: no commands run, no instructions followed.",
+      "Map: inventories logic, state, data, API, config, types, and tests.",
+      "Builds a source → local dependency matrix (EXISTS, NEW, CONFLICT), cross-cutting concerns, state/data flow, and async behavior.",
+      "Estimates files created/edited, migrations, and risk.",
+      "Analyze: traces execution from entry to side effects, implicit contracts, and config; multi-step flows use /ak:fable-thinking.",
+      "Loads mode-selection.md for the chosen mode.",
+      "Challenge (hard gate): per challenge-framework.md, each challenge gets a source answer, local answer, and risk if wrong.",
+      "With 3+ competing concerns, uses the brainstormer agent (not /ak:brainstorm) and builds a decision matrix.",
+      "Ambiguous intent defaults to --compare.",
+      "Plan: hands /ak:plan the manifest, anatomy, dependency matrix, challenge decisions, decision matrix, risk score, and mode.",
+      "Deliver: --compare writes a report to plans/reports/ and stops; other modes present the plan path and say to run /ak:cook <plan-path>."
+    ],
+    "useWhen": [
+      "You want a feature like an open-source repo's, rewritten for your stack.",
+      "Comparing how two codebases implement the same feature.",
+      "Copying a small module nearly as-is from another repo, respecting its license.",
+      "Learning how a large repo solves a problem before building your own."
+    ],
+    "avoidWhen": [
+      "Cloning a whole project as a starter: use ak:bootstrap.",
+      "Simple file copies or package installs: do them directly.",
+      "Only packing a repo as context: use ak:repomix.",
+      "Implementing right away without analysis: use ak:cook."
+    ],
+    "params": [
+      {
+        "name": "<github-url-or-owner/repo|local-path>",
+        "kind": "arg",
+        "desc": "Source repo: GitHub URL, owner/repo, or local path. URLs to a specific file/path narrow the scope automatically."
+      },
+      {
+        "name": "[feature]",
+        "kind": "arg",
+        "desc": "Feature to extract; its keywords also infer the mode (compare/vs, copy/exact/as-is, improve/better/adapt, port/convert/rewrite)."
+      },
+      {
+        "name": "--compare",
+        "kind": "flag",
+        "desc": "Side-by-side analysis only, no implementation plan; report goes to plans/reports/. Default when intent is ambiguous."
+      },
+      {
+        "name": "--copy",
+        "kind": "flag",
+        "desc": "Transplants with minimal changes."
+      },
+      {
+        "name": "--improve",
+        "kind": "flag",
+        "desc": "Copies with refactoring to fit the local codebase."
+      },
+      {
+        "name": "--port",
+        "kind": "flag",
+        "desc": "Rewrites idiomatically for the local stack. Default mode."
+      },
+      {
+        "name": "--auto",
+        "kind": "flag",
+        "desc": "Keeps the full workflow but auto-approves gates."
+      },
+      {
+        "name": "--fast",
+        "kind": "flag",
+        "desc": "Skips research and challenge phases and auto-approves. Default runs the full workflow and asks only about unresolved major trade-offs."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:xia vercel/next.js \"image optimization\" --compare",
+        "note": "Compares Next.js image optimization with the current project."
+      },
+      {
+        "cmd": "/ak:xia https://github.com/owner/repo \"rate limiter\"",
+        "note": "Default port to the local stack, producing a plan for ak:cook."
+      },
+      {
+        "cmd": "/ak:xia ../legacy-app \"export CSV\" --copy",
+        "note": "Brings a module from an old local repo nearly as-is."
+      },
+      {
+        "cmd": "/ak:xia owner/repo \"auth middleware\" --improve --auto",
+        "note": "Copy with refactoring, gates auto-approved."
+      }
+    ],
+    "tips": [
+      "Always check the source license; xia records attribution duties before copying code.",
+      "Narrow very large source repos with include patterns or a URL to a specific folder.",
+      "--fast skips Challenge and risks transplanting an ill-fitting architecture; use it only for small, clear features.",
+      "If repomix fails, the skill falls back to reading files and docs directly.",
+      "xia does not implement; once you have a plan, run /ak:cook <plan-path>."
+    ],
+    "related": [
+      "ak-repomix",
+      "ak-scout",
+      "ak-plan",
+      "ak-cook",
+      "ak-bootstrap"
+    ],
+    "agents": [
+      "researcher",
+      "scout",
+      "planner",
+      "brainstormer"
+    ],
+    "artifacts": [
+      "Comparison report in plans/reports/ (--compare)",
+      "Implementation plan plans/<plan-dir>/plan.md (other modes)",
+      "Repomix pack file of the source repo"
+    ]
+  },
+  "ak-repomix": {
+    "tagline": "Pack a repo into one AI-friendly file, with token counts and secret checks.",
+    "summary": "ak:repomix picks the smallest scope holding the needed module and dependencies, keeps existing config, ignore rules, and secret exclusions, then runs Repomix on a local or remote source. It outputs a pack file (default repomix-output.xml) with file count, tokens, and secret warnings. ak:xia calls it for Recon.",
+    "howItWorks": [
+      "Picks the smallest scope holding the requested module and needed dependencies; never packs a whole monorepo for one module.",
+      "Checks existing Repomix config and ignore rules, keeping secret exclusions.",
+      "Determines local or remote source, revision, output format, and destination.",
+      "Checks installed CLI help for version-dependent options (examples in references/cli-recipes.md).",
+      "Runs a scoped pack, e.g. repomix --include \"src/**/*.ts\" --style markdown -o out.md, or npx repomix --remote owner/repo.",
+      "Checks the file list, token summary, and secret warnings; confirms no needed dependency is missing and nothing sensitive leaked.",
+      "Reuses an old pack only when input file hashes, revision, and config are unchanged.",
+      "Reports source/revision, scope, output path, counts, and limits."
+    ],
+    "useWhen": [
+      "Onboarding an unfamiliar codebase and loading whole modules into LLM context.",
+      "Analyzing or auditing a third-party GitHub library without cloning.",
+      "Preparing a context file for AI review.",
+      "Snapshotting a codebase at a specific revision."
+    ],
+    "avoidWhen": [
+      "Finding a few relevant files: use ak:scout.",
+      "Repeated relationship queries: use ak:graphify.",
+      "Precise go-to-definition/find-usages: use ak:gkg.",
+      "Porting a feature from another repo: use ak:xia (it calls repomix itself)."
+    ],
+    "params": [
+      {
+        "name": "[path]",
+        "kind": "arg",
+        "desc": "Local path to pack (default current folder); for remote sources use owner/repo or a URL via Repomix --remote."
+      },
+      {
+        "name": "--style xml|markdown|plain|json",
+        "kind": "flag",
+        "desc": "Output format; Repomix defaults to XML (repomix-output.xml)."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:repomix",
+        "note": "Packs the current folder as XML."
+      },
+      {
+        "cmd": "/ak:repomix src/payments --style markdown",
+        "note": "Packs only the payments module as Markdown for review."
+      },
+      {
+        "cmd": "/ak:repomix yamadashy/repomix --style xml",
+        "note": "Packs a remote repo for analysis without cloning."
+      },
+      {
+        "cmd": "/ak:repomix vendor/library --style json",
+        "note": "Snapshots a third-party library for audit."
+      }
+    ],
+    "tips": [
+      "Never disable secret checks just to get output.",
+      "Check the token summary before loading the file into context; oversized packs waste budget.",
+      "Repomix --remove-comments cuts tokens when only code structure matters.",
+      "Remote packs can pin a revision via a .../commit/<hash> URL."
+    ],
+    "related": [
+      "ak-xia",
+      "ak-scout",
+      "ak-graphify",
+      "ak-gkg",
+      "ak-security"
+    ],
+    "agents": [],
+    "artifacts": [
+      "Pack file repomix-output.xml (or .md/.txt/.json per --style and -o)"
+    ]
+  },
+  "ak-graphify": {
+    "tagline": "Build queryable knowledge graphs from code, docs, papers, and images.",
+    "summary": "ak:graphify turns a folder of code, docs, or images into a knowledge graph in 3 passes: tree-sitter AST for code (20 languages, local), Whisper for audio/video (local), and LLM subagents for docs/papers/images (sent to a provider). Output lands in graphify-out/: interactive graph.html, GRAPH_REPORT.md, graph.json, and an incremental cache. It can serve the graph over MCP and pays off only when repeated relationship queries justify the build cost.",
+    "howItWorks": [
+      "Weighs cost: single-function or small-file lookups use native search.",
+      "Checks existing graph/cache and source revision; refreshes only stale inputs.",
+      "Before LLM processing, lists which docs/images will leave the machine and confirms they are within your allowed scope.",
+      "Installs if needed: pip install graphifyy (two y's; [mcp] or [all] for extras); never runs graphify install inside AgentKit.",
+      "Pass 1: tree-sitter extracts AST (imports, calls, inheritance) → EXTRACTED edges.",
+      "Pass 2: Whisper transcribes media locally.",
+      "Pass 3: parallel LLM subagents extract semantics from docs/papers/images → INFERRED (with confidence) or AMBIGUOUS edges.",
+      "Writes graphify-out/graph.html, GRAPH_REPORT.md, graph.json, and cache/ (SHA256; only changed files reprocess).",
+      "Optional MCP: python -m graphify.serve graphify-out/graph.json with query_graph, get_node, get_neighbors, shortest_path.",
+      "Verifies important inferred edges against source; records build time/cost when observed, otherwise unknown."
+    ],
+    "useWhen": [
+      "Asking repeated questions about architecture and dependency chains in a large codebase.",
+      "Finding god nodes (most connected concepts) before refactoring.",
+      "Discovering cross-file links between code and design docs.",
+      "Understanding architecture before running ak:plan.",
+      "Letting Claude query the graph directly via MCP."
+    ],
+    "avoidWhen": [
+      "Looking up one function or small file: use native search or ak:scout.",
+      "Dumping all context once: use ak:repomix.",
+      "Precise language-aware go-to-definition/find-usages: use ak:gkg.",
+      "Sensitive docs that must not reach a provider: the semantic pass sends docs/images out."
+    ],
+    "params": [
+      {
+        "name": "[path]",
+        "kind": "arg",
+        "desc": "Folder to graph; defaults to the current folder (graphify .)."
+      },
+      {
+        "name": "--mcp",
+        "kind": "flag",
+        "desc": "(not documented in source) Maps to MCP server mode: serves graph.json via python -m graphify.serve so Claude can call query_graph, get_node, get_neighbors, shortest_path; needs graphifyy[mcp]."
+      },
+      {
+        "name": "--report",
+        "kind": "flag",
+        "desc": "(not documented in source) Relates to GRAPH_REPORT.md: god nodes, surprising links, suggested questions."
+      },
+      {
+        "name": "--watch",
+        "kind": "flag",
+        "desc": "Watch mode: rebuilds the graph on file changes (graphify . --watch), incrementally via cache."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:graphify",
+        "note": "Builds a graph for the current folder."
+      },
+      {
+        "cmd": "/ak:graphify services/billing --report",
+        "note": "Graphs one service and reads GRAPH_REPORT.md."
+      },
+      {
+        "cmd": "/ak:graphify . --watch",
+        "note": "Keeps the graph current while editing code."
+      },
+      {
+        "cmd": "/ak:graphify . --mcp",
+        "note": "Serves the graph over MCP for direct queries."
+      }
+    ],
+    "tips": [
+      "The PyPI package is graphifyy (two y's); other graphify* packages are unrelated.",
+      "The first build on a large codebase can be slow; later builds process only changed files.",
+      "INFERRED/AMBIGUOUS edges come from an LLM; verify against source before key decisions.",
+      "Code is processed locally; only docs/images go to a provider for the semantic pass.",
+      "Neo4j and Leiden community detection need separate extras ([neo4j], [leiden])."
+    ],
+    "related": [
+      "ak-repomix",
+      "ak-scout",
+      "ak-gkg",
+      "ak-plan",
+      "ak-diagram"
+    ],
+    "agents": [
+      "LLM semantic-extraction subagents (pass 3)"
+    ],
+    "artifacts": [
+      "graphify-out/graph.html",
+      "graphify-out/GRAPH_REPORT.md",
+      "graphify-out/graph.json",
+      "graphify-out/cache/"
+    ]
+  },
+  "ak-gkg": {
+    "tagline": "Semantic code navigation with GitLab Knowledge Graph: definitions, usages, impact analysis.",
+    "summary": "ak:gkg uses GitLab Knowledge Graph (AST + KuzuDB) to give AI IDE-like navigation: go-to-definition, find-usages, pre-refactor impact analysis, and architecture maps. It reuses an existing index/server, reindexes only missing or stale parts, and queries via HTTP API (localhost:27495) or MCP. Cross-file references are complete for Ruby, Java, Kotlin, and still maturing for Python/TypeScript/JavaScript; it needs a git repo and stores data in ~/.gkg/.",
+    "howItWorks": [
+      "Checks install with gkg --version; installs via install.sh/install.ps1 if missing.",
+      "Checks for a fresh index and running server; queries right away when current.",
+      "Reindexes only missing or stale parts: gkg index [path] [--stats].",
+      "Stops a server for reindexing only if this task owns it; otherwise uses native search or coordinates.",
+      "Starts a server when needed: gkg server start (--register-mcp adds an MCP endpoint).",
+      "Queries via HTTP API or MCP tools: list_projects, search_codebase_definitions, index_project, get_references, read_definitions, get_definition, repo_map.",
+      "Impact analysis: get_references on the changed symbol, then review every call site before refactoring.",
+      "For partially supported languages, empty results do not prove no callers; cross-check with native search."
+    ],
+    "useWhen": [
+      "Finding every caller of a function or class before changing its signature.",
+      "Go-to-definition for symbols in a large codebase.",
+      "Impact analysis before refactoring in Ruby/Java/Kotlin repos.",
+      "Generating a repo map or architecture diagram from the graph."
+    ],
+    "avoidWhen": [
+      "Quick context dumps, any-language support, remote repos, or token counts: use ak:repomix.",
+      "Not a git repo: gkg needs an initialized repo.",
+      "Python/TS/JS repos needing complete reference coverage: combine native search or ak:scout.",
+      "Graphs that include docs and images: use ak:graphify."
+    ],
+    "params": [
+      {
+        "name": "[symbol or query]",
+        "kind": "arg",
+        "desc": "Symbol name (function, class, method) or a query: find definition, find usages, impact analysis."
+      }
+    ],
+    "examples": [
+      {
+        "cmd": "/ak:gkg UserService#authenticate",
+        "note": "Finds the definition and every caller before changing logic."
+      },
+      {
+        "cmd": "/ak:gkg impact of renaming OrderRepository.findByStatus",
+        "note": "Lists affected call sites."
+      },
+      {
+        "cmd": "/ak:gkg repo map of the billing module",
+        "note": "Shows module structure via repo_map."
+      }
+    ],
+    "tips": [
+      "Never stop another session's gkg server; establish ownership before reindexing.",
+      "Default port is 27495; if busy, gkg picks a free port. Check gkg server status.",
+      "Empty results on TS/JS/Python may not mean no references; always cross-check with grep.",
+      "Run gkg clean --dry-run to see orphaned data before cleaning."
+    ],
+    "related": [
+      "ak-repomix",
+      "ak-graphify",
+      "ak-scout",
+      "ak-debug"
+    ],
+    "agents": [],
+    "artifacts": [
+      "Index and database in ~/.gkg/",
+      "gkg server process (HTTP localhost:27495)"
+    ]
+  }
+}
